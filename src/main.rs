@@ -100,7 +100,7 @@ fn main() {
         thread::spawn(move || {
             let umc = CaptureDevice::new(
                 "hw:CARD=U192k,DEV=0",
-                1,
+                2,
                 192_000,
                 Format::s32(),
                 "../data/umc/",
