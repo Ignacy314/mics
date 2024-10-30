@@ -249,7 +249,8 @@ impl Imu {
         };
         let mag_magnitude = mag.iter().map(|a| a.powi(2)).sum::<f32>().sqrt();
         let angle = mag[1].atan2(mag[2]) - self.north_vector[1].atan2(self.north_vector[0]);
-        let angle = angle - 2.0 * PI * (angle / (2.0 * PI)).floor();
+        //let angle = angle - 2.0 * PI * (angle / (2.0 * PI)).floor();
+        let angle = angle % (2.0 * PI);
         let angle = angle * 180.0 / PI;
 
         (angle, mag_magnitude)
