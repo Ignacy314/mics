@@ -101,7 +101,7 @@ fn main() {
             let umc = CaptureDevice::new(
                 "hw:CARD=U192k,DEV=0",
                 2,
-                192_000,
+                48_000,
                 Format::s32(),
                 "../data/umc/",
                 running_clone.clone(),
