@@ -233,7 +233,10 @@ impl Reader {
 
             if let Some(imu) = self.device_manager.imu.as_mut() {
                 match imu.get_data() {
-                    Ok(d) => data.imu = Some(d),
+                    Ok(d) => {
+                        eprintln!("{}", d.angle_rel_to_north);
+                        data.imu = Some(d);
+                    }
                     Err(e) => {
                         self.handle_imu_data_error(&e);
                     }

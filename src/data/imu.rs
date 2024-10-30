@@ -275,7 +275,7 @@ pub struct Data {
     accel: [f32; 3],
     gyro: [f32; 3],
     mag: [f32; 3],
-    angle_rel_to_north: f32,
+    pub angle_rel_to_north: f32,
     mag_magnitute: f32,
     //temp: f32,
 }
