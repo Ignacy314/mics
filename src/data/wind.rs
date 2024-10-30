@@ -1,6 +1,5 @@
-use std::thread;
 //#![allow(unused)]
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use rppal::uart::{Parity, Uart};
 use serde::{Deserialize, Serialize};
@@ -20,6 +19,12 @@ impl Wind {
         uart.set_read_mode(0, timeout)?;
         uart.set_write_mode(true)?;
         Ok(Self { device: uart })
+    }
+
+    pub fn send_query(&mut self) -> Result<(), Error> {
+        self.device.flush(rppal::uart::Queue::Both)?;
+        self.device.write(&Self::QUERY)?;
+        Ok(())
     }
 }
 
@@ -42,23 +47,23 @@ impl Device for Wind {
     type Error = Error;
 
     fn get_data(&mut self) -> Result<Self::Data, Self::Error> {
-        const TIMEOUT: Duration = Duration::from_millis(1000);
-
-        self.device.flush(rppal::uart::Queue::Both)?;
-        self.device.write(&Self::QUERY)?;
-        let start = Instant::now();
-        //thread::sleep(Duration::from_millis(200));
-        let mut elapsed = start.elapsed();
-        while self.device.input_len()? < 81 && elapsed < TIMEOUT {
-            elapsed = start.elapsed();
-        }
-        //eprintln!("{}", self.device.input_len()?);
-        if elapsed >= TIMEOUT {
+        //const TIMEOUT: Duration = Duration::from_millis(1000);
+        //
+        //self.device.flush(rppal::uart::Queue::Both)?;
+        //self.device.write(&Self::QUERY)?;
+        //let start = Instant::now();
+        //let mut elapsed = start.elapsed();
+        //while self.device.input_len()? < 81 && elapsed < TIMEOUT {
+        //    elapsed = start.elapsed();
+        //}
+        //if elapsed >= TIMEOUT {
+        //    return Err(Error::NoData);
+        //}
+        if self.device.input_len()? != 81 {
             return Err(Error::NoData);
         }
         let mut buf = [0u8; 81];
         let _n_bytes = self.device.read(&mut buf)?;
-        //eprintln!("{n_bytes}");
         let dir = u16::from_be_bytes(buf[5..7].try_into().unwrap());
         let speed = f32::from_be_bytes(buf[7..11].try_into().unwrap());
 

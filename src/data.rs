@@ -46,11 +46,14 @@ pub struct Reader {
 }
 
 impl Reader {
+    const PERIOD_MILLIS: u64 = 200;
+    const COUNTER_MODULO: u64 = 5000u64 / Self::PERIOD_MILLIS;
+
     pub fn new() -> Self {
         Self {
             device_manager: DeviceManager::new(),
             path: "../data/data",
-            read_period: Duration::from_secs(5),
+            read_period: Duration::from_millis(Self::PERIOD_MILLIS),
         }
     }
 
@@ -155,16 +158,26 @@ impl Reader {
 
     #[allow(clippy::too_many_lines)]
     pub fn read(&mut self, running: &Arc<AtomicBool>) {
+        let mut counter = Self::COUNTER_MODULO - 1;
         while running.load(std::sync::atomic::Ordering::Relaxed) {
             let start = Instant::now();
 
             let mut data = Data::default();
 
             if let Some(wind) = self.device_manager.wind.as_mut() {
-                match wind.get_data() {
-                    Ok(d) => data.wind = Some(d),
-                    Err(e) => {
-                        self.handle_wind_data_error(&e);
+                if counter == 0 {
+                    match wind.send_query() {
+                        Ok(()) => {}
+                        Err(e) => {
+                            self.handle_wind_data_error(&e);
+                        }
+                    }
+                } else if counter == Self::COUNTER_MODULO - 1 {
+                    match wind.get_data() {
+                        Ok(d) => data.wind = Some(d),
+                        Err(e) => {
+                            self.handle_wind_data_error(&e);
+                        }
                     }
                 }
             } else {
@@ -179,10 +192,12 @@ impl Reader {
             }
 
             if let Some(gps) = self.device_manager.gps.as_mut() {
-                match gps.get_data() {
-                    Ok(d) => data.gps = Some(d),
-                    Err(e) => {
-                        self.handle_gps_data_error(&e);
+                if counter == 0 {
+                    match gps.get_data() {
+                        Ok(d) => data.gps = Some(d),
+                        Err(e) => {
+                            self.handle_gps_data_error(&e);
+                        }
                     }
                 }
             } else {
@@ -197,10 +212,12 @@ impl Reader {
             }
 
             if let Some(aht) = self.device_manager.aht.as_mut() {
-                match aht.get_data() {
-                    Ok(d) => data.aht = Some(d),
-                    Err(e) => {
-                        self.handle_aht_data_error(&e);
+                if counter == 0 {
+                    match aht.get_data() {
+                        Ok(d) => data.aht = Some(d),
+                        Err(e) => {
+                            self.handle_aht_data_error(&e);
+                        }
                     }
                 }
             } else {
@@ -233,10 +250,12 @@ impl Reader {
             }
 
             if let Some(bmp) = self.device_manager.bmp.as_mut() {
-                match bmp.get_data() {
-                    Ok(d) => data.bmp = Some(d),
-                    Err(e) => {
-                        self.handle_bmp_data_error(&e);
+                if counter == 0 {
+                    match bmp.get_data() {
+                        Ok(d) => data.bmp = Some(d),
+                        Err(e) => {
+                            self.handle_bmp_data_error(&e);
+                        }
                     }
                 }
             } else {
@@ -250,34 +269,38 @@ impl Reader {
                 }
             }
 
-            let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-            let path = format!("{}/{nanos}.json", self.path);
-            match File::create(&path) {
-                Ok(file) => {
-                    #[derive(Serialize, Deserialize)]
-                    struct JsonData {
-                        statuses: Statuses,
-                        data: Data,
-                    }
-                    let writer = BufWriter::new(file);
-                    match serde_json::to_writer(
-                        writer,
-                        &JsonData {
-                            statuses: self.device_manager.statuses,
-                            data,
-                        },
-                    ) {
-                        Ok(()) => {}
-                        Err(e) => {
-                            warn!("Failed to serialize data to json: {e}");
+            if counter == 0 {
+                let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+                let path = format!("{}/{nanos}.json", self.path);
+                match File::create(&path) {
+                    Ok(file) => {
+                        #[derive(Serialize, Deserialize)]
+                        struct JsonData {
+                            statuses: Statuses,
+                            data: Data,
                         }
-                    };
-                }
-                Err(e) => {
-                    warn!("Failed to create data file: {e}");
-                }
-            };
+                        let writer = BufWriter::new(file);
+                        match serde_json::to_writer(
+                            writer,
+                            &JsonData {
+                                statuses: self.device_manager.statuses,
+                                data,
+                            },
+                        ) {
+                            Ok(()) => {}
+                            Err(e) => {
+                                warn!("Failed to serialize data to json: {e}");
+                            }
+                        };
+                    }
+                    Err(e) => {
+                        warn!("Failed to create data file: {e}");
+                    }
+                };
+            }
 
+            counter += 1;
+            counter %= Self::COUNTER_MODULO;
             thread::sleep(self.read_period.saturating_sub(start.elapsed()));
         }
     }
