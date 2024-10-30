@@ -252,7 +252,7 @@ impl Imu {
         //let angle = angle - 2.0 * PI * (angle / (2.0 * PI)).floor();
         //let angle = angle.sin().atan2(angle.cos()) + PI;
         //let angle = angle % (2.0 * PI);
-        let angle = angle * 180.0 / PI;
+        let angle = angle / PI;
 
         (angle, mag_magnitude)
     }
