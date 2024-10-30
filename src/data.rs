@@ -160,52 +160,11 @@ impl Reader {
 
             let mut data = Data::default();
 
-            //if let Some(gps) = self.device_manager.gps.as_mut() {
-            //    match gps.get_data() {
-            //        Ok(d) => data.gps = Some(d),
-            //        Err(e) => {
-            //            self.handle_gps_data_error(&e);
-            //            data.gps = None;
-            //        }
-            //    }
-            //} else {
-            //    match self.device_manager.try_set_gps() {
-            //        Ok(()) => {
-            //            info!("GPS device initiated");
-            //        }
-            //        Err(e) => {
-            //            self.handle_gps_init_error(&e);
-            //            data.gps = None;
-            //        }
-            //    }
-            //}
-            //
-            //if let Some(aht) = self.device_manager.aht.as_mut() {
-            //    match aht.get_data() {
-            //        Ok(d) => data.aht = Some(d),
-            //        Err(e) => {
-            //            self.handle_aht_data_error(&e);
-            //            data.aht = None;
-            //        }
-            //    }
-            //} else {
-            //    match self.device_manager.try_set_aht() {
-            //        Ok(()) => {
-            //            info!("AHT10 device initiated");
-            //        }
-            //        Err(e) => {
-            //            self.handle_aht_init_error(&e);
-            //            data.aht = None;
-            //        }
-            //    }
-            //}
-
             if let Some(wind) = self.device_manager.wind.as_mut() {
                 match wind.get_data() {
                     Ok(d) => data.wind = Some(d),
                     Err(e) => {
                         self.handle_wind_data_error(&e);
-                        data.wind = None;
                     }
                 }
             } else {
@@ -215,80 +174,111 @@ impl Reader {
                     }
                     Err(e) => {
                         self.handle_wind_init_error(&e);
-                        data.wind = None;
                     }
                 }
             }
 
-            //if let Some(imu) = self.device_manager.imu.as_mut() {
-            //    match imu.get_data() {
-            //        Ok(d) => data.imu = Some(d),
-            //        Err(e) => {
-            //            self.handle_imu_data_error(&e);
-            //            data.imu = None;
-            //        }
-            //    }
-            //} else {
-            //    match self.device_manager.try_set_imu() {
-            //        Ok(()) => {
-            //            info!("IMU device initiated");
-            //        }
-            //        Err(e) => {
-            //            self.handle_imu_init_error(&e);
-            //            data.imu = None;
-            //        }
-            //    }
-            //}
-            //
-            //if let Some(bmp) = self.device_manager.bmp.as_mut() {
-            //    match bmp.get_data() {
-            //        Ok(d) => data.bmp = Some(d),
-            //        Err(e) => {
-            //            self.handle_bmp_data_error(&e);
-            //            data.bmp = None;
-            //        }
-            //    }
-            //} else {
-            //    match self.device_manager.try_set_bmp() {
-            //        Ok(()) => {
-            //            info!("BMP280 device initiated");
-            //        }
-            //        Err(e) => {
-            //            self.handle_bmp_init_error(&e);
-            //            data.bmp = None;
-            //        }
-            //    }
-            //}
+            if let Some(gps) = self.device_manager.gps.as_mut() {
+                match gps.get_data() {
+                    Ok(d) => data.gps = Some(d),
+                    Err(e) => {
+                        self.handle_gps_data_error(&e);
+                    }
+                }
+            } else {
+                match self.device_manager.try_set_gps() {
+                    Ok(()) => {
+                        info!("GPS device initiated");
+                    }
+                    Err(e) => {
+                        self.handle_gps_init_error(&e);
+                    }
+                }
+            }
 
-            //let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-            //let path = format!("{}/{nanos}.json", self.path);
-            //match File::create(&path) {
-            //    Ok(file) => {
-            //        #[derive(Serialize, Deserialize)]
-            //        struct JsonData {
-            //            statuses: Statuses,
-            //            data: Data,
-            //        }
-            //        let writer = BufWriter::new(file);
-            //        match serde_json::to_writer(
-            //            writer,
-            //            &JsonData {
-            //                statuses: self.device_manager.statuses,
-            //                data,
-            //            },
-            //        ) {
-            //            Ok(()) => {}
-            //            Err(e) => {
-            //                warn!("Failed to serialize data to json: {e}");
-            //            }
-            //        };
-            //    }
-            //    Err(e) => {
-            //        warn!("Failed to create data file: {e}");
-            //    }
-            //};
+            if let Some(aht) = self.device_manager.aht.as_mut() {
+                match aht.get_data() {
+                    Ok(d) => data.aht = Some(d),
+                    Err(e) => {
+                        self.handle_aht_data_error(&e);
+                    }
+                }
+            } else {
+                match self.device_manager.try_set_aht() {
+                    Ok(()) => {
+                        info!("AHT10 device initiated");
+                    }
+                    Err(e) => {
+                        self.handle_aht_init_error(&e);
+                    }
+                }
+            }
 
-            //thread::sleep(self.read_period.saturating_sub(start.elapsed()));
+            if let Some(imu) = self.device_manager.imu.as_mut() {
+                match imu.get_data() {
+                    Ok(d) => data.imu = Some(d),
+                    Err(e) => {
+                        self.handle_imu_data_error(&e);
+                    }
+                }
+            } else {
+                match self.device_manager.try_set_imu() {
+                    Ok(()) => {
+                        info!("IMU device initiated");
+                    }
+                    Err(e) => {
+                        self.handle_imu_init_error(&e);
+                    }
+                }
+            }
+
+            if let Some(bmp) = self.device_manager.bmp.as_mut() {
+                match bmp.get_data() {
+                    Ok(d) => data.bmp = Some(d),
+                    Err(e) => {
+                        self.handle_bmp_data_error(&e);
+                    }
+                }
+            } else {
+                match self.device_manager.try_set_bmp() {
+                    Ok(()) => {
+                        info!("BMP280 device initiated");
+                    }
+                    Err(e) => {
+                        self.handle_bmp_init_error(&e);
+                    }
+                }
+            }
+
+            let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+            let path = format!("{}/{nanos}.json", self.path);
+            match File::create(&path) {
+                Ok(file) => {
+                    #[derive(Serialize, Deserialize)]
+                    struct JsonData {
+                        statuses: Statuses,
+                        data: Data,
+                    }
+                    let writer = BufWriter::new(file);
+                    match serde_json::to_writer(
+                        writer,
+                        &JsonData {
+                            statuses: self.device_manager.statuses,
+                            data,
+                        },
+                    ) {
+                        Ok(()) => {}
+                        Err(e) => {
+                            warn!("Failed to serialize data to json: {e}");
+                        }
+                    };
+                }
+                Err(e) => {
+                    warn!("Failed to create data file: {e}");
+                }
+            };
+
+            thread::sleep(self.read_period.saturating_sub(start.elapsed()));
         }
     }
 }

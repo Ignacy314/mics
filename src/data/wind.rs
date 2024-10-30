@@ -47,18 +47,18 @@ impl Device for Wind {
         self.device.flush(rppal::uart::Queue::Both)?;
         self.device.write(&Self::QUERY)?;
         let start = Instant::now();
-        thread::sleep(Duration::from_millis(200));
+        //thread::sleep(Duration::from_millis(200));
         let mut elapsed = start.elapsed();
-        //while self.device.input_len()? < 81 && elapsed < TIMEOUT {
-        //    elapsed = start.elapsed();
-        //}
+        while self.device.input_len()? < 81 && elapsed < TIMEOUT {
+            elapsed = start.elapsed();
+        }
         //eprintln!("{}", self.device.input_len()?);
-        //if elapsed >= TIMEOUT {
-        //    return Err(Error::NoData);
-        //}
+        if elapsed >= TIMEOUT {
+            return Err(Error::NoData);
+        }
         let mut buf = [0u8; 81];
-        let n_bytes = self.device.read(&mut buf)?;
-        eprintln!("{n_bytes}");
+        let _n_bytes = self.device.read(&mut buf)?;
+        //eprintln!("{n_bytes}");
         let dir = u16::from_be_bytes(buf[5..7].try_into().unwrap());
         let speed = f32::from_be_bytes(buf[7..11].try_into().unwrap());
 
