@@ -101,9 +101,7 @@ impl Imu {
             let (coeffs, north): ([f32; 3], [f32; 3]) = match bytemuck::try_cast_slice(&buf) {
                 Ok(c) => {
                     if c.len() != 6 {
-                        warn!(
-                            "Wrong data size when reading magnetometer coefficients from file"
-                        );
+                        warn!("Wrong data size when reading magnetometer coefficients from file");
                         return false;
                     }
                     let coeffs: [f32; 3] = match c[0..3].try_into() {
@@ -182,20 +180,14 @@ impl Imu {
         #[allow(clippy::cast_precision_loss)]
         let z_mean = z.iter().sum::<f32>() / z.len() as f32;
         #[allow(clippy::cast_precision_loss)]
-        let x_centered = x
-            .iter()
-            .map(|a| a - x.iter().sum::<f32>() / x.len() as f32)
-            .collect::<Vec<f32>>();
+        let x_centered = x.iter().map(|a| a - x_mean).collect::<Vec<f32>>();
         #[allow(clippy::cast_precision_loss)]
-        let y_centered = y
-            .iter()
-            .map(|a| a - y.iter().sum::<f32>() / y.len() as f32)
-            .collect::<Vec<f32>>();
+        let y_centered = y.iter().map(|a| a - y_mean).collect::<Vec<f32>>();
 
         #[allow(clippy::cast_precision_loss)]
-        let x_centered_mean = x_centered.iter().sum::<f32>() / x.len() as f32;
+        let x_centered_mean = x_centered.iter().sum::<f32>() / x_centered.len() as f32;
         #[allow(clippy::cast_precision_loss)]
-        let y_centered_mean = y_centered.iter().sum::<f32>() / y.len() as f32;
+        let y_centered_mean = y_centered.iter().sum::<f32>() / y_centered.len() as f32;
 
         let mag_max = (x_centered_mean.powi(2) + y_centered_mean.powi(2)).sqrt();
         if mag_max == 0.0 {
@@ -221,6 +213,20 @@ impl Imu {
                         return false;
                     }
                 }
+                let bytes: &[u8] = match bytemuck::try_cast_slice(&self.north_vector) {
+                    Ok(b) => b,
+                    Err(_e) => {
+                        warn!("Failed to cast magnetometer north vector to bytes");
+                        return false;
+                    }
+                };
+                match file.write_all(bytes) {
+                    Ok(()) => {}
+                    Err(_err) => {
+                        warn!("Failed to write to magnetometer north vector file");
+                        return false;
+                    }
+                }
             }
             Err(_err) => {
                 warn!("Failed to open magnetometer coefficients file");
@@ -243,7 +249,7 @@ impl Imu {
         };
         let mag_magnitude = mag.iter().map(|a| a.powi(2)).sum::<f32>().sqrt();
         let angle = mag[1].atan2(mag[2]) - self.north_vector[1].atan2(self.north_vector[0]);
-        let angle = angle - 2.0 * PI * (angle / (2.0 * PI)).floor();
+        //let angle = angle - 2.0 * PI * (angle / (2.0 * PI)).floor();
         let angle = angle * 180.0 / PI;
 
         (angle, mag_magnitude)
