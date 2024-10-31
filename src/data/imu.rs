@@ -110,8 +110,8 @@ impl Imu {
             //north_vector: [1.0, 0.0, 0.0],
             gyro_data: vec![],
             mag_data: Circular2DArray::new(250),
-            b: Array2::ones((0, 0)),
-            a_1: Array2::ones((0, 0)),
+            b: Array2::ones((3, 1)),
+            a_1: Array2::ones((3, 3)),
             time_data: vec![],
             //last_calibration: Instant::now(),
         };
