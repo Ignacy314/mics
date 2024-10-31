@@ -450,17 +450,17 @@ impl Device for Imu {
                 //self.mag_data[2].push(magn[2]);
                 self.time_data.push(now);
                 let n = self.gyro_data.len();
-                if n > 1 {
-                    if self.detect_rotation(2.0 * PI, Duration::from_secs(10), n) {
+                if n > 249 {
+                    //if self.detect_rotation(2.0 * PI, Duration::from_secs(10), n) {
                         self.update_calibartion();
                         self.gyro_data = vec![];
                         //self.mag_data = Default::default();
                         self.time_data = vec![];
-                    } else if now.duration_since(self.time_data[0]) > Duration::from_secs(10) {
-                        self.gyro_data = vec![];
+                    //} else if now.duration_since(self.time_data[0]) > Duration::from_secs(10) {
+                        //self.gyro_data = vec![];
                         //self.mag_data = Default::default();
-                        self.time_data = vec![];
-                    }
+                        //self.time_data = vec![];
+                    //}
                 };
                 Ok(Self::Data {
                     accel: data.accel,
