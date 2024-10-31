@@ -455,7 +455,7 @@ impl Device for Imu {
                 self.time_data.push(now);
                 let n = self.gyro_data.len();
                 eprintln!("{n}");
-                if n > 249 {
+                if n >= Self::SAMPLES {
                     //if self.detect_rotation(2.0 * PI, Duration::from_secs(10), n) {
                         self.update_calibartion();
                         self.gyro_data = vec![];
