@@ -278,11 +278,12 @@ impl Imu {
         //}
 
         let s: &ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = &self.mag_data.array;
+        eprintln!("{s}");
         let xs: ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>> = s.slice(s![.., 0]);
         let ys: ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>> = s.slice(s![.., 1]);
         let zs: ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>> = s.slice(s![.., 2]);
 
-        eprintln!("{xs}\n{ys}]n{zs}");
+        eprintln!("{xs}\n{ys}]\n{zs}");
 
         let d: ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = stack![
             Axis(0),
