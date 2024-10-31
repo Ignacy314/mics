@@ -99,6 +99,7 @@ pub struct Imu {
 
 impl Imu {
     //const COEFFS_FILE: &'static str = "mag_coeffs";
+    const SAMPLES: usize = 50;
 
     pub fn new(bus: u8) -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::with_bus(bus)?;
@@ -109,7 +110,7 @@ impl Imu {
             //mag_coeffs: [0.0, 0.0, 0.0],
             //north_vector: [1.0, 0.0, 0.0],
             gyro_data: vec![],
-            mag_data: Circular2DArray::new(250),
+            mag_data: Circular2DArray::new(Self::SAMPLES),
             b: Array2::ones((3, 1)),
             a_1: Array2::ones((3, 3)),
             time_data: vec![],
@@ -310,10 +311,13 @@ impl Imu {
             [0.0, 0.0, 0.0, 0.0, 0.0, -4.0]
         ];
 
+        eprintln!("{ss_22}");
+        let ss_22_1 = ss_22.inv().unwrap();
+
         let ee = cc
             .inv()
             .unwrap()
-            .dot(&(&ss_11 - &ss_12.dot(&ss_22.inv().unwrap().dot(&ss_21))));
+            .dot(&(&ss_11 - &ss_12.dot(&ss_22_1.dot(&ss_21))));
 
         let (ee_w, ee_v) = ee.eig().unwrap();
         let max_index = ee_w
