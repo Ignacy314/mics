@@ -450,6 +450,7 @@ impl Device for Imu {
                 //self.mag_data[2].push(magn[2]);
                 self.time_data.push(now);
                 let n = self.gyro_data.len();
+                eprintln!("{n}");
                 if n > 249 {
                     //if self.detect_rotation(2.0 * PI, Duration::from_secs(10), n) {
                         self.update_calibartion();
