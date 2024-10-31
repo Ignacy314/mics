@@ -295,12 +295,18 @@ impl Imu {
             2f32 * &zs,
             Array::ones(xs.raw_dim())
         ];
+        eprintln!("{:?}", d.shape());
 
         let ss: ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = d.dot(&d.t());
+        eprintln!("{:?}", ss.shape());
         let ss_11 = ss.slice(s![..6, ..6]);
+        eprintln!("{:?}", ss_11.shape());
         let ss_12 = ss.slice(s![..6, 6..]);
+        eprintln!("{:?}", ss_12.shape());
         let ss_21 = ss.slice(s![6.., ..6]);
+        eprintln!("{:?}", ss_21.shape());
         let ss_22 = ss.slice(s![6.., 6..]);
+        eprintln!("{:?}", ss_22.shape());
 
         let cc = array![
             [-1f32, 1.0, 1.0, 0.0, 0.0, 0.0],
