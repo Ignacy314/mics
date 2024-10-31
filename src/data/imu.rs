@@ -389,7 +389,7 @@ impl Imu {
             };
 
         //eprintln!("{accel_biases:?}");
-        self.device.set_accel_bias(false, accel_biases)?;
+        //self.device.set_accel_bias(false, accel_biases)?;
         Ok(())
     }
 }
