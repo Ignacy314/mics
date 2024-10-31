@@ -368,7 +368,7 @@ impl Imu {
         //};
         let mag_magnitude = mag.iter().map(|a| a.powi(2)).sum::<f32>().sqrt();
         //let a = mag.dot(&acc);
-        dbg!("vec_north");
+        //dbg!("vec_north");
         let vec_north = mag - ((mag.dot(&acc) / acc.dot(&acc)) * acc);
         //let angle = mag[1].atan2(mag[2]) - self.north_vector[1].atan2(self.north_vector[0]);
         //let angle = angle - 2.0 * PI * (angle / (2.0 * PI)).floor();
@@ -434,14 +434,14 @@ impl Device for Imu {
         match self.device.all::<[f32; 3]>() {
             Ok(data) => {
                 let now = Instant::now();
-                dbg!("get_data 1");
+                //dbg!("get_data 1");
                 //let mag = Array1::from_iter(data.mag).into_shape((3, 1)).unwrap();
                 let mag = array![[data.mag[0]], [data.mag[1]], [data.mag[2]]];
-                eprintln!("{:?}; {:?}; {:?}", self.a_1.shape(), mag.shape(), self.b.shape());
+                //eprintln!("{:?}; {:?}; {:?}", self.a_1.shape(), mag.shape(), self.b.shape());
                 let mag = self.a_1.dot(&(mag - &self.b));
                 let mag = array![mag[[0, 0]], mag[[1, 0]], mag[[2, 0]]];
                 let acc = Array1::from_iter(data.accel);
-                dbg!("calc angle");
+                //dbg!("calc angle");
                 let (angle, mag_magnitute) = Self::calculate_angle_and_magnitude(&mag, acc);
                 self.gyro_data.push(data.gyro[2]);
                 self.mag_data.push(&mag);
