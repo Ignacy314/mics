@@ -66,56 +66,56 @@ fn main() {
         .unwrap();
 
     // Create the Andros I2S microphone capture thread
-    let andros_status = Arc::new(AtomicU8::new(0));
-    let andros_thread = {
-        let running_clone = running.clone();
-        let status_clone = andros_status.clone();
-        let rx_clone = rx.clone();
-        thread::spawn(move || {
-            let andros = CaptureDevice::new(
-                "hw:CARD=ANDROSi2s,DEV=1",
-                4,
-                192_000,
-                Format::s32(),
-                "../data/i2s/",
-                running_clone.clone(),
-                status_clone,
-                rx_clone,
-            );
-            while running_clone.load(Ordering::Relaxed) {
-                match andros.read(AUDIO_FILE_DURATION) {
-                    Ok(()) => {}
-                    Err(err) => handle_capture_device_error(&err),
-                };
-            }
-        })
-    };
+    //let andros_status = Arc::new(AtomicU8::new(0));
+    //let andros_thread = {
+    //    let running_clone = running.clone();
+    //    let status_clone = andros_status.clone();
+    //    let rx_clone = rx.clone();
+    //    thread::spawn(move || {
+    //        let andros = CaptureDevice::new(
+    //            "hw:CARD=ANDROSi2s,DEV=1",
+    //            4,
+    //            192_000,
+    //            Format::s32(),
+    //            "../data/i2s/",
+    //            running_clone.clone(),
+    //            status_clone,
+    //            rx_clone,
+    //        );
+    //        while running_clone.load(Ordering::Relaxed) {
+    //            match andros.read(AUDIO_FILE_DURATION) {
+    //                Ok(()) => {}
+    //                Err(err) => handle_capture_device_error(&err),
+    //            };
+    //        }
+    //    })
+    //};
 
     // Create the UMC microphone capture thread
-    let umc_status = Arc::new(AtomicU8::new(0));
-    let umc_thread = {
-        let running_clone = running.clone();
-        let status_clone = umc_status.clone();
-        let rx_clone = rx.clone();
-        thread::spawn(move || {
-            let umc = CaptureDevice::new(
-                "hw:CARD=U192k,DEV=0",
-                2,
-                48_000,
-                Format::s32(),
-                "../data/umc/",
-                running_clone.clone(),
-                status_clone,
-                rx_clone,
-            );
-            while running_clone.load(Ordering::Relaxed) {
-                match umc.read(AUDIO_FILE_DURATION) {
-                    Ok(()) => {}
-                    Err(err) => handle_capture_device_error(&err),
-                };
-            }
-        })
-    };
+    //let umc_status = Arc::new(AtomicU8::new(0));
+    //let umc_thread = {
+    //    let running_clone = running.clone();
+    //    let status_clone = umc_status.clone();
+    //    let rx_clone = rx.clone();
+    //    thread::spawn(move || {
+    //        let umc = CaptureDevice::new(
+    //            "hw:CARD=U192k,DEV=0",
+    //            2,
+    //            48_000,
+    //            Format::s32(),
+    //            "../data/umc/",
+    //            running_clone.clone(),
+    //            status_clone,
+    //            rx_clone,
+    //        );
+    //        while running_clone.load(Ordering::Relaxed) {
+    //            match umc.read(AUDIO_FILE_DURATION) {
+    //                Ok(()) => {}
+    //                Err(err) => handle_capture_device_error(&err),
+    //            };
+    //        }
+    //    })
+    //};
 
     let data_thread = {
         let running_clone = running.clone();
@@ -127,11 +127,11 @@ fn main() {
 
     while running.load(Ordering::Relaxed) {
         let start = Instant::now();
-        println!("Andros I2S status: {}", andros_status.load(Ordering::Relaxed));
-        println!("UMC status: {}", umc_status.load(Ordering::Relaxed));
+        //println!("Andros I2S status: {}", andros_status.load(Ordering::Relaxed));
+        //println!("UMC status: {}", umc_status.load(Ordering::Relaxed));
         thread::sleep(Duration::from_secs(2).saturating_sub(start.elapsed()));
     }
-    andros_thread.join().unwrap();
-    umc_thread.join().unwrap();
+    //andros_thread.join().unwrap();
+    //umc_thread.join().unwrap();
     data_thread.join().unwrap();
 }
