@@ -437,6 +437,7 @@ impl Device for Imu {
                 dbg!("get_data 1");
                 //let mag = Array1::from_iter(data.mag).into_shape((3, 1)).unwrap();
                 let mag = array![[data.mag[0]], [data.mag[1]], [data.mag[2]]];
+                eprintln!("{:?}; {:?}; {:?}", self.a_1.shape(), mag.shape(), self.b.shape());
                 let mag = self.a_1.dot(&(mag - &self.b));
                 let mag = array![mag[[0, 0]], mag[[1, 0]], mag[[2, 0]]];
                 let acc = Array1::from_iter(data.accel);
