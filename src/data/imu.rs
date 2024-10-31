@@ -5,6 +5,7 @@ use ndarray_linalg::Eig;
 use num_traits::identities::Zero;
 use std::f32::consts::PI;
 use std::fmt::Debug;
+use std::os::linux::raw;
 use std::time::{Duration, Instant};
 
 use log::info;
@@ -458,7 +459,7 @@ impl Device for Imu {
                 //dbg!("calc angle");
                 let (angle, mag_magnitute) = Self::calculate_angle_and_magnitude(&mag, acc);
                 self.gyro_data.push(data.gyro[2]);
-                self.mag_data.push(&mag);
+                self.mag_data.push(&Array1::from_iter(data.mag));
                 //self.mag_data[0].push(magn[0]);
                 //self.mag_data[1].push(magn[1]);
                 //self.mag_data[2].push(magn[2]);
