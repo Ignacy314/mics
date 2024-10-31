@@ -99,7 +99,7 @@ pub struct Imu {
 
 impl Imu {
     //const COEFFS_FILE: &'static str = "mag_coeffs";
-    const SAMPLES: usize = 50;
+    const SAMPLES: usize = 1;
 
     pub fn new(bus: u8) -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::with_bus(bus)?;
