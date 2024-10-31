@@ -410,34 +410,33 @@ dependencies = [
 ]
 
 [[package]]
-name = "katexit"
-version = "0.1.4"
+name = "lapack"
+version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb1304c448ce2c207c2298a34bc476ce7ae47f63c23fa2b498583b26be9bc88c"
+checksum = "6a7f0050af10913bc5e4f6091df38870cb5d4e45094d3dd551c1aff9d1d59b26"
 dependencies = [
- "proc-macro2",
- "quote",
- "syn 1.0.109",
+ "lapack-sys",
+ "libc",
+ "num-complex",
 ]
 
 [[package]]
 name = "lapack-sys"
-version = "0.14.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "447f56c85fb410a7a3d36701b2153c1018b1d2b908c5fbaf01c1b04fac33bcbe"
+checksum = "c1d3a8a9f07310243de6c6226f039f14bce8d2f4c96b5d30ddbcfa31eb4e94ad"
 dependencies = [
  "libc",
 ]
 
 [[package]]
 name = "lax"
-version = "0.16.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f96a229d9557112e574164f8024ce703625ad9f88a90964c1780809358e53da"
+checksum = "ccd3ec1cacffe7a44aee66f9e85d87e3ac69b472b546449884bd1fc1ca8ab359"
 dependencies = [
  "cauchy",
- "katexit",
- "lapack-sys",
+ "lapack",
  "netlib-src",
  "num-traits",
  "thiserror",
@@ -551,12 +550,11 @@ dependencies = [
 
 [[package]]
 name = "ndarray-linalg"
-version = "0.16.0"
+version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b0e8dda0c941b64a85c5deb2b3e0144aca87aced64678adfc23eacea6d2cc42"
+checksum = "8f87ff36428f228c6056204d0f5cb8c5165f0db0a065429faace3edbc2718f1f"
 dependencies = [
  "cauchy",
- "katexit",
  "lax",
  "ndarray",
  "num-complex",
@@ -818,7 +816,7 @@ checksum = "de523f781f095e28fa605cdce0f8307e451cc0fd14e2eb4cd2e98a355b147766"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.82",
+ "syn",
 ]
 
 [[package]]
@@ -873,17 +871,6 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "syn"
-version = "1.0.109"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
-dependencies = [
- "proc-macro2",
- "quote",
- "unicode-ident",
-]
-
-[[package]]
-name = "syn"
 version = "2.0.82"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "83540f837a8afc019423a8edb95b52a8effe46957ee402287f4292fae35be021"
@@ -910,7 +897,7 @@ checksum = "ae71770322cbd277e69d762a16c444af02aa0575ac0d174f0b9562d3b37f8602"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.82",
+ "syn",
 ]
 
 [[package]]
@@ -984,7 +971,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "syn 2.0.82",
+ "syn",
  "wasm-bindgen-shared",
 ]
 
@@ -1006,7 +993,7 @@ checksum = "26c6ab57572f7a24a4985830b120de1594465e5d500f24afe89e16b4e833ef68"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.82",
+ "syn",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
 ]
@@ -1126,5 +1113,5 @@ checksum = "fa4f8080344d4671fb4e831a13ad1e68092748387dfc4f55e356242fae12ce3e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.82",
+ "syn",
 ]

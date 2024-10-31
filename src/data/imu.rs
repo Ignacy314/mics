@@ -395,9 +395,9 @@ impl Imu {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Data {
-    accel: [f32; 3],
+    pub accel: [f32; 3],
     gyro: [f32; 3],
-    mag: [f32; 3],
+    pub mag: [f32; 3],
     pub angle_rel_to_north: f32,
     mag_magnitute: f32,
     //temp: f32,
