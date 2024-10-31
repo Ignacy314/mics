@@ -282,6 +282,8 @@ impl Imu {
         let ys: ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>> = s.slice(s![.., 1]);
         let zs: ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>> = s.slice(s![.., 2]);
 
+        eprintln!("{xs}\n{ys}]n{zs}");
+
         let d: ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = stack![
             Axis(0),
             xs.mapv(|a| a.powi(2)),
@@ -295,6 +297,7 @@ impl Imu {
             2f32 * &zs,
             Array::ones(xs.raw_dim())
         ];
+        eprintln!("{d}");
         eprintln!("{:?}", d.shape());
 
         let ss: ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = d.dot(&d.t());
