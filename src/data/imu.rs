@@ -367,7 +367,7 @@ impl Imu {
             };
 
         //eprintln!("{accel_biases:?}");
-        self.device.set_accel_bias(false, [0.0, 0.0, 0.0])?;
+        //self.device.set_accel_bias(false, [0.0, 0.0, 0.0])?;
         Ok(())
     }
 }
@@ -410,6 +410,7 @@ impl Device for Imu {
     fn get_data(&mut self) -> Result<Self::Data, Self::Error> {
         match self.device.unscaled_all::<[i16; 3]>() {
             Ok(data) => {
+                eprintln!("{:?}", data.accel);
                 let now = Instant::now();
                 let mag = [
                     f32::from(data.mag[0]) * Self::MAG_SCALE,
