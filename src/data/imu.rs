@@ -344,13 +344,14 @@ impl Imu {
         };
 
         let den = &n;
-        //eprintln!("n:\n{den}");
+        eprintln!("n:\n{den}");
         let den = &mm_1.dot(den);
-        //eprintln!("M_1.dot(n):\n{den}");
+        eprintln!("M_1.dot(n):\n{den}");
         let den = n.t().dot(den);
-        //eprintln!("n_T.dot(M_1.dot(n)):\n{den}");
+        eprintln!("n_T.dot(M_1.dot(n)):\n{den}");
         let den = den[[0, 0]] - d;
-        //eprintln!("n_T.dot(M_1.dot(n)) - d:\n{den}");
+        eprintln!("n_T.dot(M_1.dot(n)) - d:\n{den}");
+        eprintln!("mm_sqrt:\n{mm_sqrt}");
 
         if den > 0.0 {
             self.a_1 = (1.0 / den.sqrt()) * mm_sqrt;
