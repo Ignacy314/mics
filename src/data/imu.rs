@@ -344,13 +344,13 @@ impl Imu {
         };
 
         let den = &n;
-        eprintln!("n:\n{den}");
+        //eprintln!("n:\n{den}");
         let den = &mm_1.dot(den);
-        eprintln!("M_1.dot(n):\n{den}");
+        //eprintln!("M_1.dot(n):\n{den}");
         let den = n.t().dot(den);
-        eprintln!("n_T.dot(M_1.dot(n)):\n{den}");
+        //eprintln!("n_T.dot(M_1.dot(n)):\n{den}");
         let den = den[[0, 0]] - d;
-        eprintln!("n_T.dot(M_1.dot(n)) - d:\n{den}");
+        //eprintln!("n_T.dot(M_1.dot(n)) - d:\n{den}");
 
         if den > 0.0 {
             self.a_1 = (1.0 / den.sqrt()) * mm_sqrt;
@@ -457,13 +457,13 @@ impl Device for Imu {
                 self.acc_data.push(&acc_arr);
                 self.gyro_data.push(&gyro_arr);
 
-                eprintln!("mag_arr: {mag_arr}");
-                eprintln!("a_1:\n{}", self.a_1);
-                eprintln!("b:\n{}", self.b);
+                //eprintln!("mag_arr: {mag_arr}");
+                //eprintln!("a_1:\n{}", self.a_1);
+                //eprintln!("b:\n{}", self.b);
 
                 let mag_arr = array![[mag[0]], [mag[1]], [mag[2]]];
                 let mag_arr = self.a_1.dot(&(mag_arr - &self.b));
-                eprintln!("a_1.dot(mag_arr - b):\n{mag_arr}");
+                //eprintln!("a_1.dot(mag_arr - b):\n{mag_arr}");
                 let mag_arr = array![mag_arr[[0, 0]], mag_arr[[1, 0]], mag_arr[[2, 0]]];
 
                 //let acc_arr = array![
