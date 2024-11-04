@@ -333,7 +333,7 @@ impl Imu {
 
         let mm_1 = mm.inv().unwrap();
 
-        self.b = -(mm_1.dot(&n));
+        let b = -(mm_1.dot(&n));
 
         let mm_sqrt: ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = {
             let (ew, ev) = mm.eig().unwrap();
@@ -359,6 +359,7 @@ impl Imu {
 
         if den > 0.0 {
             self.a_1 = (1.0 / den.sqrt()) * mm_sqrt;
+            self.b = b;
         } else {
             warn!("MAGNETOMETER CALIBRATION FAILED");
             return false;
