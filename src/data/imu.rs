@@ -410,7 +410,7 @@ impl Device for Imu {
     fn get_data(&mut self) -> Result<Self::Data, Self::Error> {
         match self.device.unscaled_all::<[i16; 3]>() {
             Ok(data) => {
-                eprintln!("{:?}", data.accel);
+                //eprintln!("{:?}", data.accel);
                 let now = Instant::now();
                 let mag = [
                     f32::from(data.mag[0]) * Self::MAG_SCALE,
@@ -437,8 +437,11 @@ impl Device for Imu {
                 self.acc_data.push(&acc_arr);
                 self.gyro_data.push(&gyro_arr);
 
+                eprintln!("mag_arr: {mag_arr}");
+
                 let mag_arr = array![[mag[0]], [mag[1]], [mag[2]]];
                 let mag_arr = self.a_1.dot(&(mag_arr - &self.b));
+                eprintln!("a_1.dot(mag_arr - b): {mag_arr}");
                 let mag_arr = array![mag_arr[[0, 0]], mag_arr[[1, 0]], mag_arr[[2, 0]]];
 
                 //let acc_arr = array![
@@ -454,7 +457,7 @@ impl Device for Imu {
                 eprintln!("{n}");
                 if n == 0 {
                     //if self.detect_rotation(2.0 * PI, Duration::from_secs(10), n) {
-                    self.update_acc_calibration();
+                    //self.update_acc_calibration();
                     self.update_mag_calibartion();
                     //self.gyro_data = vec![];
                     //self.mag_data = Default::default();
