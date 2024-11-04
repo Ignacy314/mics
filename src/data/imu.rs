@@ -343,6 +343,16 @@ impl Imu {
             ev.dot(&ew_sqrt.dot(&ev.inv().unwrap()))
         };
 
+        let den = &n;
+        eprintln!("n:\n{den}");
+        let den = &mm_1.dot(den);
+        eprintln!("M_1.dot(n):\n{den}");
+        let den = n.t().dot(den);
+        eprintln!("n_T.dot(M_1.dot(n)):\n{den}");
+        let den = den - d;
+        eprintln!("n_T.dot(M_1.dot(n)) - d:\n{den}");
+        eprintln!("shape: {:?}", den.shape());
+
         self.a_1 = (1.0 / (n.t().dot(&mm_1.dot(&n)) - d).mapv(f32::sqrt)) * mm_sqrt;
 
         info!("MAGNETOMETER CALIBRATION END");
