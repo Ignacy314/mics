@@ -338,6 +338,10 @@ impl Imu {
         let mm_sqrt: ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = {
             let (ew, ev) = mm.eig().unwrap();
             let ew = ew.map(|a| a.re);
+            if ew.iter().any(|a| a <= &0.0) {
+                warn!("MAGNETOMETER CALIBRATION FAILED");
+                return false;
+            }
             let ev = ev.map(|a| a.re);
             let ew_sqrt = Array2::from_diag(&ew.mapv(f32::sqrt));
             ev.dot(&ew_sqrt.dot(&ev.inv().unwrap()))
@@ -357,6 +361,7 @@ impl Imu {
             self.a_1 = (1.0 / den.sqrt()) * mm_sqrt;
         } else {
             warn!("MAGNETOMETER CALIBRATION FAILED");
+            return false;
         }
 
         //self.a_1 = (1.0 / (n.t().dot(&mm_1.dot(&n)) - d).mapv(f32::sqrt)) * mm_sqrt;
