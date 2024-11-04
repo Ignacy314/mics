@@ -118,7 +118,7 @@ impl Reader {
                     if let Some(imu) = imu.as_mut() {
                         match imu.get_data() {
                             Ok(d) => {
-                                eprintln!("{d:?}");
+                                eprintln!("{}", d.angle_rel_to_north);
                                 *data.lock() = (d, Status::Ok);
                             }
                             Err(err) => {
