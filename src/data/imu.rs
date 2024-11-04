@@ -1,11 +1,11 @@
 //#![allow(unused)]
 use ndarray::{array, s, stack, Array, ArrayBase, Axis, Dim, OwnedRepr, ViewRepr};
 use ndarray_linalg::solve::Inverse;
-use ndarray_linalg::Eig;
+use ndarray_linalg::{Eig, Norm};
 use num_traits::identities::Zero;
 use std::f32::consts::PI;
 use std::fmt::Debug;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use log::info;
 use mpu9250::Mpu9250;
@@ -14,51 +14,83 @@ use serde::{Deserialize, Serialize};
 
 use super::Device;
 
-struct Circular2DArray<T: Clone + Zero> {
+trait Buffer {
+    type Container;
+}
+
+impl<T> Buffer for Array2<T> {
+    type Container = Array2<T>;
+}
+
+impl<T> Buffer for Vec<T> {
+    type Container = Vec<T>;
+}
+
+struct CircularBuffer<B: Buffer> {
     size: usize,
-    array: Array2<T>,
+    buf: B::Container,
     index: usize,
 }
 
-impl<T: Clone + Zero> Circular2DArray<T> {
-    fn new(size: usize) -> Self {
-        Self {
-            size,
-            array: Array2::<T>::zeros((size, 3)),
-            index: 0,
-        }
-    }
-
-    fn push(&mut self, value: &Array1<T>) {
-        self.array.row_mut(self.index).assign(value);
+impl<B: Buffer> CircularBuffer<B> {
+    fn increment_index(&mut self) {
         self.index += 1;
         self.index %= self.size;
     }
 }
 
-//impl<T: Clone + Zero> Deref for Circular2DArray<T> {
-//    type Target = Vec<T>;
-//    fn deref(&self) -> &Self::Target {
-//        &self.array
-//    }
-//}
-//
-//impl<T> DerefMut for Circular2DArray<T> {
-//    fn deref_mut(&mut self) -> &mut Self::Target {
-//        &mut self.array
-//    }
-//}
+impl<T: Clone + Zero> CircularBuffer<Array2<T>> {
+    fn new(size: usize, elems: usize) -> Self {
+        Self {
+            size,
+            buf: Array2::<T>::zeros((size, elems)),
+            index: 0,
+        }
+    }
+
+    fn push(&mut self, value: &Array1<T>) {
+        self.buf.row_mut(self.index).assign(value);
+        self.increment_index();
+    }
+
+    fn iter(&self) -> impl Iterator<Item = ArrayBase<ViewRepr<&T>, Dim<[usize; 1]>>> {
+        //self.buf.outer_iter().skip(self.index).chain(self.buf.outer_iter().take(self.index))
+        self.buf.outer_iter().cycle().skip(self.index).take(self.size)
+    }
+}
+
+impl<T: Clone> CircularBuffer<Vec<T>> {
+    fn new(size: usize, fill: T) -> Self {
+        Self {
+            size,
+            buf: vec![fill; size],
+            index: 0,
+        }
+    }
+
+    fn push(&mut self, value: T) {
+        self.buf[self.index] = value;
+        self.increment_index();
+    }
+
+    fn iter(&self) -> impl Iterator<Item = &T> {
+        //self.buf.iter().skip(self.index).chain(self.buf.iter().take(self.index))
+        self.buf.iter().cycle().skip(self.index).take(self.size)
+    }
+}
+
+type Circular2DArray<T> = CircularBuffer<Array2<T>>;
+type CircularVector<T> = CircularBuffer<Vec<T>>;
 
 pub struct Imu {
     device: Mpu9250<mpu9250::I2cDevice<rppal::i2c::I2c>, mpu9250::Marg>,
-    //mag_coeffs: [f32; 3],
-    //north_vector: [f32; 3],
-    gyro_data: Vec<f32>,
+    acc_data: Circular2DArray<f32>,
+    gyro_data: Circular2DArray<f32>,
     mag_data: Circular2DArray<f32>,
+    time_data: CircularVector<Instant>,
+    acc_biases: [f32; 3],
     b: Array2<f32>,
     a_1: Array2<f32>,
-    time_data: Vec<Instant>,
-    //last_calibration: Instant,
 }
 
 //impl Debug for Imu {
@@ -100,6 +132,10 @@ pub struct Imu {
 impl Imu {
     //const COEFFS_FILE: &'static str = "mag_coeffs";
     const SAMPLES: usize = 50;
+    const ACCEL_SCALE: f32 = 2.0 / 32768.0;
+    const DEG_TO_RAD: f32 = PI / 180.0;
+    const GYRO_SCALE: f32 = 250.0 / 32768.0;
+    const MAG_SCALE: f32 = 4800.0 / 8192.0;
 
     pub fn new(bus: u8) -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::with_bus(bus)?;
@@ -107,14 +143,13 @@ impl Imu {
         let mpu = Mpu9250::marg_default(i2c, &mut delay)?;
         let s = Self {
             device: mpu,
-            //mag_coeffs: [0.0, 0.0, 0.0],
-            //north_vector: [1.0, 0.0, 0.0],
-            gyro_data: vec![],
-            mag_data: Circular2DArray::new(Self::SAMPLES),
+            acc_data: Circular2DArray::new(Self::SAMPLES, 3),
+            gyro_data: Circular2DArray::new(Self::SAMPLES, 3),
+            mag_data: Circular2DArray::new(Self::SAMPLES, 3),
+            time_data: CircularVector::new(Self::SAMPLES, Instant::now()),
+            acc_biases: [0.0; 3],
             b: Array2::ones((3, 1)),
             a_1: Array2::ones((3, 3)),
-            time_data: vec![],
-            //last_calibration: Instant::now(),
         };
         //if s.load_mag_coeffs_from_file(Self::COEFFS_FILE) {
         //    info!("Magnetometer coefficients loaded from file: {:?}", s.mag_coeffs);
@@ -179,111 +214,50 @@ impl Imu {
     //    false
     //}
 
-    fn detect_rotation(&mut self, threshold: f32, time_limit: Duration, n: usize) -> bool {
-        //if n != self.mag_data[0].len()
-        //    || n != self.mag_data[1].len()
-        //    || n != self.mag_data[2].len()
-        //    || n != self.time_data.len()
-        //{
-        //    self.gyro_data = vec![];
-        //    //self.mag_data = Default::default();
-        //    self.time_data = vec![];
-        //    return false;
-        //}
-        let mut total_angle = 0f32;
-        let start = self.time_data[0];
-        for i in 1..n {
-            let angle_diff = self.gyro_data[i]
-                * (self.time_data[i]
-                    .duration_since(self.time_data[i - 1])
-                    .as_secs_f32());
-            total_angle += angle_diff;
-            if self.time_data[i].duration_since(start) >= time_limit {
-                return false;
-            }
-            if total_angle.abs() >= threshold {
-                return true;
-            }
-        }
-        false
+    //fn detect_rotation(&mut self, threshold: f32, time_limit: Duration, n: usize) -> bool {
+    //    //if n != self.mag_data[0].len()
+    //    //    || n != self.mag_data[1].len()
+    //    //    || n != self.mag_data[2].len()
+    //    //    || n != self.time_data.len()
+    //    //{
+    //    //    self.gyro_data = vec![];
+    //    //    //self.mag_data = Default::default();
+    //    //    self.time_data = vec![];
+    //    //    return false;
+    //    //}
+    //    let mut total_angle = 0f32;
+    //    let start = self.time_data[0];
+    //    for i in 1..n {
+    //        let angle_diff = self.gyro_data[i]
+    //            * (self.time_data[i]
+    //                .duration_since(self.time_data[i - 1])
+    //                .as_secs_f32());
+    //        total_angle += angle_diff;
+    //        if self.time_data[i].duration_since(start) >= time_limit {
+    //            return false;
+    //        }
+    //        if total_angle.abs() >= threshold {
+    //            return true;
+    //        }
+    //    }
+    //    false
+    //}
+
+    fn update_acc_calibration(&mut self) {
+        let acc_biases = self.acc_data.buf.mean_axis(Axis(0)).unwrap();
+        self.acc_biases = [acc_biases[0], acc_biases[1], acc_biases[2]];
     }
 
-    fn update_calibartion(&mut self) -> bool {
-        //eprintln!("=================================================");
+    fn update_mag_calibartion(&mut self) -> bool {
         info!("MAGNETOMETER CALIBRATION START");
-        //eprintln!("=================================================");
 
-        // Always called right after detect_rotation() and only if it returns true,
-        // so data sizes are confirmed to be correct at this point
-        //let [x, y, z] = &self.mag_data;
-        //#[allow(clippy::cast_precision_loss)]
-        //let x_mean = x.iter().sum::<f32>() / x.len() as f32;
-        //#[allow(clippy::cast_precision_loss)]
-        //let y_mean = y.iter().sum::<f32>() / y.len() as f32;
-        //#[allow(clippy::cast_precision_loss)]
-        //let z_mean = z.iter().sum::<f32>() / z.len() as f32;
-        //#[allow(clippy::cast_precision_loss)]
-        //let x_centered = x.iter().map(|a| a - x_mean).collect::<Vec<f32>>();
-        //#[allow(clippy::cast_precision_loss)]
-        //let y_centered = y.iter().map(|a| a - y_mean).collect::<Vec<f32>>();
-        //
-        //#[allow(clippy::cast_precision_loss)]
-        //let x_centered_mean = x_centered.iter().sum::<f32>() / x_centered.len() as f32;
-        //#[allow(clippy::cast_precision_loss)]
-        //let y_centered_mean = y_centered.iter().sum::<f32>() / y_centered.len() as f32;
-        //
-        //let mag_max = (x_centered_mean.powi(2) + y_centered_mean.powi(2)).sqrt();
-        //if mag_max == 0.0 {
-        //    self.north_vector = [1.0, 0.0, 0.0];
-        //} else {
-        //    self.north_vector = [x_centered_mean / mag_max, y_centered_mean / mag_max, 0.0];
-        //};
-        //self.mag_coeffs = [x_mean, y_mean, z_mean];
-        //self.last_calibration = Instant::now();
-        //match File::create(Self::COEFFS_FILE) {
-        //    Ok(mut file) => {
-        //        let bytes: &[u8] = match bytemuck::try_cast_slice(&self.mag_coeffs) {
-        //            Ok(b) => b,
-        //            Err(_e) => {
-        //                warn!("Failed to cast magnetometer coefficients to bytes");
-        //                return false;
-        //            }
-        //        };
-        //        match file.write_all(bytes) {
-        //            Ok(()) => {}
-        //            Err(_err) => {
-        //                warn!("Failed to write to magnetometer coefficients file");
-        //                return false;
-        //            }
-        //        }
-        //        let bytes: &[u8] = match bytemuck::try_cast_slice(&self.north_vector) {
-        //            Ok(b) => b,
-        //            Err(_e) => {
-        //                warn!("Failed to cast magnetometer north vector to bytes");
-        //                return false;
-        //            }
-        //        };
-        //        match file.write_all(bytes) {
-        //            Ok(()) => {}
-        //            Err(_err) => {
-        //                warn!("Failed to write to magnetometer north vector file");
-        //                return false;
-        //            }
-        //        }
-        //    }
-        //    Err(_err) => {
-        //        warn!("Failed to open magnetometer coefficients file");
-        //        return false;
-        //    }
-        //}
-
-        let s: &ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = &self.mag_data.array;
-        eprintln!("{s}");
+        let s: &ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = &self.mag_data.buf;
+        //eprintln!("{s}");
         let xs: ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>> = s.slice(s![.., 0]);
         let ys: ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>> = s.slice(s![.., 1]);
         let zs: ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>> = s.slice(s![.., 2]);
 
-        eprintln!("{xs}\n{ys}]\n{zs}");
+        //eprintln!("{xs}\n{ys}]\n{zs}");
 
         let d: ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = stack![
             Axis(0),
@@ -298,19 +272,19 @@ impl Imu {
             2f32 * &zs,
             Array::ones(xs.raw_dim())
         ];
-        eprintln!("{d}");
-        eprintln!("{:?}", d.shape());
+        //eprintln!("{d}");
+        //eprintln!("{:?}", d.shape());
 
         let ss: ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = d.dot(&d.t());
-        eprintln!("{:?}", ss.shape());
+        //eprintln!("{:?}", ss.shape());
         let ss_11 = ss.slice(s![..6, ..6]);
-        eprintln!("{:?}", ss_11.shape());
+        //eprintln!("{:?}", ss_11.shape());
         let ss_12 = ss.slice(s![..6, 6..]);
-        eprintln!("{:?}", ss_12.shape());
+        //eprintln!("{:?}", ss_12.shape());
         let ss_21 = ss.slice(s![6.., ..6]);
-        eprintln!("{:?}", ss_21.shape());
+        //eprintln!("{:?}", ss_21.shape());
         let ss_22 = ss.slice(s![6.., 6..]);
-        eprintln!("{:?}", ss_22.shape());
+        //eprintln!("{:?}", ss_22.shape());
 
         let cc = array![
             [-1f32, 1.0, 1.0, 0.0, 0.0, 0.0],
@@ -366,57 +340,44 @@ impl Imu {
 
         self.a_1 = (1.0 / (n.t().dot(&mm_1.dot(&n)) - d).mapv(f32::sqrt)) * mm_sqrt;
 
-        //eprintln!("=================================================");
         info!("MAGNETOMETER CALIBRATION END");
-        //eprintln!("=================================================");
         true
     }
 
     fn calculate_angle_and_magnitude(mag: &Array1<f32>, acc: &Array1<f32>) -> (f32, f32) {
-        //let mag = {
-        //    let mut mag = [0f32; 3];
-        //    for ((a, b), c) in mag.iter_mut().zip(&magn).zip(&self.mag_coeffs) {
-        //        *a = b - c;
-        //    }
-        //    mag
-        //};
-        let mag_magnitude = mag.iter().map(|a| a.powi(2)).sum::<f32>().sqrt();
-        //let a = mag.dot(&acc);
-        //dbg!("vec_north");
+        let mag_magnitude = mag.norm();
+        //let mag_magnitude = mag.iter().map(|a| a.powi(2)).sum::<f32>().sqrt();
+
+        // Project mag onto a plane perpendicular to Earth's gravity vector
         let vec_north = mag - ((mag.dot(acc) / acc.dot(acc)) * acc);
-        //let vec_north = mag;
-        //let angle = mag[1].atan2(mag[2]) - self.north_vector[1].atan2(self.north_vector[0]);
-        //let angle = angle - 2.0 * PI * (angle / (2.0 * PI)).floor();
-        //let angle = angle.sin().atan2(angle.cos()) + PI;
-        //let angle = angle % (2.0 * PI);
+
+        // Assuming x is forward y is left
         let angle = vec_north[0].atan2(vec_north[1]);
         let angle = angle * 180.0 / PI;
-        //let angle = 0.0;
 
         (angle, mag_magnitude)
     }
 
     pub fn calibrate(&mut self) -> Result<(), Error> {
-        let accel_biases: [f32; 3] =
+        let _accel_biases: [f32; 3] =
             match self.device.calibrate_at_rest(&mut rppal::hal::Delay::new()) {
                 Ok(b) => b,
                 Err(e) => return Err(Error::Mpu(e)),
             };
 
         //eprintln!("{accel_biases:?}");
-        //self.device.set_accel_bias(false, accel_biases)?;
+        self.device.set_accel_bias(false, [0.0, 0.0, 0.0])?;
         Ok(())
     }
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Copy)]
 pub struct Data {
-    pub accel: [f32; 3],
+    pub acc: [f32; 3],
     gyro: [f32; 3],
     pub mag: [f32; 3],
     pub angle_rel_to_north: f32,
     mag_magnitute: f32,
-    //temp: f32,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -446,42 +407,66 @@ impl Device for Imu {
     type Error = Error;
 
     fn get_data(&mut self) -> Result<Self::Data, Self::Error> {
-        match self.device.all::<[f32; 3]>() {
+        match self.device.unscaled_all::<[i16; 3]>() {
             Ok(data) => {
                 let now = Instant::now();
-                //dbg!("get_data 1");
-                //let mag = Array1::from_iter(data.mag).into_shape((3, 1)).unwrap();
-                let mag = array![[data.mag[0]], [data.mag[1]], [data.mag[2]]];
-                //eprintln!("{:?}; {:?}; {:?}", self.a_1.shape(), mag.shape(), self.b.shape());
-                let mag = self.a_1.dot(&(mag - &self.b));
-                let mag = array![mag[[0, 0]], mag[[1, 0]], mag[[2, 0]]];
-                let acc = Array1::from_iter(data.accel);
-                //dbg!("calc angle");
-                let (angle, mag_magnitute) = Self::calculate_angle_and_magnitude(&mag, &acc);
+                let mag = [
+                    f32::from(data.mag[0]) * Self::MAG_SCALE,
+                    f32::from(data.mag[1]) * Self::MAG_SCALE,
+                    f32::from(data.mag[2]) * Self::MAG_SCALE,
+                ];
+                let acc = [
+                    f32::from(data.accel[0]) * Self::ACCEL_SCALE,
+                    f32::from(data.accel[1]) * Self::ACCEL_SCALE,
+                    f32::from(data.accel[2]) * Self::ACCEL_SCALE,
+                ];
+                let gyro = [
+                    f32::from(data.gyro[0]) * Self::GYRO_SCALE * Self::DEG_TO_RAD,
+                    f32::from(data.gyro[1]) * Self::GYRO_SCALE * Self::DEG_TO_RAD,
+                    f32::from(data.gyro[2]) * Self::GYRO_SCALE * Self::DEG_TO_RAD,
+                ];
+
+                let mag_arr = array![mag[0], mag[1], mag[2]];
+                let acc_arr = array![acc[0], acc[1], acc[2]];
+                let gyro_arr = array![gyro[0], gyro[1], gyro[2]];
+
                 self.time_data.push(now);
-                self.gyro_data.push(data.gyro[2]);
-                self.mag_data.push(&Array1::from_iter(data.mag));
-                //self.mag_data[0].push(magn[0]);
-                //self.mag_data[1].push(magn[1]);
-                //self.mag_data[2].push(magn[2]);
-                let n = self.gyro_data.len();
+                self.mag_data.push(&mag_arr);
+                self.acc_data.push(&acc_arr);
+                self.gyro_data.push(&gyro_arr);
+
+                let mag_arr = array![[mag[0]], [mag[1]], [mag[2]]];
+                let mag_arr = self.a_1.dot(&(mag_arr - &self.b));
+                let mag_arr = array![mag_arr[[0, 0]], mag_arr[[1, 0]], mag_arr[[2, 0]]];
+
+                let acc_arr = array![
+                    acc[0] - self.acc_biases[0],
+                    acc[1] - self.acc_biases[1],
+                    acc[2] - self.acc_biases[2],
+                ];
+
+                let (angle, mag_magnitute) =
+                    Self::calculate_angle_and_magnitude(&mag_arr, &acc_arr);
+
+                let n = self.gyro_data.index;
                 eprintln!("{n}");
-                if n >= Self::SAMPLES {
+                if n == 0 {
                     //if self.detect_rotation(2.0 * PI, Duration::from_secs(10), n) {
-                        self.update_calibartion();
-                        self.gyro_data = vec![];
-                        //self.mag_data = Default::default();
-                        self.time_data = vec![];
+                    self.update_acc_calibration();
+                    self.update_mag_calibartion();
+                    //self.gyro_data = vec![];
+                    //self.mag_data = Default::default();
+                    //self.time_data = vec![];
                     //} else if now.duration_since(self.time_data[0]) > Duration::from_secs(10) {
-                        //self.gyro_data = vec![];
-                        //self.mag_data = Default::default();
-                        //self.time_data = vec![];
+                    //self.gyro_data = vec![];
+                    //self.mag_data = Default::default();
+                    //self.time_data = vec![];
                     //}
                 };
                 Ok(Self::Data {
-                    accel: data.accel,
-                    gyro: data.gyro,
-                    mag: data.mag,
+                    acc,
+                    gyro,
+                    mag,
                     angle_rel_to_north: angle,
                     mag_magnitute,
                 })
