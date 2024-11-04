@@ -360,14 +360,14 @@ impl Imu {
     }
 
     pub fn calibrate(&mut self) -> Result<(), Error> {
-        let _accel_biases: [f32; 3] =
+        let accel_biases: [f32; 3] =
             match self.device.calibrate_at_rest(&mut rppal::hal::Delay::new()) {
                 Ok(b) => b,
                 Err(e) => return Err(Error::Mpu(e)),
             };
 
         //eprintln!("{accel_biases:?}");
-        //self.device.set_accel_bias(false, [0.0, 0.0, 0.0])?;
+        self.device.set_accel_bias(true, accel_biases.map(|a| a / 9.806))?;
         Ok(())
     }
 }
