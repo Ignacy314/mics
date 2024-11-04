@@ -36,9 +36,9 @@ pub struct Data {
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("No data")]
+    #[error("Wind: No data")]
     NoData,
-    #[error("UART error")]
+    #[error("Wind: UART error")]
     Uart(#[from] rppal::uart::Error),
 }
 
