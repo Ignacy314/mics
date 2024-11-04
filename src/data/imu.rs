@@ -438,10 +438,12 @@ impl Device for Imu {
                 self.gyro_data.push(&gyro_arr);
 
                 eprintln!("mag_arr: {mag_arr}");
+                eprintln!("a_1:\n{}", self.a_1);
+                eprintln!("b:\n{}", self.b);
 
                 let mag_arr = array![[mag[0]], [mag[1]], [mag[2]]];
                 let mag_arr = self.a_1.dot(&(mag_arr - &self.b));
-                eprintln!("a_1.dot(mag_arr - b): {mag_arr}");
+                eprintln!("a_1.dot(mag_arr - b):\n{mag_arr}");
                 let mag_arr = array![mag_arr[[0, 0]], mag_arr[[1, 0]], mag_arr[[2, 0]]];
 
                 //let acc_arr = array![
