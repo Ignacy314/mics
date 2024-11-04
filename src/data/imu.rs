@@ -135,7 +135,7 @@ pub struct Imu {
 
 impl Imu {
     //const COEFFS_FILE: &'static str = "mag_coeffs";
-    const SAMPLES: usize = 500;
+    const SAMPLES: usize = 200;
     const ACCEL_SCALE: f32 = 2.0 / 32768.0;
     const DEG_TO_RAD: f32 = PI / 180.0;
     const GYRO_SCALE: f32 = 250.0 / 32768.0;
