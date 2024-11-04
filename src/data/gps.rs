@@ -49,7 +49,7 @@ impl Device for Gps {
     type Data = Data;
     type Error = Error;
     fn get_data(&mut self) -> Result<Self::Data, Self::Error> {
-        let mut buf = [0u8; 1024];
+        let mut buf = [0u8; 8192];
 
         let bytes = self.device.read(&mut buf)?;
         if bytes == 1024 && self.device.input_len()? > 0 {

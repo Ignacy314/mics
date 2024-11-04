@@ -53,14 +53,14 @@ impl<T: Clone + Zero> CircularBuffer<Array2<T>> {
         self.increment_index();
     }
 
-    fn iter(&self) -> impl Iterator<Item = ArrayBase<ViewRepr<&T>, Dim<[usize; 1]>>> {
-        //self.buf.outer_iter().skip(self.index).chain(self.buf.outer_iter().take(self.index))
-        self.buf
-            .outer_iter()
-            .cycle()
-            .skip(self.index)
-            .take(self.size)
-    }
+    //fn iter(&self) -> impl Iterator<Item = ArrayBase<ViewRepr<&T>, Dim<[usize; 1]>>> {
+    //    //self.buf.outer_iter().skip(self.index).chain(self.buf.outer_iter().take(self.index))
+    //    self.buf
+    //        .outer_iter()
+    //        .cycle()
+    //        .skip(self.index)
+    //        .take(self.size)
+    //}
 }
 
 impl<T: Clone> CircularBuffer<Vec<T>> {
@@ -77,10 +77,10 @@ impl<T: Clone> CircularBuffer<Vec<T>> {
         self.increment_index();
     }
 
-    fn iter(&self) -> impl Iterator<Item = &T> {
-        //self.buf.iter().skip(self.index).chain(self.buf.iter().take(self.index))
-        self.buf.iter().cycle().skip(self.index).take(self.size)
-    }
+    //fn iter(&self) -> impl Iterator<Item = &T> {
+    //    //self.buf.iter().skip(self.index).chain(self.buf.iter().take(self.index))
+    //    self.buf.iter().cycle().skip(self.index).take(self.size)
+    //}
 }
 
 type Circular2DArray<T> = CircularBuffer<Array2<T>>;
@@ -92,7 +92,7 @@ pub struct Imu {
     gyro_data: Circular2DArray<f32>,
     mag_data: Circular2DArray<f32>,
     time_data: CircularVector<Instant>,
-    acc_biases: [f32; 3],
+    //acc_biases: [f32; 3],
     b: Array2<f32>,
     a_1: Array2<f32>,
 }
@@ -151,7 +151,7 @@ impl Imu {
             gyro_data: Circular2DArray::new(Self::SAMPLES, 3),
             mag_data: Circular2DArray::new(Self::SAMPLES, 3),
             time_data: CircularVector::new(Self::SAMPLES, Instant::now()),
-            acc_biases: [0.0; 3],
+            //acc_biases: [0.0; 3],
             b: Array2::zeros((3, 1)),
             a_1: Array2::eye(3),
         };
@@ -247,11 +247,11 @@ impl Imu {
     //    false
     //}
 
-    fn update_acc_calibration(&mut self) {
-        let acc_biases = self.acc_data.buf.mean_axis(Axis(0)).unwrap();
-        self.acc_biases = [acc_biases[0], acc_biases[1], acc_biases[2]];
-        eprintln!("acc biases: {:?}", self.acc_biases);
-    }
+    //fn update_acc_calibration(&mut self) {
+    //    let acc_biases = self.acc_data.buf.mean_axis(Axis(0)).unwrap();
+    //    self.acc_biases = [acc_biases[0], acc_biases[1], acc_biases[2]];
+    //    //eprintln!("acc biases: {:?}", self.acc_biases);
+    //}
 
     fn update_mag_calibartion(&mut self) -> bool {
         info!("MAGNETOMETER CALIBRATION START");
@@ -348,14 +348,14 @@ impl Imu {
         };
 
         let den = &n;
-        eprintln!("n:\n{den}");
+        //eprintln!("n:\n{den}");
         let den = &mm_1.dot(den);
-        eprintln!("M_1.dot(n):\n{den}");
+        //eprintln!("M_1.dot(n):\n{den}");
         let den = n.t().dot(den);
-        eprintln!("n_T.dot(M_1.dot(n)):\n{den}");
+        //eprintln!("n_T.dot(M_1.dot(n)):\n{den}");
         let den = den[[0, 0]] - d;
-        eprintln!("n_T.dot(M_1.dot(n)) - d:\n{den}");
-        eprintln!("mm_sqrt:\n{mm_sqrt}");
+        //eprintln!("n_T.dot(M_1.dot(n)) - d:\n{den}");
+        //eprintln!("mm_sqrt:\n{mm_sqrt}");
 
         if den > 0.0 {
             self.a_1 = (1.0 / den.sqrt()) * mm_sqrt;
@@ -483,7 +483,7 @@ impl Device for Imu {
                     Self::calculate_angle_and_magnitude(&mag_arr, &acc_arr);
 
                 let n = self.gyro_data.index;
-                eprintln!("{n}");
+                //eprintln!("{n}");
                 if n == 0 {
                     //if self.detect_rotation(2.0 * PI, Duration::from_secs(10), n) {
                     //self.update_acc_calibration();
