@@ -1,3 +1,4 @@
+//#![allow(unused)]
 mod audio;
 mod data;
 
@@ -40,9 +41,9 @@ fn main() {
     let running = Arc::new(AtomicBool::new(true));
     // set Ctrl-C interrupt handler to set the 'running' atomic bool to false
     {
-        let running_clone = running.clone();
+        let running = running.clone();
         ctrlc::set_handler(move || {
-            running_clone.store(false, Ordering::Relaxed);
+            running.store(false, Ordering::Relaxed);
         })
         .expect("Error setting Ctrl-C handler");
     }
@@ -66,62 +67,62 @@ fn main() {
         .unwrap();
 
     // Create the Andros I2S microphone capture thread
-    //let andros_status = Arc::new(AtomicU8::new(0));
-    //let andros_thread = {
-    //    let running_clone = running.clone();
-    //    let status_clone = andros_status.clone();
-    //    let rx_clone = rx.clone();
-    //    thread::spawn(move || {
-    //        let andros = CaptureDevice::new(
-    //            "hw:CARD=ANDROSi2s,DEV=1",
-    //            4,
-    //            192_000,
-    //            Format::s32(),
-    //            "../data/i2s/",
-    //            running_clone.clone(),
-    //            status_clone,
-    //            rx_clone,
-    //        );
-    //        while running_clone.load(Ordering::Relaxed) {
-    //            match andros.read(AUDIO_FILE_DURATION) {
-    //                Ok(()) => {}
-    //                Err(err) => handle_capture_device_error(&err),
-    //            };
-    //        }
-    //    })
-    //};
+    let andros_status = Arc::new(AtomicU8::new(0));
+    let andros_thread = {
+        let running = running.clone();
+        let status = andros_status.clone();
+        let rx = rx.clone();
+        thread::spawn(move || {
+            let andros = CaptureDevice::new(
+                "hw:CARD=ANDROSi2s,DEV=1",
+                4,
+                192_000,
+                Format::s32(),
+                "../data/i2s/",
+                running.clone(),
+                status,
+                rx,
+            );
+            while running.load(Ordering::Relaxed) {
+                match andros.read(AUDIO_FILE_DURATION) {
+                    Ok(()) => {}
+                    Err(err) => handle_capture_device_error(&err),
+                };
+            }
+        })
+    };
 
     // Create the UMC microphone capture thread
-    //let umc_status = Arc::new(AtomicU8::new(0));
-    //let umc_thread = {
-    //    let running_clone = running.clone();
-    //    let status_clone = umc_status.clone();
-    //    let rx_clone = rx.clone();
-    //    thread::spawn(move || {
-    //        let umc = CaptureDevice::new(
-    //            "hw:CARD=U192k,DEV=0",
-    //            2,
-    //            48_000,
-    //            Format::s32(),
-    //            "../data/umc/",
-    //            running_clone.clone(),
-    //            status_clone,
-    //            rx_clone,
-    //        );
-    //        while running_clone.load(Ordering::Relaxed) {
-    //            match umc.read(AUDIO_FILE_DURATION) {
-    //                Ok(()) => {}
-    //                Err(err) => handle_capture_device_error(&err),
-    //            };
-    //        }
-    //    })
-    //};
+    let umc_status = Arc::new(AtomicU8::new(0));
+    let umc_thread = {
+        let running = running.clone();
+        let status = umc_status.clone();
+        let rx = rx.clone();
+        thread::spawn(move || {
+            let umc = CaptureDevice::new(
+                "hw:CARD=U192k,DEV=0",
+                2,
+                48_000,
+                Format::s32(),
+                "../data/umc/",
+                running.clone(),
+                status,
+                rx,
+            );
+            while running.load(Ordering::Relaxed) {
+                match umc.read(AUDIO_FILE_DURATION) {
+                    Ok(()) => {}
+                    Err(err) => handle_capture_device_error(&err),
+                };
+            }
+        })
+    };
 
     let data_thread = {
-        let running_clone = running.clone();
+        let running = running.clone();
         thread::spawn(move || {
             let mut reader = data::Reader::new();
-            reader.read(&running_clone);
+            reader.read(&running);
         })
     };
 
@@ -131,7 +132,7 @@ fn main() {
         //println!("UMC status: {}", umc_status.load(Ordering::Relaxed));
         thread::sleep(Duration::from_secs(2).saturating_sub(start.elapsed()));
     }
-    //andros_thread.join().unwrap();
-    //umc_thread.join().unwrap();
+    andros_thread.join().unwrap();
+    umc_thread.join().unwrap();
     data_thread.join().unwrap();
 }

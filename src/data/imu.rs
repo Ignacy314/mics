@@ -5,7 +5,6 @@ use ndarray_linalg::Eig;
 use num_traits::identities::Zero;
 use std::f32::consts::PI;
 use std::fmt::Debug;
-use std::os::linux::raw;
 use std::time::{Duration, Instant};
 
 use log::info;
@@ -373,7 +372,7 @@ impl Imu {
         true
     }
 
-    fn calculate_angle_and_magnitude(mag: &Array1<f32>, acc: Array1<f32>) -> (f32, f32) {
+    fn calculate_angle_and_magnitude(mag: &Array1<f32>, acc: &Array1<f32>) -> (f32, f32) {
         //let mag = {
         //    let mut mag = [0f32; 3];
         //    for ((a, b), c) in mag.iter_mut().zip(&magn).zip(&self.mag_coeffs) {
@@ -384,8 +383,8 @@ impl Imu {
         let mag_magnitude = mag.iter().map(|a| a.powi(2)).sum::<f32>().sqrt();
         //let a = mag.dot(&acc);
         //dbg!("vec_north");
-        //let vec_north = mag - ((mag.dot(&acc) / acc.dot(&acc)) * acc);
-        let vec_north = mag;
+        let vec_north = mag - ((mag.dot(acc) / acc.dot(acc)) * acc);
+        //let vec_north = mag;
         //let angle = mag[1].atan2(mag[2]) - self.north_vector[1].atan2(self.north_vector[0]);
         //let angle = angle - 2.0 * PI * (angle / (2.0 * PI)).floor();
         //let angle = angle.sin().atan2(angle.cos()) + PI;
@@ -410,7 +409,7 @@ impl Imu {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone, Copy)]
 pub struct Data {
     pub accel: [f32; 3],
     gyro: [f32; 3],
@@ -458,13 +457,13 @@ impl Device for Imu {
                 let mag = array![mag[[0, 0]], mag[[1, 0]], mag[[2, 0]]];
                 let acc = Array1::from_iter(data.accel);
                 //dbg!("calc angle");
-                let (angle, mag_magnitute) = Self::calculate_angle_and_magnitude(&mag, acc);
+                let (angle, mag_magnitute) = Self::calculate_angle_and_magnitude(&mag, &acc);
+                self.time_data.push(now);
                 self.gyro_data.push(data.gyro[2]);
                 self.mag_data.push(&Array1::from_iter(data.mag));
                 //self.mag_data[0].push(magn[0]);
                 //self.mag_data[1].push(magn[1]);
                 //self.mag_data[2].push(magn[2]);
-                self.time_data.push(now);
                 let n = self.gyro_data.len();
                 eprintln!("{n}");
                 if n >= Self::SAMPLES {

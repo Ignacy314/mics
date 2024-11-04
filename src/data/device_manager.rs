@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use super::{aht, bmp, gps, imu, wind};
-use crate::data::{Aht, Bmp, Gps, Imu, Wind};
+use super::{aht, bmp, gps};
+use crate::data::{Aht, Bmp, Gps};
 use std::time::Duration;
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum Status {
     Ok = 0,
     Disconnected = 1,
@@ -31,8 +31,8 @@ pub struct Statuses {
 pub struct DeviceManager {
     pub gps: Option<Gps>,
     pub aht: Option<Aht>,
-    pub wind: Option<Wind>,
-    pub imu: Option<Imu>,
+    //pub wind: Option<Wind>,
+    //pub imu: Option<Imu>,
     pub bmp: Option<Bmp>,
     pub settings: Settings,
     pub statuses: Statuses,
@@ -56,20 +56,20 @@ impl DeviceManager {
         Ok(())
     }
 
-    pub fn try_set_wind(&mut self) -> Result<(), wind::Error> {
-        let UartDeviceSettings { port, baud_rate, timeout } = self.settings.wind;
-        self.wind = Some(Wind::new(port, baud_rate, timeout)?);
-        self.statuses.wind = Status::Ok;
-        Ok(())
-    }
+    //pub fn try_set_wind(&mut self) -> Result<(), wind::Error> {
+    //    let UartDeviceSettings { port, baud_rate, timeout } = self.settings.wind;
+    //    self.wind = Some(Wind::new(port, baud_rate, timeout)?);
+    //    self.statuses.wind = Status::Ok;
+    //    Ok(())
+    //}
 
-    pub fn try_set_imu(&mut self) -> Result<(), imu::Error> {
-        let mut imu = Imu::new(self.settings.imu_bus)?;
-        imu.calibrate()?;
-        self.imu = Some(imu);
-        self.statuses.imu = Status::Ok;
-        Ok(())
-    }
+    //pub fn try_set_imu(&mut self) -> Result<(), imu::Error> {
+    //    let mut imu = Imu::new(self.settings.imu_bus)?;
+    //    imu.calibrate()?;
+    //    self.imu = Some(imu);
+    //    self.statuses.imu = Status::Ok;
+    //    Ok(())
+    //}
 
     pub fn try_set_bmp(&mut self) -> Result<(), bmp::Error> {
         self.bmp = Some(Bmp::new()?);
@@ -78,7 +78,7 @@ impl DeviceManager {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct UartDeviceSettings {
     pub port: &'static str,
     pub baud_rate: u32,
