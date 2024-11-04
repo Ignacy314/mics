@@ -55,7 +55,11 @@ impl<T: Clone + Zero> CircularBuffer<Array2<T>> {
 
     fn iter(&self) -> impl Iterator<Item = ArrayBase<ViewRepr<&T>, Dim<[usize; 1]>>> {
         //self.buf.outer_iter().skip(self.index).chain(self.buf.outer_iter().take(self.index))
-        self.buf.outer_iter().cycle().skip(self.index).take(self.size)
+        self.buf
+            .outer_iter()
+            .cycle()
+            .skip(self.index)
+            .take(self.size)
     }
 }
 
@@ -148,8 +152,8 @@ impl Imu {
             mag_data: Circular2DArray::new(Self::SAMPLES, 3),
             time_data: CircularVector::new(Self::SAMPLES, Instant::now()),
             acc_biases: [0.0; 3],
-            b: Array2::ones((3, 1)),
-            a_1: Array2::ones((3, 3)),
+            b: Array2::zeros((3, 1)),
+            a_1: Array2::eye(3),
         };
         //if s.load_mag_coeffs_from_file(Self::COEFFS_FILE) {
         //    info!("Magnetometer coefficients loaded from file: {:?}", s.mag_coeffs);
@@ -367,7 +371,8 @@ impl Imu {
             };
 
         //eprintln!("{accel_biases:?}");
-        self.device.set_accel_bias(true, accel_biases.map(|a| a / 9.806))?;
+        self.device
+            .set_accel_bias(true, accel_biases.map(|a| a / 9.806))?;
         Ok(())
     }
 }
