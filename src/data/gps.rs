@@ -68,10 +68,10 @@ impl Device for Gps {
             }
         });
 
-        //eprintln!("{gga:?}");
+        eprintln!("{gga:?}");
         let gga = gga.last();
 
-        //eprintln!("{gga:?}");
+        eprintln!("{gga:?}");
 
         let Some(Ok(line)) = gga else {
             return Err(Error::NoData);
