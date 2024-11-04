@@ -295,7 +295,7 @@ impl Imu {
             [0.0, 0.0, 0.0, 0.0, 0.0, -4.0]
         ];
 
-        eprintln!("{ss_22}");
+        //eprintln!("{ss_22}");
         let ss_22_1 = ss_22.inv().unwrap();
 
         let ee = cc

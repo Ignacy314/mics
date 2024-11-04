@@ -118,6 +118,7 @@ impl Reader {
                     if let Some(imu) = imu.as_mut() {
                         match imu.get_data() {
                             Ok(d) => {
+                                eprintln!("{d:?}");
                                 *data.lock() = (d, Status::Ok);
                             }
                             Err(err) => {
@@ -195,10 +196,12 @@ impl Reader {
 
             let mut data = Data::default();
 
+            eprintln!("Trying to read IMU data");
             if let Some(guard) = imu_data.try_lock_for(Duration::from_millis(50)) {
                 let (imu_data, imu_status) = *guard;
                 if imu_status == Status::Ok {
                     data.imu = Some(imu_data);
+                    eprintln!("IMU data read success");
                 }
                 self.device_manager.statuses.imu = imu_status;
             } else {
