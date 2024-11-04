@@ -7,7 +7,7 @@ use std::f32::consts::PI;
 use std::fmt::Debug;
 use std::time::Instant;
 
-use log::info;
+use log::{info, warn};
 use mpu9250::Mpu9250;
 use ndarray::{Array1, Array2};
 use serde::{Deserialize, Serialize};
@@ -349,11 +349,16 @@ impl Imu {
         eprintln!("M_1.dot(n):\n{den}");
         let den = n.t().dot(den);
         eprintln!("n_T.dot(M_1.dot(n)):\n{den}");
-        let den = den - d;
+        let den = den[[0, 0]] - d;
         eprintln!("n_T.dot(M_1.dot(n)) - d:\n{den}");
-        eprintln!("shape: {:?}", den.shape());
 
-        self.a_1 = (1.0 / (n.t().dot(&mm_1.dot(&n)) - d).mapv(f32::sqrt)) * mm_sqrt;
+        if den > 0.0 {
+            self.a_1 = (1.0 / den.sqrt()) * mm_sqrt;
+        } else {
+            warn!("MAGNETOMETER CALIBRATION FAILED");
+        }
+
+        //self.a_1 = (1.0 / (n.t().dot(&mm_1.dot(&n)) - d).mapv(f32::sqrt)) * mm_sqrt;
 
         info!("MAGNETOMETER CALIBRATION END");
         true
