@@ -246,6 +246,7 @@ impl Imu {
     fn update_acc_calibration(&mut self) {
         let acc_biases = self.acc_data.buf.mean_axis(Axis(0)).unwrap();
         self.acc_biases = [acc_biases[0], acc_biases[1], acc_biases[2]];
+        eprintln!("acc biases: {:?}", self.acc_biases);
     }
 
     fn update_mag_calibartion(&mut self) -> bool {
@@ -439,11 +440,11 @@ impl Device for Imu {
                 let mag_arr = self.a_1.dot(&(mag_arr - &self.b));
                 let mag_arr = array![mag_arr[[0, 0]], mag_arr[[1, 0]], mag_arr[[2, 0]]];
 
-                let acc_arr = array![
-                    acc[0] - self.acc_biases[0],
-                    acc[1] - self.acc_biases[1],
-                    acc[2] - self.acc_biases[2],
-                ];
+                //let acc_arr = array![
+                //    acc[0] - self.acc_biases[0],
+                //    acc[1] - self.acc_biases[1],
+                //    acc[2] - self.acc_biases[2],
+                //];
 
                 let (angle, mag_magnitute) =
                     Self::calculate_angle_and_magnitude(&mag_arr, &acc_arr);
