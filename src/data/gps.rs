@@ -58,7 +58,7 @@ impl Device for Gps {
 
         let lines = buf.lines();
 
-        //eprintln!("{lines:?}");
+        eprintln!("{lines:?}");
 
         let gga = lines.filter(|l| {
             if let Ok(l) = l {
@@ -71,7 +71,7 @@ impl Device for Gps {
         //eprintln!("{gga:?}");
         let gga = gga.last();
 
-        //eprintln!("{gga:?}");
+        eprintln!("{gga:?}");
 
         let Some(Ok(line)) = gga else {
             return Err(Error::NoData);
