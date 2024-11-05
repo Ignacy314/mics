@@ -58,10 +58,11 @@ impl Device for Gps {
 
         let lines = buf.lines();
 
-        eprintln!("{lines:?}");
+        //eprintln!("{lines:?}");
 
         let gga = lines.filter(|l| {
             if let Ok(l) = l {
+                eprintln!("{l}");
                 l.starts_with("$GPGGA")
             } else {
                 false
