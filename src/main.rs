@@ -19,13 +19,8 @@ use self::audio::CaptureDeviceError;
 const AUDIO_FILE_DURATION: Duration = Duration::from_secs(10);
 
 fn handle_capture_device_error(err: &CaptureDeviceError) {
-    match err {
-        audio::CaptureDeviceError::FormatUnimplemented(e) => unimplemented!("{e}"),
-        audio::CaptureDeviceError::AlsaError(e) => {
-            warn!("Alsa error: {e}");
-            thread::sleep(Duration::from_secs(1));
-        }
-    }
+    warn!("{err}");
+    thread::sleep(Duration::from_secs(1));
 }
 
 fn main() {

@@ -9,31 +9,14 @@ use alsa::{
     Direction, Error, ValueOr,
 };
 
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum CaptureDeviceError {
+    #[error("Format unimplemented: {0}")]
     FormatUnimplemented(Format),
-    AlsaError(alsa::Error),
-}
-
-impl std::fmt::Display for CaptureDeviceError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CaptureDeviceError::FormatUnimplemented(format) => {
-                write!(f, "Unimplemented sample format: {format}")
-            }
-            CaptureDeviceError::AlsaError(err) => {
-                write!(f, "Audio Device Error: {err}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for CaptureDeviceError {}
-
-impl From<Error> for CaptureDeviceError {
-    fn from(value: Error) -> Self {
-        Self::AlsaError(value)
-    }
+    #[error("Alsa error")]
+    Alsa(#[from] alsa::Error),
+    #[error("Hound error")]
+    Hound(#[from] hound::Error)
 }
 
 pub struct CaptureDevice {
@@ -109,7 +92,7 @@ impl CaptureDevice {
 
         let mut nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
         let mut path = format!("{}/{nanos}.wav", self.output_dir);
-        let mut writer = WavWriter::create(path, wav_spec).unwrap();
+        let mut writer = WavWriter::create(path, wav_spec)?;
         let mut start = Instant::now();
         let mut last_read = Instant::now();
         while self.running.load(Ordering::Relaxed) {
@@ -118,23 +101,23 @@ impl CaptureDevice {
                 let high: i32 = (nanos >> 32) as i32;
                 #[allow(clippy::cast_possible_wrap)]
                 let prefix = 0xeeee_eeeeu32 as i32;
-                writer.write_sample(prefix).unwrap();
-                writer.write_sample(prefix).unwrap();
-                writer.write_sample(high).unwrap();
-                writer.write_sample(low).unwrap();
+                writer.write_sample(prefix)?;
+                writer.write_sample(prefix)?;
+                writer.write_sample(high)?;
+                writer.write_sample(low)?;
             }
             if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
                 last_read = Instant::now();
                 for sample in buf {
-                    writer.write_sample(sample).unwrap();
+                    writer.write_sample(sample)?;
                 }
             }
             if start.elapsed() >= file_duration {
                 start = start.checked_add(file_duration).unwrap();
-                writer.finalize().unwrap();
+                writer.finalize()?;
                 nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
                 path = format!("{}/{nanos}.wav", self.output_dir);
-                writer = WavWriter::create(path, wav_spec).unwrap();
+                writer = WavWriter::create(path, wav_spec)?;
             }
             if last_read.elapsed().as_secs() >= 2 {
                 self.status.store(1, Ordering::Relaxed);
