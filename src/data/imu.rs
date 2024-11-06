@@ -92,7 +92,7 @@ pub struct Imu {
     gyro_data: Circular2DArray<f32>,
     mag_data: Circular2DArray<f32>,
     time_data: CircularVector<Instant>,
-    //acc_biases: [f32; 3],
+    acc_biases: [f32; 3],
     b: Array2<f32>,
     a_1: Array2<f32>,
 }
@@ -151,7 +151,7 @@ impl Imu {
             gyro_data: Circular2DArray::new(Self::SAMPLES, 3),
             mag_data: Circular2DArray::new(Self::SAMPLES, 3),
             time_data: CircularVector::new(Self::SAMPLES, Instant::now()),
-            //acc_biases: [0.0; 3],
+            acc_biases: [0.0; 3],
             b: Array2::zeros((3, 1)),
             a_1: Array2::eye(3),
         };
@@ -247,11 +247,11 @@ impl Imu {
     //    false
     //}
 
-    //fn update_acc_calibration(&mut self) {
-    //    let acc_biases = self.acc_data.buf.mean_axis(Axis(0)).unwrap();
-    //    self.acc_biases = [acc_biases[0], acc_biases[1], acc_biases[2]];
-    //    //eprintln!("acc biases: {:?}", self.acc_biases);
-    //}
+    fn update_acc_calibration(&mut self) {
+        let acc_biases = self.acc_data.buf.mean_axis(Axis(0)).unwrap();
+        self.acc_biases = [acc_biases[0], acc_biases[1], 0.0];
+        //eprintln!("acc biases: {:?}", self.acc_biases);
+    }
 
     fn update_mag_calibartion(&mut self) -> bool {
         info!("MAGNETOMETER CALIBRATION START");
@@ -430,6 +430,35 @@ impl From<mpu9250::I2CError<rppal::i2c::Error>> for Error {
     }
 }
 
+fn acc_tilt(acc: [f32; 3]) -> (f32, f32) {
+    let [x, y, z] = acc;
+    let rho = x.atan2((y * y + z * z).sqrt());
+    let phi = y.atan2((x * x + z * z).sqrt());
+    //let theta = z.atan2((y * y + x * x).sqrt());
+    (rho, phi)
+}
+
+fn rotate_acc_tilt(acc: [f32; 3], mag: &Array2<f32>) -> Array1<f32> {
+    let (rho, phi) = acc_tilt(acc);
+    eprintln!("rho = {rho}, phi = {phi}");
+    let rho_cos = rho.cos();
+    let rho_sin = rho.sin();
+    let rot_rho = array![
+        [1.0, 0.0, 0.0],
+        [0.0, rho_cos, rho_sin],
+        [0.0, rho_sin, rho_cos]
+    ];
+    let phi_cos = phi.cos();
+    let phi_sin = phi.sin();
+    let rot_phi = array![
+        [phi_cos, 0.0, phi_sin],
+        [0.0, 1.0, 0.0],
+        [-phi_sin, 0.0, phi_cos]
+    ];
+    let rot_mag = rot_rho.dot(mag);
+    rot_phi.dot(&rot_mag).into_shape(3).unwrap()
+}
+
 impl Device for Imu {
     type Data = Data;
     type Error = Error;
@@ -455,29 +484,33 @@ impl Device for Imu {
                     f32::from(data.gyro[2]) * Self::GYRO_SCALE * Self::DEG_TO_RAD,
                 ];
 
-                let mag_arr = array![mag[0], mag[1], mag[2]];
+                //let mag_arr = array![mag[0], mag[1], mag[2]];
                 let acc_arr = array![acc[0], acc[1], acc[2]];
                 let gyro_arr = array![gyro[0], gyro[1], gyro[2]];
+
+                let acc = [
+                    acc[0] - self.acc_biases[0],
+                    acc[1] - self.acc_biases[1],
+                    acc[2] - self.acc_biases[2],
+                ];
+
+                let mag_arr = array![[mag[0]], [mag[1]], [mag[2]]];
+                let mag_arr = rotate_acc_tilt(acc, &mag_arr);
+                eprintln!("mag rotated: {mag_arr}");
 
                 self.time_data.push(now);
                 self.mag_data.push(&mag_arr);
                 self.acc_data.push(&acc_arr);
                 self.gyro_data.push(&gyro_arr);
 
+                //let (rho, phi) = acc_tilt(acc);
+
                 //eprintln!("mag_arr: {mag_arr}");
                 //eprintln!("a_1:\n{}", self.a_1);
                 //eprintln!("b:\n{}", self.b);
-
-                let mag_arr = array![[mag[0]], [mag[1]], [mag[2]]];
-                let mag_arr = self.a_1.dot(&(mag_arr - &self.b));
+                //let mag_arr = self.a_1.dot(&(mag_arr - &self.b));
                 //eprintln!("a_1.dot(mag_arr - b):\n{mag_arr}");
-                let mag_arr = array![mag_arr[[0, 0]], mag_arr[[1, 0]], mag_arr[[2, 0]]];
-
-                //let acc_arr = array![
-                //    acc[0] - self.acc_biases[0],
-                //    acc[1] - self.acc_biases[1],
-                //    acc[2] - self.acc_biases[2],
-                //];
+                //let mag_arr = array![mag_arr[[0, 0]], mag_arr[[1, 0]], mag_arr[[2, 0]]];
 
                 let (angle, mag_magnitute) =
                     Self::calculate_angle_and_magnitude(&mag_arr, &acc_arr);
