@@ -494,6 +494,7 @@ impl Device for Imu {
                     acc[2] - self.acc_biases[2],
                 ];
 
+                eprintln!("mag: {mag:?}");
                 let mag_arr = array![[mag[0]], [mag[1]], [mag[2]]];
                 let mag_arr = rotate_acc_tilt(acc, &mag_arr);
                 eprintln!("mag rotated: {mag_arr}");
