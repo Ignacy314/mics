@@ -396,7 +396,10 @@ impl Device for Imu {
                 self.filtered_acc = low_pass_filter(&self.filtered_acc, &acc);
                 self.filtered_mag = low_pass_filter(&self.filtered_mag, &mag);
 
-                let angle = Self::calculate_angle(&self.filtered_mag, &self.filtered_acc);
+                let mut angle = Self::calculate_angle(&self.filtered_mag, &self.filtered_acc);
+                if angle < 0.0 {
+                    angle += 360.0;
+                }
                 //eprintln!("raw_acc: {:?}", data.accel);
                 eprintln!("angle: {angle}  |  acc: {:?}  |  mag: {:?}", self.filtered_acc, self.filtered_mag);
 
