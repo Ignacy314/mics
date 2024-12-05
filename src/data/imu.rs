@@ -333,12 +333,15 @@ impl Imu {
         self.mag_sens_adj = self.device.mag_sensitivity_adjustments();
 
         //eprintln!("{accel_biases:?}");
+        info!("acc_bias: {acc_bias:?}");
         if acc_bias[2] > 0.0 {
             acc_bias[2] -= G;
         } else {
             acc_bias[2] += G;
         }
+        info!("acc_bias: {acc_bias:?}");
         let acc_bias = [-acc_bias[0], -acc_bias[1], -acc_bias[2]];
+        info!("acc_bias: {acc_bias:?}");
 
         info!("WRITING TO DEVICE CALIBRATION FILE");
         //info!("acc_bias: {acce}")
