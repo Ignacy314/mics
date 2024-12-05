@@ -465,6 +465,7 @@ impl Device for Imu {
                 //eprintln!("{n}");
                 if !self.calibrated && n == 0 {
                     self.update_mag_calibartion();
+                    self.calibrated = true;
                 };
 
                 Ok(Self::Data {
