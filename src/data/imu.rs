@@ -342,7 +342,7 @@ impl From<mpu9250::I2CError<rppal::i2c::Error>> for Error {
 }
 
 fn low_pass_filter(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
-    const OLD: f32 = 0.7;
+    const OLD: f32 = 0.0;
     const NEW: f32 = 1.0 - OLD;
     [
         OLD * a[0] + NEW * b[0],
