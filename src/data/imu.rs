@@ -298,7 +298,7 @@ impl Imu {
             };
         self.mag_sens_adj = self.device.mag_sensitivity_adjustments();
 
-        //eprintln!("{accel_biases:?}");
+        eprintln!("{accel_biases:?}");
         //if accel_biases[2] > 0.0 {
         //    accel_biases[2] -= G;
         //} else {
