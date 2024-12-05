@@ -318,7 +318,7 @@ impl Imu {
                 info!("calib: {calib:?}");
                 self.mag_sens_adj = calib.mag_sens_adj;
                 self.device.set_gyro_bias(false, calib.gyro_bias)?;
-                self.device.set_accel_bias(false, calib.acc_bias)?;
+                self.device.set_accel_bias(true, calib.acc_bias)?;
                 info!("DEVICE CALIBRATION COMPLETED");
                 return Ok(());
             }
