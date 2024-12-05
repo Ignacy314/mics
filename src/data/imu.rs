@@ -363,6 +363,8 @@ impl Imu {
         self.device
             //.set_accel_bias(true, accel_biases.map(|a| a / 9.807))?;
             .set_accel_bias(true, acc_bias)?;
+        let gyro_bias: [f32; 3] = self.device.get_gyro_bias()?;
+        info!("gyro_bias: {gyro_bias:?}");
         info!("DEVICE CALIBRATION COMPLETED");
         Ok(())
     }
