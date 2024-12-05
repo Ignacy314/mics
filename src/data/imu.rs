@@ -298,15 +298,15 @@ impl Imu {
             };
         self.mag_sens_adj = self.device.mag_sensitivity_adjustments();
 
-        eprintln!("{accel_biases:?}");
-        //if accel_biases[2] > 0.0 {
-        //    accel_biases[2] -= G;
-        //} else {
-        //    accel_biases[2] += G;
-        //}
-        //self.device
-        //    //.set_accel_bias(true, accel_biases.map(|a| a / 9.807))?;
-        //    .set_accel_bias(true, accel_biases)?;
+        //eprintln!("{accel_biases:?}");
+        if accel_biases[2] > 0.0 {
+            accel_biases[2] -= G;
+        } else {
+            accel_biases[2] += G;
+        }
+        self.device
+            //.set_accel_bias(true, accel_biases.map(|a| a / 9.807))?;
+            .set_accel_bias(true, accel_biases)?;
         Ok(())
     }
 }
@@ -380,18 +380,25 @@ impl Device for Imu {
                 self.acc_data.push(acc);
                 self.gyro_data.push(gyro);
 
+                let mag = [
+                    (mag[0] - self.mag_bias[0]) * self.mag_scale[0],
+                    (mag[1] - self.mag_bias[1]) * self.mag_scale[1],
+                    (mag[2] - self.mag_bias[2]) * self.mag_scale[2],
+                ];
+
                 self.filtered_acc = low_pass_filter(&self.filtered_acc, &acc);
                 self.filtered_mag = low_pass_filter(&self.filtered_mag, &mag);
 
                 let angle = Self::calculate_angle(&self.filtered_mag, &self.filtered_acc);
-                eprintln!("raw_acc: {:?}", data.accel);
-                //eprintln!("angle: {angle}  |  acc: {:?}  |  mag: {:?}", self.filtered_acc, self.filtered_mag);
+                //eprintln!("raw_acc: {:?}", data.accel);
+                eprintln!("angle: {angle}  |  acc: {:?}  |  mag: {:?}", self.filtered_acc, self.filtered_mag);
 
                 let n = self.gyro_data.index;
                 //eprintln!("{n}");
                 if n == 0 {
                     self.update_mag_calibartion();
                 };
+
                 Ok(Self::Data {
                     acc,
                     gyro,
