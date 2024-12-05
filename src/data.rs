@@ -111,6 +111,7 @@ impl Reader {
             let bus = self.device_manager.settings.imu_bus;
             let period = Duration::from_millis(50);
             thread::spawn(move || {
+                let samples: usize = 10000 / period.as_millis() as usize;
                 let mut imu: Option<Imu> = None;
                 while running.load(Ordering::Relaxed) {
                     let start = Instant::now();
@@ -127,7 +128,7 @@ impl Reader {
                             }
                         }
                     } else {
-                        match Imu::new(bus) {
+                        match Imu::new(bus, samples) {
                             Ok(mut device) => match device.calibrate() {
                                 Ok(()) => {
                                     info! {"IMU device initialized"};

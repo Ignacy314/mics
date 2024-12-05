@@ -1,15 +1,16 @@
+use core::f32;
 //#![allow(unused)]
-use ndarray::{array, s, stack, Array, ArrayBase, Axis, Dim, OwnedRepr, ViewRepr};
-use ndarray_linalg::solve::Inverse;
-use ndarray_linalg::{Eig, Norm};
-use num_traits::identities::Zero;
+//use ndarray::{array, s, stack, Array, ArrayBase, ArrayView1, Axis, Dim, OwnedRepr, ViewRepr};
+//use ndarray_linalg::solve::Inverse;
+//use ndarray_linalg::Eig;
+//use num_traits::identities::Zero;
 use std::f32::consts::PI;
 use std::fmt::Debug;
 use std::time::Instant;
 
-use log::{info, warn};
-use mpu9250::Mpu9250;
-use ndarray::{Array1, Array2};
+use log::info;
+use mpu9250::{Marg, Mpu9250, MpuConfig};
+//use ndarray::{Array1, Array2};
 use serde::{Deserialize, Serialize};
 
 use super::Device;
@@ -18,9 +19,9 @@ trait Buffer {
     type Container;
 }
 
-impl<T> Buffer for Array2<T> {
-    type Container = Array2<T>;
-}
+//impl<T> Buffer for Array2<T> {
+//    type Container = Array2<T>;
+//}
 
 impl<T> Buffer for Vec<T> {
     type Container = Vec<T>;
@@ -39,31 +40,42 @@ impl<B: Buffer> CircularBuffer<B> {
     }
 }
 
-impl<T: Clone + Zero> CircularBuffer<Array2<T>> {
-    fn new(size: usize, elems: usize) -> Self {
-        Self {
-            size,
-            buf: Array2::<T>::zeros((size, elems)),
-            index: 0,
-        }
-    }
+//impl<T: Clone + Zero> CircularBuffer<Array2<T>> {
+//    fn new(size: usize, elems: usize) -> Self {
+//        Self {
+//            size,
+//            buf: Array2::<T>::zeros((size, elems)),
+//            index: 0,
+//        }
+//    }
+//
+//    fn push(&mut self, value: &Array1<T>) {
+//        self.buf.row_mut(self.index).assign(value);
+//        self.increment_index();
+//    }
+//
+//    fn newest(&self) -> ArrayView1<T> {
+//        if self.index == 0 {
+//            return self.buf.row(self.size - 1);
+//        }
+//        return self.buf.row(self.index - 1);
+//    }
+//
+//    fn oldest(&self) -> ArrayView1<T> {
+//        return self.buf.row(self.index);
+//    }
+//
+//    //fn iter(&self) -> impl Iterator<Item = ArrayBase<ViewRepr<&T>, Dim<[usize; 1]>>> {
+//    //    //self.buf.outer_iter().skip(self.index).chain(self.buf.outer_iter().take(self.index))
+//    //    self.buf
+//    //        .outer_iter()
+//    //        .cycle()
+//    //        .skip(self.index)
+//    //        .take(self.size)
+//    //}
+//}
 
-    fn push(&mut self, value: &Array1<T>) {
-        self.buf.row_mut(self.index).assign(value);
-        self.increment_index();
-    }
-
-    //fn iter(&self) -> impl Iterator<Item = ArrayBase<ViewRepr<&T>, Dim<[usize; 1]>>> {
-    //    //self.buf.outer_iter().skip(self.index).chain(self.buf.outer_iter().take(self.index))
-    //    self.buf
-    //        .outer_iter()
-    //        .cycle()
-    //        .skip(self.index)
-    //        .take(self.size)
-    //}
-}
-
-impl<T: Clone> CircularBuffer<Vec<T>> {
+impl<T: Clone + Copy> CircularBuffer<Vec<T>> {
     fn new(size: usize, fill: T) -> Self {
         Self {
             size,
@@ -77,24 +89,40 @@ impl<T: Clone> CircularBuffer<Vec<T>> {
         self.increment_index();
     }
 
+    fn newest(&self) -> T {
+        if self.index == 0 {
+            return self.buf[self.size - 1];
+        }
+        self.buf[self.index - 1]
+    }
+
+    fn oldest(&self) -> T {
+        self.buf[self.index]
+    }
+
     //fn iter(&self) -> impl Iterator<Item = &T> {
     //    //self.buf.iter().skip(self.index).chain(self.buf.iter().take(self.index))
     //    self.buf.iter().cycle().skip(self.index).take(self.size)
     //}
 }
 
-type Circular2DArray<T> = CircularBuffer<Array2<T>>;
+//type Circular2DArray<T> = CircularBuffer<Array2<T>>;
 type CircularVector<T> = CircularBuffer<Vec<T>>;
 
 pub struct Imu {
     device: Mpu9250<mpu9250::I2cDevice<rppal::i2c::I2c>, mpu9250::Marg>,
-    acc_data: Circular2DArray<f32>,
-    gyro_data: Circular2DArray<f32>,
-    mag_data: Circular2DArray<f32>,
+    acc_data: CircularVector<[f32; 3]>,
+    gyro_data: CircularVector<[f32; 3]>,
+    mag_data: CircularVector<[f32; 3]>,
     time_data: CircularVector<Instant>,
-    acc_biases: [f32; 3],
-    b: Array2<f32>,
-    a_1: Array2<f32>,
+    mag_sens_adj: [f32; 3],
+    mag_bias: [f32; 3],
+    mag_scale: [f32; 3],
+    filtered_mag: [f32; 3],
+    filtered_acc: [f32; 3],
+    //acc_biases: [f32; 3],
+    //b: Array2<f32>,
+    //a_1: Array2<f32>,
 }
 
 //impl Debug for Imu {
@@ -135,25 +163,30 @@ pub struct Imu {
 
 impl Imu {
     //const COEFFS_FILE: &'static str = "mag_coeffs";
-    const SAMPLES: usize = 200;
+    //const SAMPLES: usize = 200;
     const ACCEL_SCALE: f32 = 2.0 / 32768.0;
     const DEG_TO_RAD: f32 = PI / 180.0;
     const GYRO_SCALE: f32 = 250.0 / 32768.0;
-    const MAG_SCALE: f32 = 4800.0 / 8192.0;
+    //const MAG_SCALE: f32 = 4800.0 / 8192.0;
+    const MAG_SCALE: f32 = 0.15;
 
-    pub fn new(bus: u8) -> Result<Self, Error> {
+    pub fn new(bus: u8, samples: usize) -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::with_bus(bus)?;
         let mut delay = rppal::hal::Delay::new();
-        let mpu = Mpu9250::marg_default(i2c, &mut delay)?;
+        let mut config = MpuConfig::marg();
+        config.mag_scale(mpu9250::MagScale::_16BITS);
+        let mpu = Mpu9250::marg(i2c, &mut delay, &mut config)?;
         let s = Self {
             device: mpu,
-            acc_data: Circular2DArray::new(Self::SAMPLES, 3),
-            gyro_data: Circular2DArray::new(Self::SAMPLES, 3),
-            mag_data: Circular2DArray::new(Self::SAMPLES, 3),
-            time_data: CircularVector::new(Self::SAMPLES, Instant::now()),
-            acc_biases: [0.0; 3],
-            b: Array2::zeros((3, 1)),
-            a_1: Array2::eye(3),
+            acc_data: CircularVector::new(samples, [0.0; 3]),
+            gyro_data: CircularVector::new(samples, [0.0; 3]),
+            mag_data: CircularVector::new(samples, [0.0; 3]),
+            time_data: CircularVector::new(samples, Instant::now()),
+            mag_sens_adj: [0.0; 3],
+            mag_bias: [0.0; 3],
+            mag_scale: [1.0; 3],
+            filtered_mag: [0.0; 3],
+            filtered_acc: [0.0; 3],
         };
         //if s.load_mag_coeffs_from_file(Self::COEFFS_FILE) {
         //    info!("Magnetometer coefficients loaded from file: {:?}", s.mag_coeffs);
@@ -247,154 +280,77 @@ impl Imu {
     //    false
     //}
 
-    fn update_acc_calibration(&mut self) {
-        let acc_biases = self.acc_data.buf.mean_axis(Axis(0)).unwrap();
-        self.acc_biases = [acc_biases[0], acc_biases[1], 0.0];
-        //eprintln!("acc biases: {:?}", self.acc_biases);
-    }
-
-    fn update_mag_calibartion(&mut self) -> bool {
-        info!("MAGNETOMETER CALIBRATION START");
-
-        let s: &ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = &self.mag_data.buf;
-        //eprintln!("{s}");
-        let xs: ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>> = s.slice(s![.., 0]);
-        let ys: ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>> = s.slice(s![.., 1]);
-        let zs: ArrayBase<ViewRepr<&f32>, Dim<[usize; 1]>> = s.slice(s![.., 2]);
-
-        //eprintln!("{xs}\n{ys}]\n{zs}");
-
-        let d: ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = stack![
-            Axis(0),
-            xs.mapv(|a| a.powi(2)),
-            ys.mapv(|a| a.powi(2)),
-            zs.mapv(|a| a.powi(2)),
-            2f32 * &ys * zs,
-            2f32 * &xs * zs,
-            2f32 * &xs * ys,
-            2f32 * &xs,
-            2f32 * &ys,
-            2f32 * &zs,
-            Array::ones(xs.raw_dim())
-        ];
-        //eprintln!("{d}");
-        //eprintln!("{:?}", d.shape());
-
-        let ss: ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = d.dot(&d.t());
-        //eprintln!("{:?}", ss.shape());
-        let ss_11 = ss.slice(s![..6, ..6]);
-        //eprintln!("{:?}", ss_11.shape());
-        let ss_12 = ss.slice(s![..6, 6..]);
-        //eprintln!("{:?}", ss_12.shape());
-        let ss_21 = ss.slice(s![6.., ..6]);
-        //eprintln!("{:?}", ss_21.shape());
-        let ss_22 = ss.slice(s![6.., 6..]);
-        //eprintln!("{:?}", ss_22.shape());
-
-        let cc = array![
-            [-1f32, 1.0, 1.0, 0.0, 0.0, 0.0],
-            [1.0, -1.0, 1.0, 0.0, 0.0, 0.0],
-            [1.0, 1.0, -1.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, -4.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, -4.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0, 0.0, -4.0]
-        ];
-
-        //eprintln!("{ss_22}");
-        let ss_22_1 = ss_22.inv().unwrap();
-
-        let ee = cc
-            .inv()
-            .unwrap()
-            .dot(&(&ss_11 - &ss_12.dot(&ss_22_1.dot(&ss_21))));
-
-        let (ee_w, ee_v) = ee.eig().unwrap();
-        let max_index = ee_w
-            .iter()
-            .enumerate()
-            .max_by(|(_, a), (_, b)| a.re.total_cmp(&b.re))
-            .map(|(index, _)| index)
-            .unwrap();
-        let ee_v = ee_v.map(|a| a.re);
-        let v_1: ArrayBase<OwnedRepr<f32>, Dim<[usize; 1]>> = ee_v.slice_move(s![.., max_index]);
-        let v_1 = if v_1[0] < 0.0 { -v_1 } else { v_1 };
-
-        let v_2 = (-(ss_22.inv().unwrap())).dot(&ss_21).dot(&v_1);
-
-        let mm = array![
-            [v_1[0], v_1[3], v_1[4]],
-            [v_1[3], v_1[1], v_1[5]],
-            [v_1[4], v_1[5], v_1[2]]
-        ];
-
-        let n = array![[v_2[0]], [v_2[1]], [v_2[2]]];
-
-        let d = v_2[3];
-
-        let mm_1 = mm.inv().unwrap();
-
-        let b = -(mm_1.dot(&n));
-
-        let mm_sqrt: ArrayBase<OwnedRepr<f32>, Dim<[usize; 2]>> = {
-            let (ew, ev) = mm.eig().unwrap();
-            let ew = ew.map(|a| a.re);
-            if ew.iter().any(|a| a <= &0.0) {
-                warn!("MAGNETOMETER CALIBRATION FAILED");
-                return false;
-            }
-            let ev = ev.map(|a| a.re);
-            let ew_sqrt = Array2::from_diag(&ew.mapv(f32::sqrt));
-            ev.dot(&ew_sqrt.dot(&ev.inv().unwrap()))
-        };
-
-        let den = &n;
-        //eprintln!("n:\n{den}");
-        let den = &mm_1.dot(den);
-        //eprintln!("M_1.dot(n):\n{den}");
-        let den = n.t().dot(den);
-        //eprintln!("n_T.dot(M_1.dot(n)):\n{den}");
-        let den = den[[0, 0]] - d;
-        //eprintln!("n_T.dot(M_1.dot(n)) - d:\n{den}");
-        //eprintln!("mm_sqrt:\n{mm_sqrt}");
-
-        if den > 0.0 {
-            self.a_1 = (1.0 / den.sqrt()) * mm_sqrt;
-            self.b = b;
-        } else {
-            warn!("MAGNETOMETER CALIBRATION FAILED");
-            return false;
+    fn update_mag_calibartion(&mut self) {
+        let [mut max_x, mut max_y, mut max_z] = self.mag_data.buf[0];
+        let [mut min_x, mut min_y, mut min_z] = self.mag_data.buf[0];
+        for &[x, y, z] in self.mag_data.buf.iter().skip(1) {
+            max_x = max_x.max(x);
+            max_y = max_y.max(y);
+            max_z = max_z.max(z);
+            min_x = min_x.min(x);
+            min_y = min_y.min(y);
+            min_z = min_z.min(z);
         }
 
-        //self.a_1 = (1.0 / (n.t().dot(&mm_1.dot(&n)) - d).mapv(f32::sqrt)) * mm_sqrt;
+        self.mag_bias = [
+            (max_x + min_x) / 2.0,
+            (max_y + min_y) / 2.0,
+            (max_z + min_z) / 2.0,
+        ];
 
-        info!("MAGNETOMETER CALIBRATION END");
-        true
+        let [avg_delta_x, avg_delta_y, avg_delta_z] = [
+            (max_x - min_x) / 2.0,
+            (max_y - min_y) / 2.0,
+            (max_z - min_z) / 2.0,
+        ];
+
+        let avg_delta = (avg_delta_x + avg_delta_y + avg_delta_z) / 3.0;
+
+        self.mag_scale = [
+            avg_delta / avg_delta_x,
+            avg_delta / avg_delta_y,
+            avg_delta / avg_delta_z,
+        ];
+
+        info!("MAGNETOMETER CALIBRATION");
     }
 
-    fn calculate_angle_and_magnitude(mag: &Array1<f32>, acc: &Array1<f32>) -> (f32, f32) {
-        let mag_magnitude = mag.norm();
-        //let mag_magnitude = mag.iter().map(|a| a.powi(2)).sum::<f32>().sqrt();
+    fn dot(v: &[f32], w: &[f32]) -> f32 {
+        v.iter().zip(w.iter()).map(|(x, y)| x * y).sum()
+    }
 
+    /// Orthogonal projection of v on onto the plane orthogonal to w
+    fn oproj(v: &[f32; 3], w: &[f32; 3]) -> [f32; 3] {
+        let a = Self::dot(v, w) / Self::dot(w, w);
+        [v[0] - a * w[0], v[1] - a * w[1], v[2] - a * w[2]]
+    }
+
+    fn calculate_angle(mag: &[f32; 3], acc: &[f32; 3]) -> f32 {
         // Project mag onto a plane perpendicular to Earth's gravity vector
-        let vec_north = mag - ((mag.dot(acc) / acc.dot(acc)) * acc);
+        let vec_north = Self::oproj(mag, acc);
 
         // Assuming x is forward y is left
-        let angle = vec_north[0].atan2(vec_north[1]);
-        let angle = angle * 180.0 / PI;
-
-        (angle, mag_magnitude)
+        vec_north[0].atan2(vec_north[1]) * 180.0 / PI
     }
 
     pub fn calibrate(&mut self) -> Result<(), Error> {
-        let accel_biases: [f32; 3] =
+        const G: f32 = 9.807;
+        let mut accel_biases: [f32; 3] =
             match self.device.calibrate_at_rest(&mut rppal::hal::Delay::new()) {
                 Ok(b) => b,
                 Err(e) => return Err(Error::Mpu(e)),
             };
+        self.mag_sens_adj = self.device.mag_sensitivity_adjustments();
 
         //eprintln!("{accel_biases:?}");
+        if accel_biases[2] > 0.0 {
+            accel_biases[2] -= G;
+        } else {
+            accel_biases[2] += G;
+        }
         self.device
-            .set_accel_bias(true, accel_biases.map(|a| a / 9.806))?;
+            //.set_accel_bias(true, accel_biases.map(|a| a / 9.807))?;
+            .set_accel_bias(true, accel_biases)?;
         Ok(())
     }
 }
@@ -405,7 +361,6 @@ pub struct Data {
     gyro: [f32; 3],
     pub mag: [f32; 3],
     pub angle_rel_to_north: f32,
-    mag_magnitute: f32,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -430,33 +385,12 @@ impl From<mpu9250::I2CError<rppal::i2c::Error>> for Error {
     }
 }
 
-fn acc_tilt(acc: [f32; 3]) -> (f32, f32) {
-    let [x, y, z] = acc;
-    let rho = x.atan2((y * y + z * z).sqrt());
-    let phi = y.atan2((x * x + z * z).sqrt());
-    //let theta = z.atan2((y * y + x * x).sqrt());
-    (rho, phi)
-}
-
-fn rotate_acc_tilt(acc: [f32; 3], mag: &Array2<f32>) -> Array1<f32> {
-    let (rho, phi) = acc_tilt(acc);
-    eprintln!("rho = {rho}, phi = {phi}");
-    let rho_cos = rho.cos();
-    let rho_sin = rho.sin();
-    let rot_rho = array![
-        [1.0, 0.0, 0.0],
-        [0.0, rho_cos, rho_sin],
-        [0.0, rho_sin, rho_cos]
-    ];
-    let phi_cos = phi.cos();
-    let phi_sin = phi.sin();
-    let rot_phi = array![
-        [phi_cos, 0.0, phi_sin],
-        [0.0, 1.0, 0.0],
-        [-phi_sin, 0.0, phi_cos]
-    ];
-    let rot_mag = rot_rho.dot(mag);
-    rot_phi.dot(&rot_mag).into_shape(3).unwrap()
+fn low_pass_filter(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
+    [
+        0.85 * a[0] + 0.15 * b[0],
+        0.85 * a[1] + 0.15 * b[1],
+        0.85 * a[2] + 0.15 * b[2],
+    ]
 }
 
 impl Device for Imu {
@@ -466,12 +400,11 @@ impl Device for Imu {
     fn get_data(&mut self) -> Result<Self::Data, Self::Error> {
         match self.device.unscaled_all::<[i16; 3]>() {
             Ok(data) => {
-                //eprintln!("{:?}", data.accel);
                 let now = Instant::now();
                 let mag = [
-                    f32::from(data.mag[0]) * Self::MAG_SCALE,
-                    f32::from(data.mag[1]) * Self::MAG_SCALE,
-                    f32::from(data.mag[2]) * Self::MAG_SCALE,
+                    f32::from(data.mag[0]) * Self::MAG_SCALE * self.mag_sens_adj[0],
+                    f32::from(data.mag[1]) * Self::MAG_SCALE * self.mag_sens_adj[1],
+                    f32::from(data.mag[2]) * Self::MAG_SCALE * self.mag_sens_adj[2],
                 ];
                 let acc = [
                     f32::from(data.accel[0]) * Self::ACCEL_SCALE,
@@ -484,60 +417,27 @@ impl Device for Imu {
                     f32::from(data.gyro[2]) * Self::GYRO_SCALE * Self::DEG_TO_RAD,
                 ];
 
-                //let mag_arr = array![mag[0], mag[1], mag[2]];
-                let acc_arr = array![acc[0], acc[1], acc[2]];
-                let gyro_arr = array![gyro[0], gyro[1], gyro[2]];
-
-                let acc = [
-                    acc[0] - self.acc_biases[0],
-                    acc[1] - self.acc_biases[1],
-                    acc[2] - self.acc_biases[2],
-                ];
-
-                eprintln!("\nacc: {acc_arr}");
-                eprintln!("mag: {mag:?}");
-                let mag_arr = array![[mag[0]], [mag[1]], [mag[2]]];
-                let mag_arr = rotate_acc_tilt(acc, &mag_arr);
-                eprintln!("mag rotated: {mag_arr}");
-
                 self.time_data.push(now);
-                self.mag_data.push(&mag_arr);
-                self.acc_data.push(&acc_arr);
-                self.gyro_data.push(&gyro_arr);
+                self.mag_data.push(mag);
+                self.acc_data.push(acc);
+                self.gyro_data.push(gyro);
 
-                //let (rho, phi) = acc_tilt(acc);
+                self.filtered_acc = low_pass_filter(&self.filtered_acc, &acc);
+                self.filtered_mag = low_pass_filter(&self.filtered_mag, &acc);
 
-                //eprintln!("mag_arr: {mag_arr}");
-                //eprintln!("a_1:\n{}", self.a_1);
-                //eprintln!("b:\n{}", self.b);
-                //let mag_arr = self.a_1.dot(&(mag_arr - &self.b));
-                //eprintln!("a_1.dot(mag_arr - b):\n{mag_arr}");
-                //let mag_arr = array![mag_arr[[0, 0]], mag_arr[[1, 0]], mag_arr[[2, 0]]];
-
-                let (angle, mag_magnitute) =
-                    Self::calculate_angle_and_magnitude(&mag_arr, &acc_arr);
+                let angle = Self::calculate_angle(&self.filtered_mag, &self.filtered_acc);
+                eprintln!("angle: {angle}  |  acc: {:?}  |  mag: {:?}", self.filtered_acc, self.filtered_mag);
 
                 let n = self.gyro_data.index;
                 //eprintln!("{n}");
                 if n == 0 {
-                    //if self.detect_rotation(2.0 * PI, Duration::from_secs(10), n) {
-                    //self.update_acc_calibration();
                     self.update_mag_calibartion();
-                    //self.gyro_data = vec![];
-                    //self.mag_data = Default::default();
-                    //self.time_data = vec![];
-                    //} else if now.duration_since(self.time_data[0]) > Duration::from_secs(10) {
-                    //self.gyro_data = vec![];
-                    //self.mag_data = Default::default();
-                    //self.time_data = vec![];
-                    //}
                 };
                 Ok(Self::Data {
                     acc,
                     gyro,
                     mag,
                     angle_rel_to_north: angle,
-                    mag_magnitute,
                 })
             }
             Err(e) => Err(Error::Bus(e)),
