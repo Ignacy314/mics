@@ -1,16 +1,11 @@
 use core::f32;
 //#![allow(unused)]
-//use ndarray::{array, s, stack, Array, ArrayBase, ArrayView1, Axis, Dim, OwnedRepr, ViewRepr};
-//use ndarray_linalg::solve::Inverse;
-//use ndarray_linalg::Eig;
-//use num_traits::identities::Zero;
 use std::f32::consts::PI;
 use std::fmt::Debug;
 use std::time::Instant;
 
 use log::info;
-use mpu9250::{Marg, Mpu9250, MpuConfig};
-//use ndarray::{Array1, Array2};
+use mpu9250::{Mpu9250, MpuConfig};
 use serde::{Deserialize, Serialize};
 
 use super::Device;
@@ -18,10 +13,6 @@ use super::Device;
 trait Buffer {
     type Container;
 }
-
-//impl<T> Buffer for Array2<T> {
-//    type Container = Array2<T>;
-//}
 
 impl<T> Buffer for Vec<T> {
     type Container = Vec<T>;
@@ -39,41 +30,6 @@ impl<B: Buffer> CircularBuffer<B> {
         self.index %= self.size;
     }
 }
-
-//impl<T: Clone + Zero> CircularBuffer<Array2<T>> {
-//    fn new(size: usize, elems: usize) -> Self {
-//        Self {
-//            size,
-//            buf: Array2::<T>::zeros((size, elems)),
-//            index: 0,
-//        }
-//    }
-//
-//    fn push(&mut self, value: &Array1<T>) {
-//        self.buf.row_mut(self.index).assign(value);
-//        self.increment_index();
-//    }
-//
-//    fn newest(&self) -> ArrayView1<T> {
-//        if self.index == 0 {
-//            return self.buf.row(self.size - 1);
-//        }
-//        return self.buf.row(self.index - 1);
-//    }
-//
-//    fn oldest(&self) -> ArrayView1<T> {
-//        return self.buf.row(self.index);
-//    }
-//
-//    //fn iter(&self) -> impl Iterator<Item = ArrayBase<ViewRepr<&T>, Dim<[usize; 1]>>> {
-//    //    //self.buf.outer_iter().skip(self.index).chain(self.buf.outer_iter().take(self.index))
-//    //    self.buf
-//    //        .outer_iter()
-//    //        .cycle()
-//    //        .skip(self.index)
-//    //        .take(self.size)
-//    //}
-//}
 
 impl<T: Clone + Copy> CircularBuffer<Vec<T>> {
     fn new(size: usize, fill: T) -> Self {
