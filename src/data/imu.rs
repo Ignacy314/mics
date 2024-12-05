@@ -330,6 +330,7 @@ impl Imu {
                 Err(e) => return Err(Error::Mpu(e)),
             };
         let gyro_bias: [f32; 3] = self.device.get_gyro_bias()?;
+        info!("gyro_bias: {gyro_bias:?}");
         self.mag_sens_adj = self.device.mag_sensitivity_adjustments();
 
         //eprintln!("{accel_biases:?}");
