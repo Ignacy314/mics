@@ -384,7 +384,8 @@ impl Device for Imu {
                 self.filtered_mag = low_pass_filter(&self.filtered_mag, &mag);
 
                 let angle = Self::calculate_angle(&self.filtered_mag, &self.filtered_acc);
-                eprintln!("angle: {angle}  |  acc: {:?}  |  mag: {:?}", self.filtered_acc, self.filtered_mag);
+                eprintln!("raw_acc: {:?}", data.accel);
+                //eprintln!("angle: {angle}  |  acc: {:?}  |  mag: {:?}", self.filtered_acc, self.filtered_mag);
 
                 let n = self.gyro_data.index;
                 //eprintln!("{n}");
