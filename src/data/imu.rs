@@ -338,9 +338,10 @@ impl Imu {
         } else {
             acc_bias[2] += G;
         }
-        let accel_biases = [-acc_bias[0], -acc_bias[1], -acc_bias[2]];
+        let acc_bias = [-acc_bias[0], -acc_bias[1], -acc_bias[2]];
 
         info!("WRITING TO DEVICE CALIBRATION FILE");
+        //info!("acc_bias: {acce}")
 
         let file = File::create(Self::DEV_CALIB_FILE)?;
         let mut writer = BufWriter::new(file);
@@ -357,7 +358,7 @@ impl Imu {
 
         self.device
             //.set_accel_bias(true, accel_biases.map(|a| a / 9.807))?;
-            .set_accel_bias(true, accel_biases)?;
+            .set_accel_bias(true, acc_bias)?;
         info!("DEVICE CALIBRATION COMPLETED");
         Ok(())
     }
