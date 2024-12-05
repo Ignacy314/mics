@@ -304,6 +304,11 @@ impl Imu {
         } else {
             accel_biases[2] += G;
         }
+        let accel_biases = [
+            -accel_biases[0],
+            -accel_biases[1],
+            -accel_biases[2],
+        ];
         self.device
             //.set_accel_bias(true, accel_biases.map(|a| a / 9.807))?;
             .set_accel_bias(true, accel_biases)?;
