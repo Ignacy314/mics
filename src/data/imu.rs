@@ -342,10 +342,12 @@ impl From<mpu9250::I2CError<rppal::i2c::Error>> for Error {
 }
 
 fn low_pass_filter(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
+    const OLD: f32 = 0.7;
+    const NEW: f32 = 1.0 - OLD;
     [
-        0.85 * a[0] + 0.15 * b[0],
-        0.85 * a[1] + 0.15 * b[1],
-        0.85 * a[2] + 0.15 * b[2],
+        OLD * a[0] + NEW * b[0],
+        OLD * a[1] + NEW * b[1],
+        OLD * a[2] + NEW * b[2],
     ]
 }
 
@@ -379,7 +381,7 @@ impl Device for Imu {
                 self.gyro_data.push(gyro);
 
                 self.filtered_acc = low_pass_filter(&self.filtered_acc, &acc);
-                self.filtered_mag = low_pass_filter(&self.filtered_mag, &acc);
+                self.filtered_mag = low_pass_filter(&self.filtered_mag, &mag);
 
                 let angle = Self::calculate_angle(&self.filtered_mag, &self.filtered_acc);
                 eprintln!("angle: {angle}  |  acc: {:?}  |  mag: {:?}", self.filtered_acc, self.filtered_mag);
