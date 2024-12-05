@@ -76,6 +76,7 @@ pub struct Imu {
     mag_scale: [f32; 3],
     filtered_mag: [f32; 3],
     filtered_acc: [f32; 3],
+    calibrated: bool,
     //acc_biases: [f32; 3],
     //b: Array2<f32>,
     //a_1: Array2<f32>,
@@ -143,6 +144,7 @@ impl Imu {
             mag_scale: [1.0; 3],
             filtered_mag: [0.0; 3],
             filtered_acc: [0.0; 3],
+            calibrated: false,
         };
         //if s.load_mag_coeffs_from_file(Self::COEFFS_FILE) {
         //    info!("Magnetometer coefficients loaded from file: {:?}", s.mag_coeffs);
@@ -395,12 +397,12 @@ impl Device for Imu {
                 self.filtered_mag = low_pass_filter(&self.filtered_mag, &mag);
 
                 let angle = Self::calculate_angle(&self.filtered_mag, &self.filtered_acc);
-                eprintln!("raw_acc: {:?}", data.accel);
+                //eprintln!("raw_acc: {:?}", data.accel);
                 eprintln!("angle: {angle}  |  acc: {:?}  |  mag: {:?}", self.filtered_acc, self.filtered_mag);
 
                 let n = self.gyro_data.index;
                 //eprintln!("{n}");
-                if n == 0 {
+                if !self.calibrated && n == 0 {
                     self.update_mag_calibartion();
                 };
 
