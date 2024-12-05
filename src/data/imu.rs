@@ -2,6 +2,9 @@ use core::f32;
 //#![allow(unused)]
 use std::f32::consts::PI;
 use std::fmt::Debug;
+use std::fs::File;
+use std::io::{BufReader, BufWriter};
+use std::path::Path;
 use std::time::Instant;
 
 use log::info;
@@ -126,6 +129,8 @@ impl Imu {
     const GYRO_SCALE: f32 = 250.0 / 32768.0;
     //const MAG_SCALE: f32 = 4800.0 / 8192.0;
     const MAG_SCALE: f32 = 0.15;
+    const DEV_CALIB_FILE: &'static str = "calibration";
+    const MAG_CALIB_FILE: &'static str = "mag_calibration";
 
     pub fn new(bus: u8, samples: usize) -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::with_bus(bus)?;
@@ -291,29 +296,69 @@ impl Imu {
         vec_north[0].atan2(vec_north[1]) * 180.0 / PI
     }
 
-    pub fn calibrate(&mut self) -> Result<(), Error> {
+    pub fn calibrate(&mut self, try_from_file: bool) -> Result<(), Error> {
         const G: f32 = 9.807;
-        let mut accel_biases: [f32; 3] =
+
+        #[derive(Serialize, Deserialize, Default, Clone, Copy)]
+        struct Calib {
+            acc_bias: [f32; 3],
+            gyro_bias: [f32; 3],
+            mag_sens_adj: [f32; 3],
+        }
+
+        let calib_file_path = Path::new(Self::DEV_CALIB_FILE);
+
+        if try_from_file {
+            if calib_file_path.exists() {
+                info!("DEVICE CALIBRATION FILE FOUND");
+                let file = File::open(calib_file_path)?;
+                let reader = BufReader::new(file);
+                let calib: Calib = serde_json::from_reader(reader)?;
+                info!("DEVICE CALIBRATION READ FROM FILE");
+                self.mag_sens_adj = calib.mag_sens_adj;
+                self.device.set_gyro_bias(false, calib.gyro_bias)?;
+                self.device.set_accel_bias(false, calib.acc_bias)?;
+                info!("DEVICE CALIBRATION COMPLETED");
+                return Ok(());
+            }
+            info!("DEVICE CALIBRATION FILE NOT FOUND");
+        }
+
+        let mut acc_bias: [f32; 3] =
             match self.device.calibrate_at_rest(&mut rppal::hal::Delay::new()) {
                 Ok(b) => b,
                 Err(e) => return Err(Error::Mpu(e)),
             };
+        let gyro_bias: [f32; 3] = self.device.get_gyro_bias()?;
         self.mag_sens_adj = self.device.mag_sensitivity_adjustments();
 
         //eprintln!("{accel_biases:?}");
-        if accel_biases[2] > 0.0 {
-            accel_biases[2] -= G;
+        if acc_bias[2] > 0.0 {
+            acc_bias[2] -= G;
         } else {
-            accel_biases[2] += G;
+            acc_bias[2] += G;
         }
-        let accel_biases = [
-            -accel_biases[0],
-            -accel_biases[1],
-            -accel_biases[2],
-        ];
+        let accel_biases = [-acc_bias[0], -acc_bias[1], -acc_bias[2]];
+
+        info!("WRITING TO DEVICE CALIBRATION FILE");
+
+        let file = File::create(Self::DEV_CALIB_FILE)?;
+        let mut writer = BufWriter::new(file);
+        serde_json::to_writer(
+            &mut writer,
+            &Calib {
+                acc_bias,
+                gyro_bias,
+                mag_sens_adj: self.mag_sens_adj,
+            },
+        )?;
+
+        info!("NEW DEVICE CALIBRATION SAVED TO FILE");
+
         self.device
             //.set_accel_bias(true, accel_biases.map(|a| a / 9.807))?;
             .set_accel_bias(true, accel_biases)?;
+        info!("DEVICE CALIBRATION COMPLETED");
         Ok(())
     }
 }
@@ -334,6 +379,10 @@ pub enum Error {
     Bus(mpu9250::I2CError<rppal::i2c::Error>),
     #[error("I2c error")]
     I2c(#[from] rppal::i2c::Error),
+    #[error("IO error")]
+    Io(#[from] std::io::Error),
+    #[error("Serde JSON error")]
+    Serde(#[from] serde_json::Error),
 }
 
 impl From<mpu9250::Error<mpu9250::I2CError<rppal::i2c::Error>>> for Error {
@@ -401,7 +450,10 @@ impl Device for Imu {
                     angle += 360.0;
                 }
                 //eprintln!("raw_acc: {:?}", data.accel);
-                eprintln!("angle: {angle}  |  acc: {:?}  |  mag: {:?}", self.filtered_acc, self.filtered_mag);
+                eprintln!(
+                    "angle: {angle}  |  acc: {:?}  |  mag: {:?}",
+                    self.filtered_acc, self.filtered_mag
+                );
 
                 let n = self.gyro_data.index;
                 //eprintln!("{n}");

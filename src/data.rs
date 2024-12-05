@@ -129,7 +129,7 @@ impl Reader {
                         }
                     } else {
                         match Imu::new(bus, samples) {
-                            Ok(mut device) => match device.calibrate() {
+                            Ok(mut device) => match device.calibrate(true) {
                                 Ok(()) => {
                                     info! {"IMU device initialized"};
                                     imu = Some(device);
