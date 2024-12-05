@@ -299,7 +299,7 @@ impl Imu {
     pub fn calibrate(&mut self, try_from_file: bool) -> Result<(), Error> {
         const G: f32 = 9.807;
 
-        #[derive(Serialize, Deserialize, Default, Clone, Copy)]
+        #[derive(Serialize, Deserialize, Default, Clone, Copy, Debug)]
         struct Calib {
             acc_bias: [f32; 3],
             gyro_bias: [f32; 3],
@@ -315,6 +315,7 @@ impl Imu {
                 let reader = BufReader::new(file);
                 let calib: Calib = serde_json::from_reader(reader)?;
                 info!("DEVICE CALIBRATION READ FROM FILE");
+                info!("calib: {calib:?}");
                 self.mag_sens_adj = calib.mag_sens_adj;
                 self.device.set_gyro_bias(false, calib.gyro_bias)?;
                 self.device.set_accel_bias(false, calib.acc_bias)?;
