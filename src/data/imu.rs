@@ -293,7 +293,7 @@ impl Imu {
         let vec_north = Self::oproj(mag, acc);
 
         // Assuming x is forward y is left
-        vec_north[0].atan2(vec_north[1]) * 180.0 / PI
+        vec_north[1].atan2(vec_north[0]) * 180.0 / PI
     }
 
     pub fn calibrate(&mut self, try_from_file: bool) -> Result<(), Error> {
