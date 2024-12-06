@@ -9,6 +9,7 @@ use std::time::Instant;
 
 use log::info;
 use mpu9250::{Mpu9250, MpuConfig};
+use num_traits::Float;
 use serde::{Deserialize, Serialize};
 
 use super::Device;
@@ -59,6 +60,11 @@ impl<T: Clone + Copy> CircularBuffer<Vec<T>> {
         self.buf[self.index]
     }
 
+    fn reset(&mut self, fill: T) {
+        self.index = 0;
+        self.buf = vec![fill; self.size];
+    }
+
     //fn iter(&self) -> impl Iterator<Item = &T> {
     //    //self.buf.iter().skip(self.index).chain(self.buf.iter().take(self.index))
     //    self.buf.iter().cycle().skip(self.index).take(self.size)
@@ -67,6 +73,12 @@ impl<T: Clone + Copy> CircularBuffer<Vec<T>> {
 
 //type Circular2DArray<T> = CircularBuffer<Array2<T>>;
 type CircularVector<T> = CircularBuffer<Vec<T>>;
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
+struct MagCalib {
+    bias: [f32; 3],
+    scale: [f32; 3],
+}
 
 pub struct Imu {
     device: Mpu9250<mpu9250::I2cDevice<rppal::i2c::I2c>, mpu9250::Marg>,
@@ -79,10 +91,8 @@ pub struct Imu {
     mag_scale: [f32; 3],
     filtered_mag: [f32; 3],
     filtered_acc: [f32; 3],
+    rotation: [f32; 3],
     calibrated: bool,
-    //acc_biases: [f32; 3],
-    //b: Array2<f32>,
-    //a_1: Array2<f32>,
 }
 
 //impl Debug for Imu {
@@ -122,12 +132,10 @@ pub struct Imu {
 //}
 
 impl Imu {
-    //const COEFFS_FILE: &'static str = "mag_coeffs";
     //const SAMPLES: usize = 200;
     const ACCEL_SCALE: f32 = 2.0 / 32768.0;
     const DEG_TO_RAD: f32 = PI / 180.0;
     const GYRO_SCALE: f32 = 250.0 / 32768.0;
-    //const MAG_SCALE: f32 = 4800.0 / 8192.0;
     const MAG_SCALE: f32 = 0.15;
     const DEV_CALIB_FILE: &'static str = "calibration";
     const MAG_CALIB_FILE: &'static str = "mag_calibration";
@@ -138,7 +146,7 @@ impl Imu {
         let mut config = MpuConfig::marg();
         config.mag_scale(mpu9250::MagScale::_16BITS);
         let mpu = Mpu9250::marg(i2c, &mut delay, &mut config)?;
-        let s = Self {
+        let mut s = Self {
             device: mpu,
             acc_data: CircularVector::new(samples, [0.0; 3]),
             gyro_data: CircularVector::new(samples, [0.0; 3]),
@@ -149,101 +157,31 @@ impl Imu {
             mag_scale: [1.0; 3],
             filtered_mag: [0.0; 3],
             filtered_acc: [0.0; 3],
+            rotation: [0.0; 3],
             calibrated: false,
         };
-        //if s.load_mag_coeffs_from_file(Self::COEFFS_FILE) {
-        //    info!("Magnetometer coefficients loaded from file: {:?}", s.mag_coeffs);
-        //    info!("Magnetometer north vector loaded from file: {:?}", s.north_vector);
-        //}
+
+        let calib_file_path = Path::new(Self::MAG_CALIB_FILE);
+
+        if calib_file_path.exists() {
+            info!("MAGNETOMETER CALIBRATION FILE FOUND");
+            let file = File::open(calib_file_path)?;
+            let reader = BufReader::new(file);
+            let calib: MagCalib = serde_json::from_reader(reader)?;
+            info!("MAGNETOMETER CALIBRATION READ FROM FILE");
+            s.mag_bias = calib.bias;
+            s.mag_scale = calib.scale;
+            info!("MAGNETOMETER CALIBRATION COMPLETED");
+        } else {
+            info!("MAGNETOMETER CALIBRATION FILE NOT FOUND");
+        }
+
         Ok(s)
     }
 
-    //fn load_mag_coeffs_from_file(&mut self, file: &str) -> bool {
-    //    if Path::new(file).exists() {
-    //        let mut file = match File::open(Self::COEFFS_FILE) {
-    //            Ok(f) => f,
-    //            Err(_e) => {
-    //                info!("Magnetometer coefficients file doesn't exists");
-    //                return false;
-    //            }
-    //        };
-    //        let mut buf = [0u8; 24];
-    //        match file.read_exact(&mut buf) {
-    //            Ok(()) => {}
-    //            Err(_e) => {
-    //                warn!("Failed to read magnetometer coefficients from file");
-    //                return false;
-    //            }
-    //        };
-    //        let (coeffs, north): ([f32; 3], [f32; 3]) = match bytemuck::try_cast_slice(&buf) {
-    //            Ok(c) => {
-    //                if c.len() != 6 {
-    //                    warn!("Wrong data size when reading magnetometer coefficients from file");
-    //                    return false;
-    //                }
-    //                let coeffs: [f32; 3] = match c[0..3].try_into() {
-    //                    Ok(cs) => cs,
-    //                    Err(_e) => {
-    //                        warn!(
-    //                            "Wrong data size when reading magnetometer coefficients from file"
-    //                        );
-    //                        return false;
-    //                    }
-    //                };
-    //                let north: [f32; 3] = match c[3..6].try_into() {
-    //                    Ok(cs) => cs,
-    //                    Err(_e) => {
-    //                        warn!(
-    //                            "Wrong data size when reading magnetometer coefficients from file"
-    //                        );
-    //                        return false;
-    //                    }
-    //                };
-    //
-    //                (coeffs, north)
-    //            }
-    //            Err(_e) => {
-    //                warn!("Failed to convert magnetometer coefficients file data to floats");
-    //                return false;
-    //            }
-    //        };
-    //        self.mag_coeffs = coeffs;
-    //        self.north_vector = north;
-    //        return true;
-    //    }
-    //    false
-    //}
+    fn update_mag_calibartion(&mut self) -> Result<(), Error> {
+        info!("MAGNETOMETER CALIBRATION START");
 
-    //fn detect_rotation(&mut self, threshold: f32, time_limit: Duration, n: usize) -> bool {
-    //    //if n != self.mag_data[0].len()
-    //    //    || n != self.mag_data[1].len()
-    //    //    || n != self.mag_data[2].len()
-    //    //    || n != self.time_data.len()
-    //    //{
-    //    //    self.gyro_data = vec![];
-    //    //    //self.mag_data = Default::default();
-    //    //    self.time_data = vec![];
-    //    //    return false;
-    //    //}
-    //    let mut total_angle = 0f32;
-    //    let start = self.time_data[0];
-    //    for i in 1..n {
-    //        let angle_diff = self.gyro_data[i]
-    //            * (self.time_data[i]
-    //                .duration_since(self.time_data[i - 1])
-    //                .as_secs_f32());
-    //        total_angle += angle_diff;
-    //        if self.time_data[i].duration_since(start) >= time_limit {
-    //            return false;
-    //        }
-    //        if total_angle.abs() >= threshold {
-    //            return true;
-    //        }
-    //    }
-    //    false
-    //}
-
-    fn update_mag_calibartion(&mut self) {
         let [mut max_x, mut max_y, mut max_z] = self.mag_data.buf[0];
         let [mut min_x, mut min_y, mut min_z] = self.mag_data.buf[0];
         for &[x, y, z] in self.mag_data.buf.iter().skip(1) {
@@ -275,11 +213,27 @@ impl Imu {
             avg_delta / avg_delta_z,
         ];
 
-        info!("MAGNETOMETER CALIBRATION");
+        info!("WRITING TO MAGNETOMETER CALIBRATION FILE");
+
+        let file = File::create(Self::MAG_CALIB_FILE)?;
+        let mut writer = BufWriter::new(file);
+        serde_json::to_writer(
+            &mut writer,
+            &MagCalib {
+                bias: self.mag_bias,
+                scale: self.mag_scale,
+            },
+        )?;
+
+        info!("MAGNETOMETER CALIBRATION SAVED TO FILE");
+        info!("MAGNETOMETER CALIBRATION COMPLETED");
+
+        Ok(())
     }
 
-    fn dot(v: &[f32], w: &[f32]) -> f32 {
-        v.iter().zip(w.iter()).map(|(x, y)| x * y).sum()
+    fn dot(v: &[f32; 3], w: &[f32; 3]) -> f32 {
+        v[0] * w[0] + v[1] * w[1] + v[2] * w[2]
+        //v.iter().zip(w.iter()).map(|(x, y)| x * y).sum()
     }
 
     /// Orthogonal projection of v on onto the plane orthogonal to w
@@ -293,7 +247,7 @@ impl Imu {
         let vec_north = Self::oproj(mag, acc);
         //let vec_north = mag;
 
-        // Assuming x is forward y is left
+        // Assuming x is forward y is left (or the other way around, directions are hard)
         vec_north[1].atan2(vec_north[0]) * 180.0 / PI
     }
 
@@ -307,6 +261,8 @@ impl Imu {
             mag_sens_adj: [f32; 3],
         }
 
+        info!("DEVICE CALIBRATION START");
+
         let calib_file_path = Path::new(Self::DEV_CALIB_FILE);
 
         if try_from_file {
@@ -316,7 +272,6 @@ impl Imu {
                 let reader = BufReader::new(file);
                 let calib: Calib = serde_json::from_reader(reader)?;
                 info!("DEVICE CALIBRATION READ FROM FILE");
-                info!("calib: {calib:?}");
                 self.mag_sens_adj = calib.mag_sens_adj;
                 self.device.set_gyro_bias(false, calib.gyro_bias)?;
                 self.device.set_accel_bias(true, calib.acc_bias)?;
@@ -332,22 +287,16 @@ impl Imu {
                 Err(e) => return Err(Error::Mpu(e)),
             };
         let gyro_bias: [f32; 3] = self.device.get_gyro_bias()?;
-        //info!("gyro_bias: {gyro_bias:?}");
         self.mag_sens_adj = self.device.mag_sensitivity_adjustments();
 
-        //eprintln!("{accel_biases:?}");
-        //info!("acc_bias: {acc_bias:?}");
         if acc_bias[2] > 0.0 {
             acc_bias[2] -= G;
         } else {
             acc_bias[2] += G;
         }
-        //info!("acc_bias: {acc_bias:?}");
         let acc_bias = [-acc_bias[0], -acc_bias[1], -acc_bias[2]];
-        //info!("acc_bias: {acc_bias:?}");
 
         info!("WRITING TO DEVICE CALIBRATION FILE");
-        //info!("acc_bias: {acce}")
 
         let file = File::create(Self::DEV_CALIB_FILE)?;
         let mut writer = BufWriter::new(file);
@@ -360,11 +309,9 @@ impl Imu {
             },
         )?;
 
-        info!("NEW DEVICE CALIBRATION SAVED TO FILE");
+        info!("DEVICE CALIBRATION SAVED TO FILE");
 
-        self.device
-            //.set_accel_bias(true, accel_biases.map(|a| a / 9.807))?;
-            .set_accel_bias(true, acc_bias)?;
+        self.device.set_accel_bias(true, acc_bias)?;
         info!("DEVICE CALIBRATION COMPLETED");
         Ok(())
     }
@@ -375,7 +322,7 @@ pub struct Data {
     pub acc: [f32; 3],
     gyro: [f32; 3],
     pub mag: [f32; 3],
-    pub angle_rel_to_north: f32,
+    pub angle: f32,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -456,24 +403,38 @@ impl Device for Imu {
                 if angle < 0.0 {
                     angle += 360.0;
                 }
-                //eprintln!("raw_acc: {:?}", data.accel);
-                eprintln!(
-                    "angle: {angle}  |  acc: {:?}  |  mag: {:?}",
-                    self.filtered_acc, self.filtered_mag
-                );
 
-                let n = self.gyro_data.index;
-                //eprintln!("{n}");
-                if !self.calibrated && n == 0 {
-                    self.update_mag_calibartion();
-                    self.calibrated = true;
-                };
+                //eprintln!(
+                //    "angle: {angle}  |  acc: {:?}  |  mag: {:?}",
+                //    self.filtered_acc, self.filtered_mag
+                //);
+
+                //let n = self.gyro_data.index;
+                //if !self.calibrated && n == 0 {
+                //    self.update_mag_calibartion()?;
+                //    self.calibrated = true;
+                //};
+
+                let newest = self.gyro_data.newest();
+                let oldest = self.gyro_data.oldest();
+
+                self.rotation[0] += newest[0] - oldest[0];
+                self.rotation[1] += newest[1] - oldest[1];
+                self.rotation[2] += newest[2] - oldest[2];
+
+                eprintln!("rotation: {:?}", self.rotation);
+
+                if self.rotation.iter().any(|r| r.abs() >= 2.0 * PI) {
+                    self.update_mag_calibartion()?;
+                    self.rotation = [0.0; 3];
+                    self.gyro_data.reset([0.0; 3]);
+                }
 
                 Ok(Self::Data {
                     acc,
                     gyro,
                     mag,
-                    angle_rel_to_north: angle,
+                    angle,
                 })
             }
             Err(e) => Err(Error::Bus(e)),
