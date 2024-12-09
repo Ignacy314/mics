@@ -46,6 +46,11 @@ fn main() {
     let log_dir = andros_dir.join("log");
     let data_dir = andros_dir.join("data");
 
+    std::fs::create_dir(data_dir.clone()).expect("Failed to create data directory");
+    std::fs::create_dir(data_dir.clone().join("i2s")).expect("Failed to create i2s data directory");
+    std::fs::create_dir(data_dir.clone().join("umc")).expect("Failed to create umc data directory");
+    std::fs::create_dir(data_dir.clone().join("data")).expect("Failed to create sensor data directory");
+
     Logger::try_with_str("info")
         .unwrap()
         .log_to_file(FileSpec::default().directory(log_dir.clone()))
