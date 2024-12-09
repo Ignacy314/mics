@@ -3,6 +3,10 @@ name = "mics"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "andros"
+path = "src/main.rs"
+
 [dependencies]
 aht10 = "0.0.1"
 alsa = "0.9.1"

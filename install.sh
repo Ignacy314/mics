@@ -26,3 +26,6 @@ apt-get install -y libwebkit2gtk-4.0;
 # sudo apt-get install gfortran;
 # $SHELL
 # cargo build -r
+sudo -i -u test bash << EOF
+cargo install --path \$HOME/project/mics --locked
+EOF
