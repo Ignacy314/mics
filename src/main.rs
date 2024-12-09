@@ -94,6 +94,7 @@ fn main() {
         let running = running.clone();
         let status = andros_status.clone();
         let rx = rx.clone();
+        let data_dir = data_dir.clone();
         thread::spawn(move || {
             let andros = CaptureDevice::new(
                 "hw:CARD=ANDROSi2s,DEV=1",
@@ -120,6 +121,7 @@ fn main() {
     //    let running = running.clone();
     //    let status = umc_status.clone();
     //    let rx = rx.clone();
+    //    let data_dir = data_dir.clone();
     //    thread::spawn(move || {
     //        let umc = CaptureDevice::new(
     //            "hw:CARD=U192k,DEV=0",
@@ -142,8 +144,9 @@ fn main() {
 
     let data_thread = {
         let running = running.clone();
+        let data_dir = data_dir.clone();
         thread::spawn(move || {
-            let mut reader = data::Reader::new();
+            let mut reader = data::Reader::new(data_dir.join("data"));
             reader.read(&running);
         })
     };

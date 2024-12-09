@@ -2,6 +2,7 @@
 use parking_lot::Mutex;
 use std::fs::File;
 use std::io::BufWriter;
+use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -45,17 +46,20 @@ pub struct Data {
 
 pub struct Reader {
     pub device_manager: DeviceManager,
-    pub path: &'static str,
+    pub path: PathBuf,
     pub read_period: Duration,
 }
 
 impl Reader {
     const PERIOD_MILLIS: u64 = 5000;
 
-    pub fn new() -> Self {
+    pub fn new<P>(path: P) -> Self
+    where
+        P: Into<PathBuf>,
+    {
         Self {
             device_manager: DeviceManager::new(),
-            path: "../data/data",
+            path: path.into(),
             read_period: Duration::from_millis(Self::PERIOD_MILLIS),
         }
     }
@@ -304,7 +308,8 @@ impl Reader {
             }
 
             let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-            let path = format!("{}/{nanos}.json", self.path);
+            //let path = format!("{}/{nanos}.json", self.path);
+            let path = self.path.join(format!("{nanos}.json"));
             match File::create(&path) {
                 Ok(file) => {
                     #[derive(Serialize, Deserialize)]
