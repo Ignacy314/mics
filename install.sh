@@ -7,9 +7,10 @@ mkdir -p data/data
 mkdir -p data/i2s
 mkdir -p data/umc
 mkdir -p log
+rm -rf mics
 git clone https://github.com/Ignacy314/mics
 
-echo -ne '\n' | $(curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 apt-get install -y libasound2-dev;
 apt-get install -y libwebkit2gtk-4.0;
 # sudo apt-get install cmake;
