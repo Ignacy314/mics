@@ -48,9 +48,9 @@ fn main() {
 
     Logger::try_with_str("info")
         .unwrap()
-        .log_to_file(FileSpec::default().directory(log_dir))
+        .log_to_file(FileSpec::default().directory(log_dir.clone()))
         .print_message()
-        .create_symlink(format!("{home}/log/current"))
+        .create_symlink(log_dir.join("current"))
         .format(with_thread)
         .start()
         .unwrap();
