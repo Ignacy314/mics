@@ -1,19 +1,19 @@
 #!/bin/sh
 
 sudo -i -u test bash << EOF
-mkdir -p \$HOME/project
-cd \$HOME/project
+mkdir -p \$HOME/andros
+cd \$HOME/andros
 mkdir -p data
 mkdir -p data/data
 mkdir -p data/i2s
 mkdir -p data/umc
 mkdir -p log
-rm -rf mics
-git clone https://github.com/Ignacy314/mics
+rm -rf andros
+git clone https://github.com/Ignacy314/mics -o andros
 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-cd mics
-ln -s \$HOME/project/mics/run.sh /usr/local/bin/andros
+cd andros
+ln -s \$HOME/andros/andros/run.sh /usr/local/bin/andros
 EOF
 
 cp ANDROSi2s.dtbo /boot/firmware/overlays
@@ -27,5 +27,5 @@ apt-get install -y libwebkit2gtk-4.0;
 # $SHELL
 # cargo build -r
 sudo -i -u test bash << EOF
-cargo install --path \$HOME/project/mics --locked
+cargo install --path \$HOME/andros/andros --locked
 EOF
