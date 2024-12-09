@@ -23,6 +23,7 @@ pub mod bmp;
 pub mod device_manager;
 pub mod gps;
 pub mod imu;
+pub mod ina;
 pub mod wind;
 
 pub trait Device {
@@ -39,6 +40,7 @@ pub struct Data {
     wind: Option<wind::Data>,
     imu: Option<imu::Data>,
     bmp: Option<bmp::Data>,
+    ina: Option<ina::Data>,
 }
 
 pub struct Reader {
@@ -96,10 +98,20 @@ impl Reader {
     fn handle_bmp_init_error(&mut self, err: &bmp::Error) {
         match err {
             bmp::Error::Bmp(err) => {
-                warn!("BMP init failed: {err}");
+                warn!("BMP280 init failed: {err}");
                 self.device_manager.statuses.bmp = Status::Disconnected;
             }
         }
+    }
+
+    fn handle_ina_data_error(&mut self, err: &ina::Error) {
+        self.device_manager.statuses.ina = Status::NoData;
+        error!("INA219 data error: {err}");
+    }
+
+    fn handle_ina_init_error(&mut self, err: &ina::Error) {
+        self.device_manager.statuses.ina = Status::Disconnected;
+        warn!("INA219 init failed: {err}");
     }
 
     #[allow(clippy::too_many_lines)]
@@ -229,7 +241,7 @@ impl Reader {
             } else {
                 match self.device_manager.try_set_gps() {
                     Ok(()) => {
-                        info!("GPS device initiated");
+                        info!("GPS device initialized");
                     }
                     Err(e) => {
                         self.handle_gps_init_error(&e);
@@ -247,7 +259,7 @@ impl Reader {
             } else {
                 match self.device_manager.try_set_aht() {
                     Ok(()) => {
-                        info!("AHT10 device initiated");
+                        info!("AHT10 device initialized");
                     }
                     Err(e) => {
                         self.handle_aht_init_error(&e);
@@ -265,10 +277,28 @@ impl Reader {
             } else {
                 match self.device_manager.try_set_bmp() {
                     Ok(()) => {
-                        info!("BMP280 device initiated");
+                        info!("BMP280 device initialized");
                     }
                     Err(e) => {
                         self.handle_bmp_init_error(&e);
+                    }
+                }
+            }
+
+            if let Some(ina) = self.device_manager.ina.as_mut() {
+                match ina.get_data() {
+                    Ok(d) => data.ina = Some(d),
+                    Err(e) => {
+                        self.handle_ina_data_error(&e);
+                    }
+                }
+            } else {
+                match self.device_manager.try_set_ina() {
+                    Ok(()) => {
+                        info!("INA219 device initialized");
+                    }
+                    Err(e) => {
+                        self.handle_ina_init_error(&e);
                     }
                 }
             }

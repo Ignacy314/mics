@@ -1,4 +1,3 @@
-use core::f32;
 //#![allow(unused)]
 use std::f32::consts::PI;
 use std::fmt::Debug;
@@ -9,7 +8,6 @@ use std::time::Instant;
 
 use log::info;
 use mpu9250::{Mpu9250, MpuConfig};
-use num_traits::Float;
 use serde::{Deserialize, Serialize};
 
 use super::Device;
@@ -92,7 +90,7 @@ pub struct Imu {
     filtered_mag: [f32; 3],
     filtered_acc: [f32; 3],
     rotation: [f32; 3],
-    calibrated: bool,
+    //calibrated: bool,
 }
 
 //impl Debug for Imu {
@@ -158,7 +156,7 @@ impl Imu {
             filtered_mag: [0.0; 3],
             filtered_acc: [0.0; 3],
             rotation: [0.0; 3],
-            calibrated: false,
+            //calibrated: false,
         };
 
         let calib_file_path = Path::new(Self::MAG_CALIB_FILE);

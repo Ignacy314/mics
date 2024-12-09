@@ -14,6 +14,7 @@ crossbeam-channel = "0.5.13"
 ctrlc = "3.4.5"
 flexi_logger = "0.29.5"
 hound = "3.5.1"
+ina219 = { version = "0.2.0", features = ["std"] }
 log = "0.4.22"
 mpu9250 = { version = "0.25.0", features = ["i2c"] }
 # ndarray = "0.15"
