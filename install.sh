@@ -9,7 +9,7 @@ mkdir -p data/i2s
 mkdir -p data/umc
 mkdir -p log
 rm -rf andros
-git clone https://github.com/Ignacy314/mics -o andros
+git clone https://github.com/Ignacy314/mics andros
 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 cd andros
