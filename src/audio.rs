@@ -1,5 +1,6 @@
 use crossbeam_channel::Receiver;
 use hound::{SampleFormat, WavWriter};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -24,7 +25,7 @@ pub struct CaptureDevice {
     channels: u32,
     samplerate: u32,
     format: Format,
-    output_dir: String,
+    output_dir: PathBuf,
     running: Arc<AtomicBool>,
     status: Arc<AtomicU8>,
     pps: Receiver<i64>,
@@ -32,22 +33,22 @@ pub struct CaptureDevice {
 
 #[allow(clippy::too_many_arguments)]
 impl CaptureDevice {
-    pub fn new(
+    pub fn new<P>(
         device_name: &str,
         channels: u32,
         samplerate: u32,
         format: Format,
-        output_dir: &str,
+        output_dir: P,
         running: Arc<AtomicBool>,
         status: Arc<AtomicU8>,
         pps: Receiver<i64>,
-    ) -> Self {
+    ) -> Self where P: Into<PathBuf> {
         Self {
             device_name: device_name.to_owned(),
             channels,
             samplerate,
             format,
-            output_dir: output_dir.to_owned(),
+            output_dir: output_dir.into(),
             running,
             status,
             pps,
@@ -91,7 +92,8 @@ impl CaptureDevice {
         };
 
         let mut nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-        let mut path = format!("{}/{nanos}.wav", self.output_dir);
+        //let mut path = format!("{}/{nanos}.wav", self.output_dir);
+        let mut path = self.output_dir.join(format!("{nanos}.wav"));
         let mut writer = WavWriter::create(path, wav_spec)?;
         let mut start = Instant::now();
         let mut last_read = Instant::now();
@@ -116,7 +118,7 @@ impl CaptureDevice {
                 start = start.checked_add(file_duration).unwrap();
                 writer.finalize()?;
                 nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-                path = format!("{}/{nanos}.wav", self.output_dir);
+                path = self.output_dir.join(format!("{nanos}.wav"));
                 writer = WavWriter::create(path, wav_spec)?;
             }
             if last_read.elapsed().as_secs() >= 2 {

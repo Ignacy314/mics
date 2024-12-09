@@ -2,6 +2,7 @@
 mod audio;
 mod data;
 
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -24,11 +25,32 @@ fn handle_capture_device_error(err: &CaptureDeviceError) {
 }
 
 fn main() {
+    let home = match std::env::var("HOME") {
+        Ok(var) => var,
+        Err(err) => {
+            warn!("Failed to load $HOME environmental variable: {err}\nChoosing current directory as working directory.");
+            ".".to_owned()
+        }
+    };
+
+    let andros_dir = format!("{home}/andros");
+    let andros_dir = Path::new(&andros_dir);
+    let andros_dir = match std::fs::create_dir_all(andros_dir) {
+        Ok(()) => andros_dir,
+        Err(err) => {
+            warn!("Failed to create andros directory: {err}\nWriting data and logs to current directory.");
+            Path::new(".")
+        }
+    };
+
+    let log_dir = andros_dir.join("log");
+    let data_dir = andros_dir.join("data");
+
     Logger::try_with_str("info")
         .unwrap()
-        .log_to_file(FileSpec::default().directory("../log"))
+        .log_to_file(FileSpec::default().directory(log_dir))
         .print_message()
-        .create_symlink("../log/current")
+        .create_symlink(format!("{home}/log/current"))
         .format(with_thread)
         .start()
         .unwrap();
@@ -73,7 +95,7 @@ fn main() {
                 4,
                 192_000,
                 Format::s32(),
-                "../data/i2s/",
+                data_dir.join("i2s"),
                 running.clone(),
                 status,
                 rx,
@@ -99,7 +121,7 @@ fn main() {
     //            2,
     //            48_000,
     //            Format::s32(),
-    //            "../data/umc/",
+    //            data_dir.join("umc"),
     //            running.clone(),
     //            status,
     //            rx,
