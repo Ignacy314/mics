@@ -46,10 +46,22 @@ fn main() {
     let log_dir = andros_dir.join("log");
     let data_dir = andros_dir.join("data");
 
-    std::fs::create_dir(data_dir.clone()).expect("Failed to create data directory");
-    std::fs::create_dir(data_dir.clone().join("i2s")).expect("Failed to create i2s data directory");
-    std::fs::create_dir(data_dir.clone().join("umc")).expect("Failed to create umc data directory");
-    std::fs::create_dir(data_dir.clone().join("data")).expect("Failed to create sensor data directory");
+    for dir in ["i2s", "umc", "data"] {
+        let path = data_dir.clone().join(dir);
+        if !path.exists() {
+            std::fs::create_dir(path)
+                .unwrap_or_else(|e| warn!("Failed to create {dir} data directory: {e}"));
+        }
+    }
+
+    //std::fs::create_dir(data_dir.clone())
+    //    .unwrap_or_else(|e| warn!("Failed to create data directory: {e}"));
+    //std::fs::create_dir(data_dir.clone().join("i2s"))
+    //    .unwrap_or_else(|e| warn!("Failed to create i2s data directory: {e}"));
+    //std::fs::create_dir(data_dir.clone().join("umc"))
+    //    .unwrap_or_else(|e| warn!("Failed to create umc data directory: {e}"));
+    //std::fs::create_dir(data_dir.clone().join("data"))
+    //    .unwrap_or_else(|e| warn!("Failed to create sensor data directory: {e}"));
 
     Logger::try_with_str("info")
         .unwrap()
