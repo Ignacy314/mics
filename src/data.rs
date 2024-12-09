@@ -157,7 +157,7 @@ impl Reader {
                                 }
                             },
                             Err(err) => {
-                                warn!("{err}");
+                                warn!("IMU init: {err}");
                                 data.lock().1 = Status::Disconnected;
                             }
                         };

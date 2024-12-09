@@ -325,7 +325,7 @@ pub struct Data {
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("MPU9250 error")]
+    #[error("MPU9250 error: {0:?}")]
     Mpu(mpu9250::Error<mpu9250::I2CError<rppal::i2c::Error>>),
     #[error("MPU9250 bus error")]
     Bus(mpu9250::I2CError<rppal::i2c::Error>),
