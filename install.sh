@@ -20,10 +20,10 @@ echo \$(ip -4 -o a | grep wlan | egrep -o '192\.168\.[0-9]{1,3}\.[0-9]{1,3}' | h
 (crontab -l 2>/dev/null; echo "@reboot \$HOME/save_mac_ip.sh") | crontab -
 EOF
 
-chmod +x $HOME/save_mac_ip.sh
-cp $HOME/save_mac_ip.sh /etc/init.d/
-cp $HOME/andros/andros/ANDROSi2s.dtbo /boot/firmware/overlays
-cp -f $HOME/andros/andros/config.txt /boot/firmware/config.txt
+chmod +x /home/test/save_mac_ip.sh
+cp /home/test/save_mac_ip.sh /etc/init.d/
+cp /home/test/andros/andros/ANDROSi2s.dtbo /boot/firmware/overlays
+cp -f /home/test/andros/andros/config.txt /boot/firmware/config.txt
 chmod +x run.sh
 
 apt-get install -y samba samba-common-bin
