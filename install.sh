@@ -22,8 +22,8 @@ EOF
 
 chmod +x $HOME/save_mac_ip.sh
 cp $HOME/save_mac_ip.sh /etc/init.d/
-cp ANDROSi2s.dtbo /boot/firmware/overlays
-cp -f config.txt /boot/firmware/config.txt
+cp $HOME/andros/andros/ANDROSi2s.dtbo /boot/firmware/overlays
+cp -f $HOME/andros/andros/config.txt /boot/firmware/config.txt
 chmod +x run.sh
 
 apt-get install -y samba samba-common-bin
