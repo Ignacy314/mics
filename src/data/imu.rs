@@ -1,4 +1,3 @@
-//#![allow(unused)]
 use std::f32::consts::PI;
 use std::fmt::Debug;
 use std::fs::File;
@@ -68,7 +67,6 @@ impl<T: Clone + Copy> CircularBuffer<Vec<T>> {
     //}
 }
 
-//type Circular2DArray<T> = CircularBuffer<Array2<T>>;
 type CircularVector<T> = CircularBuffer<Vec<T>>;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
@@ -84,10 +82,8 @@ struct GyroCalib {
 
 pub struct Imu {
     device: Mpu9250<mpu9250::I2cDevice<rppal::i2c::I2c>, mpu9250::Marg>,
-    //acc_data: CircularVector<[f32; 3]>,
     gyro_data: CircularVector<[f32; 3]>,
     mag_data: CircularVector<[f32; 3]>,
-    //time_data: CircularVector<Instant>,
     mag_sens_adj: [f32; 3],
     mag_bias: [f32; 3],
     mag_scale: [f32; 3],
@@ -102,44 +98,7 @@ pub struct Imu {
     calibrated: bool,
 }
 
-//impl Debug for Imu {
-//    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//        #[derive(Debug)]
-//        struct Imu<'a> {
-//            mag_coeffs: &'a [f32; 3],
-//            north_vector: &'a [f32; 3],
-//            gyro_data: &'a Vec<f32>,
-//            mag_data: &'a [Vec<f32>; 3],
-//            time_data: &'a Vec<Instant>,
-//            last_calibration: &'a Instant,
-//        }
-//
-//        let Self {
-//            device: _,
-//            mag_coeffs,
-//            north_vector,
-//            gyro_data,
-//            mag_data,
-//            time_data,
-//            last_calibration,
-//        } = self;
-//
-//        fmt::Debug::fmt(
-//            &Imu {
-//                mag_coeffs,
-//                north_vector,
-//                gyro_data,
-//                mag_data,
-//                time_data,
-//                last_calibration,
-//            },
-//            f,
-//        )
-//    }
-//}
-
 impl Imu {
-    //const SAMPLES: usize = 200;
     const ACCEL_SCALE: f32 = 2.0 / 32768.0;
     //const DEG_TO_RAD: f32 = PI / 180.0;
     const GYRO_SCALE: f32 = 250.0 / 32768.0;
@@ -153,17 +112,14 @@ impl Imu {
         let mut delay = rppal::hal::Delay::new();
         let mut config = MpuConfig::marg();
         config.mag_scale(mpu9250::MagScale::_16BITS);
-        //config.gyro_scale(mpu9250::GyroScale::_250DPS);
         let mpu = Mpu9250::marg(i2c, &mut delay, &mut config)?;
         let calib_path = path.join(Self::DEV_CALIB_FILE);
         let mag_calib_path = path.join(Self::MAG_CALIB_FILE);
         let gyro_calib_path = path.join(Self::GYRO_CALIB_FILE);
         let mut s = Self {
             device: mpu,
-            //acc_data: CircularVector::new(samples, [0.0; 3]),
             gyro_data: CircularVector::new(samples, [0.0; 3]),
             mag_data: CircularVector::new(samples, [0.0; 3]),
-            //time_data: CircularVector::new(samples, Instant::now()),
             mag_sens_adj: [0.0; 3],
             mag_bias: [0.0; 3],
             mag_scale: [1.0; 3],
@@ -177,8 +133,6 @@ impl Imu {
             gyro_calib_path,
             calibrated: false,
         };
-
-        //let calib_file_path = Path::new(Self::MAG_CALIB_FILE);
 
         if mag_calib_path.exists() {
             info!("MAGNETOMETER CALIBRATION FILE FOUND");
@@ -274,7 +228,6 @@ impl Imu {
         #[derive(Serialize, Deserialize, Default, Clone, Copy, Debug)]
         struct Calib {
             acc_bias: [f32; 3],
-            //gyro_bias: [f32; 3],
             mag_sens_adj: [f32; 3],
         }
 
@@ -302,7 +255,6 @@ impl Imu {
                 let calib: Calib = serde_json::from_reader(reader)?;
                 info!("DEVICE CALIBRATION READ FROM FILE");
                 self.mag_sens_adj = calib.mag_sens_adj;
-                //self.device.set_gyro_bias(false, calib.gyro_bias)?;
                 self.device.set_accel_bias(true, calib.acc_bias)?;
                 info!("DEVICE CALIBRATION COMPLETED");
                 return Ok(());
@@ -316,8 +268,6 @@ impl Imu {
                 Err(e) => return Err(Error::Mpu(e)),
             };
         self.device.set_gyro_bias(false, [0.0, 0.0, 0.0])?;
-        //let gyro_bias: [f32; 3] = self.device.get_gyro_bias()?;
-        //info!("gyro_bias: {gyro_bias:?}");
         self.mag_sens_adj = self.device.mag_sensitivity_adjustments();
 
         if acc_bias[2] > 0.0 {
@@ -335,7 +285,6 @@ impl Imu {
             &mut writer,
             &Calib {
                 acc_bias,
-                //gyro_bias,
                 mag_sens_adj: self.mag_sens_adj,
             },
         )?;
@@ -383,7 +332,7 @@ impl From<mpu9250::I2CError<rppal::i2c::Error>> for Error {
 }
 
 fn low_pass_filter(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
-    const OLD: f32 = 0.0;
+    const OLD: f32 = 0.8;
     const NEW: f32 = 1.0 - OLD;
     [
         OLD * a[0] + NEW * b[0],
@@ -399,8 +348,6 @@ impl Device for Imu {
     fn get_data(&mut self) -> Result<Self::Data, Self::Error> {
         match self.device.unscaled_all::<[i16; 3]>() {
             Ok(data) => {
-                //let now = Instant::now();
-                //eprintln!("{:?}", data.gyro);
                 let mag = [
                     f32::from(data.mag[0]) * Self::MAG_SCALE * self.mag_sens_adj[0],
                     f32::from(data.mag[1]) * Self::MAG_SCALE * self.mag_sens_adj[1],
@@ -417,13 +364,15 @@ impl Device for Imu {
                     f32::from(data.gyro[2]) * Self::GYRO_SCALE + self.gyro_bias[2],
                 ];
 
-                //self.time_data.push(now);
                 self.mag_data.push(mag);
-                //self.acc_data.push(acc);
 
                 eprintln!("gyro: {gyro:?}");
-                self.filtered_gyro = low_pass_filter(&self.filtered_gyro, &gyro);
-                self.gyro_data.push(gyro);
+                if self.calibrated {
+                    self.filtered_gyro = low_pass_filter(&self.filtered_gyro, &gyro);
+                    self.gyro_data.push(self.filtered_gyro);
+                } else {
+                    self.gyro_data.push(gyro);
+                }
 
                 let mag = [
                     (mag[0] - self.mag_bias[0]) * self.mag_scale[0],
