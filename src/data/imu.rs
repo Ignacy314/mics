@@ -290,6 +290,7 @@ impl Imu {
                 Err(e) => return Err(Error::Mpu(e)),
             };
         let gyro_bias: [f32; 3] = self.device.get_gyro_bias()?;
+        info!("gyro_bias: {gyro_bias:?}");
         self.mag_sens_adj = self.device.mag_sensitivity_adjustments();
 
         if acc_bias[2] > 0.0 {
@@ -425,7 +426,7 @@ impl Device for Imu {
                 self.rotation[1] += newest[1] - oldest[1];
                 self.rotation[2] += newest[2] - oldest[2];
 
-                //eprintln!("rotation: {:?}", self.rotation);
+                eprintln!("rotation: {:?}", self.rotation);
 
                 if self.rotation.iter().any(|r| r.abs() >= 2.0 * PI) {
                     self.update_mag_calibartion()?;

@@ -24,7 +24,7 @@ pub struct Data {
     bus_voltage: u16,
     shunt_voltage: i32,
     current: u16,
-    power: u16,
+    power: u32,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -61,7 +61,8 @@ impl Device for Ina {
         let bus_voltage = (self.device.bus_voltage()?).voltage_mv();
         let shunt_voltage = (self.device.shunt_voltage()?).shunt_voltage_uv();
         let current = (self.device.current_raw()?).0 * 10;
-        let power = (self.device.power_raw()?).0 * 2;
+        //let power = (self.device.power_raw()?).0 * 2;
+        let power = shunt_voltage.unsigned_abs() * 10;
 
         let d = Self::Data {
             bus_voltage,
@@ -70,7 +71,7 @@ impl Device for Ina {
             power,
         };
 
-        eprintln!("{d:?}");
+        //eprintln!("{d:?}");
 
         Ok(Self::Data {
             bus_voltage,
