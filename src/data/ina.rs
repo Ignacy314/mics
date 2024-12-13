@@ -58,8 +58,8 @@ impl Device for Ina {
         //if let Some(measure) = self.device.next_measurement()? {
         //    let power = measure.power;
         //}
-        let bus_voltage = (self.device.bus_voltage()?).voltage_mv() * 4;
-        let shunt_voltage = (self.device.shunt_voltage()?).shunt_voltage_uv() * 10;
+        let bus_voltage = (self.device.bus_voltage()?).voltage_mv();
+        let shunt_voltage = (self.device.shunt_voltage()?).shunt_voltage_uv();
         let current = (self.device.current_raw()?).0 * 10;
         let power = (self.device.power_raw()?).0 * 2;
 
