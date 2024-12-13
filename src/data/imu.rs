@@ -145,6 +145,7 @@ impl Imu {
         let mut delay = rppal::hal::Delay::new();
         let mut config = MpuConfig::marg();
         config.mag_scale(mpu9250::MagScale::_16BITS);
+        config.gyro_scale(mpu9250::GyroScale::_250DPS);
         let mpu = Mpu9250::marg(i2c, &mut delay, &mut config)?;
         let calib_path = path.join(Self::DEV_CALIB_FILE);
         let mag_calib_path = path.join(Self::MAG_CALIB_FILE);
