@@ -86,13 +86,14 @@ pub struct Imu {
     mag_sens_adj: [f32; 3],
     mag_bias: [f32; 3],
     mag_scale: [f32; 3],
+    gyro_bias: [f32; 3],
     filtered_mag: [f32; 3],
     filtered_acc: [f32; 3],
     filtered_gyro: [f32; 3],
     rotation: [f32; 3],
     calib_path: PathBuf,
     mag_calib_path: PathBuf,
-    //calibrated: bool,
+    calibrated: bool,
 }
 
 //impl Debug for Imu {
@@ -158,13 +159,14 @@ impl Imu {
             mag_sens_adj: [0.0; 3],
             mag_bias: [0.0; 3],
             mag_scale: [1.0; 3],
+            gyro_bias: [0.0; 3],
             filtered_mag: [0.0; 3],
             filtered_acc: [0.0; 3],
             filtered_gyro: [0.0; 3],
             rotation: [0.0; 3],
             calib_path,
             mag_calib_path,
-            //calibrated: false,
+            calibrated: false,
         };
 
         let calib_file_path = Path::new(Self::MAG_CALIB_FILE);
@@ -292,8 +294,7 @@ impl Imu {
                 Ok(b) => b,
                 Err(e) => return Err(Error::Mpu(e)),
             };
-        self.device
-            .set_gyro_bias(false, [0.0, 0.0, 0.0])?;
+        self.device.set_gyro_bias(false, [0.0, 0.0, 0.0])?;
         let gyro_bias: [f32; 3] = self.device.get_gyro_bias()?;
         info!("gyro_bias: {gyro_bias:?}");
         self.mag_sens_adj = self.device.mag_sensitivity_adjustments();
@@ -378,7 +379,7 @@ impl Device for Imu {
         match self.device.unscaled_all::<[i16; 3]>() {
             Ok(data) => {
                 //let now = Instant::now();
-                eprintln!("{:?}", data.gyro);
+                //eprintln!("{:?}", data.gyro);
                 let mag = [
                     f32::from(data.mag[0]) * Self::MAG_SCALE * self.mag_sens_adj[0],
                     f32::from(data.mag[1]) * Self::MAG_SCALE * self.mag_sens_adj[1],
@@ -390,18 +391,18 @@ impl Device for Imu {
                     f32::from(data.accel[2]) * Self::ACCEL_SCALE,
                 ];
                 let gyro = [
-                    f32::from(data.gyro[0]) * Self::GYRO_SCALE,
-                    f32::from(data.gyro[1]) * Self::GYRO_SCALE,
-                    f32::from(data.gyro[2]) * Self::GYRO_SCALE,
+                    f32::from(data.gyro[0]) * Self::GYRO_SCALE + self.gyro_bias[0],
+                    f32::from(data.gyro[1]) * Self::GYRO_SCALE + self.gyro_bias[1],
+                    f32::from(data.gyro[2]) * Self::GYRO_SCALE + self.gyro_bias[2],
                 ];
 
                 //self.time_data.push(now);
                 self.mag_data.push(mag);
                 //self.acc_data.push(acc);
 
-                //eprintln!("gyro: {gyro:?}");
+                eprintln!("gyro: {gyro:?}");
                 self.filtered_gyro = low_pass_filter(&self.filtered_gyro, &gyro);
-                self.gyro_data.push(self.filtered_gyro);
+                self.gyro_data.push(gyro);
 
                 let mag = [
                     (mag[0] - self.mag_bias[0]) * self.mag_scale[0],
@@ -422,11 +423,25 @@ impl Device for Imu {
                 //    self.filtered_acc, self.filtered_mag
                 //);
 
-                //let n = self.gyro_data.index;
-                //if !self.calibrated && n == 0 {
-                //    self.update_mag_calibartion()?;
-                //    self.calibrated = true;
-                //};
+                let n = self.gyro_data.index;
+                if !self.calibrated && n == 0 {
+                    let sum =
+                        self.gyro_data
+                            .buf
+                            .iter()
+                            .fold([0.0, 0.0, 0.0], |mut sum, &[x, y, z]| {
+                                sum[0] += x;
+                                sum[1] += y;
+                                sum[2] += z;
+                                sum
+                            });
+                    #[allow(clippy::cast_precision_loss)]
+                    let len = -(self.gyro_data.size as f32);
+                    self.gyro_bias = [sum[0] / len, sum[1] / len, sum[2] / len];
+                    self.calibrated = true;
+                    self.rotation = [0.0; 3];
+                    self.gyro_data.reset([0.0; 3]);
+                };
 
                 let newest = self.gyro_data.newest();
                 let oldest = self.gyro_data.oldest();
@@ -437,7 +452,7 @@ impl Device for Imu {
 
                 //eprintln!("rotation: {:?}", self.rotation);
 
-                if self.rotation.iter().any(|r| r.abs() >= 360.0) {
+                if self.calibrated && self.rotation.iter().any(|r| r.abs() >= 360.0) {
                     self.update_mag_calibartion()?;
                     self.rotation = [0.0; 3];
                     self.gyro_data.reset([0.0; 3]);
