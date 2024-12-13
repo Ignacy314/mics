@@ -4,7 +4,6 @@ use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
-use std::time::Instant;
 
 use log::info;
 use mpu9250::{Mpu9250, MpuConfig};
@@ -80,10 +79,10 @@ struct MagCalib {
 
 pub struct Imu {
     device: Mpu9250<mpu9250::I2cDevice<rppal::i2c::I2c>, mpu9250::Marg>,
-    acc_data: CircularVector<[f32; 3]>,
+    //acc_data: CircularVector<[f32; 3]>,
     gyro_data: CircularVector<[f32; 3]>,
     mag_data: CircularVector<[f32; 3]>,
-    time_data: CircularVector<Instant>,
+    //time_data: CircularVector<Instant>,
     mag_sens_adj: [f32; 3],
     mag_bias: [f32; 3],
     mag_scale: [f32; 3],
@@ -140,7 +139,7 @@ impl Imu {
     const DEV_CALIB_FILE: &'static str = "calibration";
     const MAG_CALIB_FILE: &'static str = "mag_calibration";
 
-    pub fn new(bus: u8, samples: usize, path: PathBuf) -> Result<Self, Error> {
+    pub fn new(bus: u8, samples: usize, path: &Path) -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::with_bus(bus)?;
         let mut delay = rppal::hal::Delay::new();
         let mut config = MpuConfig::marg();
@@ -150,10 +149,10 @@ impl Imu {
         let mag_calib_path = path.join(Self::MAG_CALIB_FILE);
         let mut s = Self {
             device: mpu,
-            acc_data: CircularVector::new(samples, [0.0; 3]),
+            //acc_data: CircularVector::new(samples, [0.0; 3]),
             gyro_data: CircularVector::new(samples, [0.0; 3]),
             mag_data: CircularVector::new(samples, [0.0; 3]),
-            time_data: CircularVector::new(samples, Instant::now()),
+            //time_data: CircularVector::new(samples, Instant::now()),
             mag_sens_adj: [0.0; 3],
             mag_bias: [0.0; 3],
             mag_scale: [1.0; 3],
@@ -219,7 +218,7 @@ impl Imu {
 
         info!("WRITING TO MAGNETOMETER CALIBRATION FILE");
 
-        let file = File::create(Self::MAG_CALIB_FILE)?;
+        let file = File::create(self.mag_calib_path.clone())?;
         let mut writer = BufWriter::new(file);
         serde_json::to_writer(
             &mut writer,
@@ -267,7 +266,7 @@ impl Imu {
 
         info!("DEVICE CALIBRATION START");
 
-        let calib_file_path = Path::new(Self::DEV_CALIB_FILE);
+        let calib_file_path = self.calib_path.clone();
 
         if try_from_file {
             if calib_file_path.exists() {
@@ -302,7 +301,7 @@ impl Imu {
 
         info!("WRITING TO DEVICE CALIBRATION FILE");
 
-        let file = File::create(Self::DEV_CALIB_FILE)?;
+        let file = File::create(calib_file_path)?;
         let mut writer = BufWriter::new(file);
         serde_json::to_writer(
             &mut writer,
@@ -372,7 +371,7 @@ impl Device for Imu {
     fn get_data(&mut self) -> Result<Self::Data, Self::Error> {
         match self.device.unscaled_all::<[i16; 3]>() {
             Ok(data) => {
-                let now = Instant::now();
+                //let now = Instant::now();
                 let mag = [
                     f32::from(data.mag[0]) * Self::MAG_SCALE * self.mag_sens_adj[0],
                     f32::from(data.mag[1]) * Self::MAG_SCALE * self.mag_sens_adj[1],
@@ -389,9 +388,9 @@ impl Device for Imu {
                     f32::from(data.gyro[2]) * Self::GYRO_SCALE * Self::DEG_TO_RAD,
                 ];
 
-                self.time_data.push(now);
+                //self.time_data.push(now);
                 self.mag_data.push(mag);
-                self.acc_data.push(acc);
+                //self.acc_data.push(acc);
                 self.gyro_data.push(gyro);
 
                 let mag = [
