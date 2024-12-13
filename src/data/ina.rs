@@ -14,7 +14,7 @@ pub struct Ina {
 impl Ina {
     pub fn new() -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::new()?;
-        let ina = SyncIna219::new(i2c, Address::from_byte(0x42)?)?;
+        let ina = SyncIna219::new(i2c, Address::from_byte(0x40)?)?;
         Ok(Self { device: ina })
     }
 }
