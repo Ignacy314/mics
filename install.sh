@@ -8,6 +8,7 @@ mkdir -p data/data
 mkdir -p data/i2s
 mkdir -p data/umc
 mkdir -p log
+mkdir -p samba
 rm -rf andros
 git clone https://github.com/Ignacy314/mics andros
 
@@ -30,11 +31,11 @@ apt-get install -y samba samba-common-bin
 echo -e "[global]
 server string = Andros Data
 workgroup = ANDROS
-log file = /usr/local/samba/var/log.%m
+log file = /home/test/samba/log.%m
 max log size = 50
 
 [andros]
-path = \$HOME/andros
+path = /home/test/andros
 browseable = yes
 writeable = yes
 read only = no
@@ -43,6 +44,8 @@ public = no" > /etc/samba/smb.conf
 (echo "password"; sleep 1; echo "password") | smbpasswd -s -a test
 
 systemctl restart smbd
+systemctl enable --now ssh
+systemctl enable --now wayvnc
 
 apt-get install -y libasound2-dev
 apt-get install -y libwebkit2gtk-4.0

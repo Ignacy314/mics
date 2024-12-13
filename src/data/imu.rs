@@ -88,6 +88,7 @@ pub struct Imu {
     mag_scale: [f32; 3],
     filtered_mag: [f32; 3],
     filtered_acc: [f32; 3],
+    filtered_gyro: [f32; 3],
     rotation: [f32; 3],
     calib_path: PathBuf,
     mag_calib_path: PathBuf,
@@ -158,6 +159,7 @@ impl Imu {
             mag_scale: [1.0; 3],
             filtered_mag: [0.0; 3],
             filtered_acc: [0.0; 3],
+            filtered_gyro: [0.0; 3],
             rotation: [0.0; 3],
             calib_path,
             mag_calib_path,
@@ -392,7 +394,10 @@ impl Device for Imu {
                 //self.time_data.push(now);
                 self.mag_data.push(mag);
                 //self.acc_data.push(acc);
-                self.gyro_data.push(gyro);
+
+                eprintln!("gyro: {gyro:?}");
+                self.filtered_gyro = low_pass_filter(&self.filtered_gyro, &gyro);
+                self.gyro_data.push(self.filtered_gyro);
 
                 let mag = [
                     (mag[0] - self.mag_bias[0]) * self.mag_scale[0],
