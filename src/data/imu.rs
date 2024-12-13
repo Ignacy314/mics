@@ -450,7 +450,7 @@ impl Device for Imu {
                 self.rotation[1] += newest[1] - oldest[1];
                 self.rotation[2] += newest[2] - oldest[2];
 
-                //eprintln!("rotation: {:?}", self.rotation);
+                eprintln!("rotation: {:?}", self.rotation);
 
                 if self.calibrated && self.rotation.iter().any(|r| r.abs() >= 360.0) {
                     self.update_mag_calibartion()?;
