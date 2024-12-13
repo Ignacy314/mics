@@ -22,7 +22,7 @@ impl Ina {
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Copy)]
 pub struct Data {
     bus_voltage: u16,
-    shunt_voltage: i16,
+    shunt_voltage: i32,
     current: u16,
     power: u16,
 }
@@ -58,8 +58,8 @@ impl Device for Ina {
         //if let Some(measure) = self.device.next_measurement()? {
         //    let power = measure.power;
         //}
-        let bus_voltage = (self.device.bus_voltage()?).voltage_4mv();
-        let shunt_voltage = (self.device.shunt_voltage()?).shunt_voltage_10uv();
+        let bus_voltage = (self.device.bus_voltage()?).voltage_mv() * 4;
+        let shunt_voltage = (self.device.shunt_voltage()?).shunt_voltage_uv() * 10;
         let current = (self.device.current_raw()?).0 * 10;
         let power = (self.device.power_raw()?).0 * 2;
 
