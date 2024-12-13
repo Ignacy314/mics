@@ -24,6 +24,7 @@ fn handle_capture_device_error(err: &CaptureDeviceError) {
     thread::sleep(Duration::from_secs(1));
 }
 
+#[allow(clippy::too_many_lines)]
 fn main() {
     let home = match std::env::var("HOME") {
         Ok(var) => var,
@@ -128,31 +129,31 @@ fn main() {
     };
 
     // Create the UMC microphone capture thread
-    //let umc_status = Arc::new(AtomicU8::new(0));
-    //let umc_thread = {
-    //    let running = running.clone();
-    //    let status = umc_status.clone();
-    //    let rx = rx.clone();
-    //    let data_dir = data_dir.clone();
-    //    thread::spawn(move || {
-    //        let umc = CaptureDevice::new(
-    //            "hw:CARD=U192k,DEV=0",
-    //            2,
-    //            48_000,
-    //            Format::s32(),
-    //            data_dir.join("umc"),
-    //            running.clone(),
-    //            status,
-    //            rx,
-    //        );
-    //        while running.load(Ordering::Relaxed) {
-    //            match umc.read(AUDIO_FILE_DURATION) {
-    //                Ok(()) => {}
-    //                Err(err) => handle_capture_device_error(&err),
-    //            };
-    //        }
-    //    })
-    //};
+    let umc_status = Arc::new(AtomicU8::new(0));
+    let umc_thread = {
+        let running = running.clone();
+        let status = umc_status.clone();
+        let rx = rx.clone();
+        let data_dir = data_dir.clone();
+        thread::spawn(move || {
+            let umc = CaptureDevice::new(
+                "hw:CARD=U192k,DEV=0",
+                2,
+                48_000,
+                Format::s32(),
+                data_dir.join("umc"),
+                running.clone(),
+                status,
+                rx,
+            );
+            while running.load(Ordering::Relaxed) {
+                match umc.read(AUDIO_FILE_DURATION) {
+                    Ok(()) => {}
+                    Err(err) => handle_capture_device_error(&err),
+                };
+            }
+        })
+    };
 
     let data_thread = {
         let running = running.clone();
@@ -170,6 +171,6 @@ fn main() {
         thread::sleep(Duration::from_secs(2).saturating_sub(start.elapsed()));
     }
     andros_thread.join().unwrap();
-    //umc_thread.join().unwrap();
+    umc_thread.join().unwrap();
     data_thread.join().unwrap();
 }

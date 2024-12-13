@@ -24,7 +24,7 @@ pub struct Data {
     bus_voltage: u16,
     shunt_voltage: i32,
     current: u16,
-    power: u32,
+    power: f32,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -62,14 +62,15 @@ impl Device for Ina {
         let shunt_voltage = (self.device.shunt_voltage()?).shunt_voltage_uv();
         let current = (self.device.current_raw()?).0 * 10;
         //let power = (self.device.power_raw()?).0 * 2;
-        let power = shunt_voltage.unsigned_abs() * 10;
+        #[allow(clippy::cast_precision_loss)]
+        let power = shunt_voltage.unsigned_abs() as f32 / 100.0;
 
-        let d = Self::Data {
-            bus_voltage,
-            shunt_voltage,
-            current,
-            power,
-        };
+        //let d = Self::Data {
+        //    bus_voltage,
+        //    shunt_voltage,
+        //    current,
+        //    power,
+        //};
 
         //eprintln!("{d:?}");
 
