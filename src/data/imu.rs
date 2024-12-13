@@ -145,7 +145,7 @@ impl Imu {
         let mut delay = rppal::hal::Delay::new();
         let mut config = MpuConfig::marg();
         config.mag_scale(mpu9250::MagScale::_16BITS);
-        config.gyro_scale(mpu9250::GyroScale::_250DPS);
+        //config.gyro_scale(mpu9250::GyroScale::_250DPS);
         let mpu = Mpu9250::marg(i2c, &mut delay, &mut config)?;
         let calib_path = path.join(Self::DEV_CALIB_FILE);
         let mag_calib_path = path.join(Self::MAG_CALIB_FILE);
@@ -378,6 +378,7 @@ impl Device for Imu {
         match self.device.unscaled_all::<[i16; 3]>() {
             Ok(data) => {
                 //let now = Instant::now();
+                eprintln!("{:?}", data.gyro);
                 let mag = [
                     f32::from(data.mag[0]) * Self::MAG_SCALE * self.mag_sens_adj[0],
                     f32::from(data.mag[1]) * Self::MAG_SCALE * self.mag_sens_adj[1],
@@ -389,16 +390,16 @@ impl Device for Imu {
                     f32::from(data.accel[2]) * Self::ACCEL_SCALE,
                 ];
                 let gyro = [
-                    f32::from(data.gyro[0]) * Self::GYRO_SCALE * Self::DEG_TO_RAD,
-                    f32::from(data.gyro[1]) * Self::GYRO_SCALE * Self::DEG_TO_RAD,
-                    f32::from(data.gyro[2]) * Self::GYRO_SCALE * Self::DEG_TO_RAD,
+                    f32::from(data.gyro[0]) * Self::GYRO_SCALE,
+                    f32::from(data.gyro[1]) * Self::GYRO_SCALE,
+                    f32::from(data.gyro[2]) * Self::GYRO_SCALE,
                 ];
 
                 //self.time_data.push(now);
                 self.mag_data.push(mag);
                 //self.acc_data.push(acc);
 
-                eprintln!("gyro: {gyro:?}");
+                //eprintln!("gyro: {gyro:?}");
                 self.filtered_gyro = low_pass_filter(&self.filtered_gyro, &gyro);
                 self.gyro_data.push(self.filtered_gyro);
 
@@ -434,9 +435,9 @@ impl Device for Imu {
                 self.rotation[1] += newest[1] - oldest[1];
                 self.rotation[2] += newest[2] - oldest[2];
 
-                eprintln!("rotation: {:?}", self.rotation);
+                //eprintln!("rotation: {:?}", self.rotation);
 
-                if self.rotation.iter().any(|r| r.abs() >= 2.0 * PI) {
+                if self.rotation.iter().any(|r| r.abs() >= 360.0) {
                     self.update_mag_calibartion()?;
                     self.rotation = [0.0; 3];
                     self.gyro_data.reset([0.0; 3]);
