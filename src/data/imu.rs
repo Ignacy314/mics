@@ -77,6 +77,11 @@ struct MagCalib {
     scale: [f32; 3],
 }
 
+#[derive(Serialize, Deserialize, Default, Clone, Copy, Debug)]
+struct GyroCalib {
+    gyro_bias: [f32; 3],
+}
+
 pub struct Imu {
     device: Mpu9250<mpu9250::I2cDevice<rppal::i2c::I2c>, mpu9250::Marg>,
     //acc_data: CircularVector<[f32; 3]>,
@@ -93,6 +98,7 @@ pub struct Imu {
     rotation: [f32; 3],
     calib_path: PathBuf,
     mag_calib_path: PathBuf,
+    gyro_calib_path: PathBuf,
     calibrated: bool,
 }
 
@@ -135,11 +141,12 @@ pub struct Imu {
 impl Imu {
     //const SAMPLES: usize = 200;
     const ACCEL_SCALE: f32 = 2.0 / 32768.0;
-    const DEG_TO_RAD: f32 = PI / 180.0;
+    //const DEG_TO_RAD: f32 = PI / 180.0;
     const GYRO_SCALE: f32 = 250.0 / 32768.0;
     const MAG_SCALE: f32 = 0.15;
     const DEV_CALIB_FILE: &'static str = "calibration";
     const MAG_CALIB_FILE: &'static str = "mag_calibration";
+    const GYRO_CALIB_FILE: &'static str = "gyro_calibration";
 
     pub fn new(bus: u8, samples: usize, path: &Path) -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::with_bus(bus)?;
@@ -150,6 +157,7 @@ impl Imu {
         let mpu = Mpu9250::marg(i2c, &mut delay, &mut config)?;
         let calib_path = path.join(Self::DEV_CALIB_FILE);
         let mag_calib_path = path.join(Self::MAG_CALIB_FILE);
+        let gyro_calib_path = path.join(Self::GYRO_CALIB_FILE);
         let mut s = Self {
             device: mpu,
             //acc_data: CircularVector::new(samples, [0.0; 3]),
@@ -165,15 +173,16 @@ impl Imu {
             filtered_gyro: [0.0; 3],
             rotation: [0.0; 3],
             calib_path,
-            mag_calib_path,
+            mag_calib_path: mag_calib_path.clone(),
+            gyro_calib_path,
             calibrated: false,
         };
 
-        let calib_file_path = Path::new(Self::MAG_CALIB_FILE);
+        //let calib_file_path = Path::new(Self::MAG_CALIB_FILE);
 
-        if calib_file_path.exists() {
+        if mag_calib_path.exists() {
             info!("MAGNETOMETER CALIBRATION FILE FOUND");
-            let file = File::open(calib_file_path)?;
+            let file = File::open(mag_calib_path)?;
             let reader = BufReader::new(file);
             let calib: MagCalib = serde_json::from_reader(reader)?;
             info!("MAGNETOMETER CALIBRATION READ FROM FILE");
@@ -265,15 +274,27 @@ impl Imu {
         #[derive(Serialize, Deserialize, Default, Clone, Copy, Debug)]
         struct Calib {
             acc_bias: [f32; 3],
-            gyro_bias: [f32; 3],
+            //gyro_bias: [f32; 3],
             mag_sens_adj: [f32; 3],
         }
 
         info!("DEVICE CALIBRATION START");
 
         let calib_file_path = self.calib_path.clone();
+        let gyro_file_path = self.gyro_calib_path.clone();
 
         if try_from_file {
+            if gyro_file_path.exists() {
+                info!("GYROSCOPE CALIBRATION FILE FOUND");
+                let file = File::open(gyro_file_path)?;
+                let reader = BufReader::new(file);
+                let calib: GyroCalib = serde_json::from_reader(reader)?;
+                info!("GYROSCOPE CALIBRATION READ FROM FILE");
+                self.gyro_bias = calib.gyro_bias;
+                self.calibrated = true;
+            } else {
+                info!("GYROCOPE CALIBRATION FILE NOT FOUND");
+            }
             if calib_file_path.exists() {
                 info!("DEVICE CALIBRATION FILE FOUND");
                 let file = File::open(calib_file_path)?;
@@ -281,7 +302,7 @@ impl Imu {
                 let calib: Calib = serde_json::from_reader(reader)?;
                 info!("DEVICE CALIBRATION READ FROM FILE");
                 self.mag_sens_adj = calib.mag_sens_adj;
-                self.device.set_gyro_bias(false, calib.gyro_bias)?;
+                //self.device.set_gyro_bias(false, calib.gyro_bias)?;
                 self.device.set_accel_bias(true, calib.acc_bias)?;
                 info!("DEVICE CALIBRATION COMPLETED");
                 return Ok(());
@@ -295,8 +316,8 @@ impl Imu {
                 Err(e) => return Err(Error::Mpu(e)),
             };
         self.device.set_gyro_bias(false, [0.0, 0.0, 0.0])?;
-        let gyro_bias: [f32; 3] = self.device.get_gyro_bias()?;
-        info!("gyro_bias: {gyro_bias:?}");
+        //let gyro_bias: [f32; 3] = self.device.get_gyro_bias()?;
+        //info!("gyro_bias: {gyro_bias:?}");
         self.mag_sens_adj = self.device.mag_sensitivity_adjustments();
 
         if acc_bias[2] > 0.0 {
@@ -314,7 +335,7 @@ impl Imu {
             &mut writer,
             &Calib {
                 acc_bias,
-                gyro_bias,
+                //gyro_bias,
                 mag_sens_adj: self.mag_sens_adj,
             },
         )?;
@@ -425,6 +446,7 @@ impl Device for Imu {
 
                 let n = self.gyro_data.index;
                 if !self.calibrated && n == 0 {
+                    info!("GYROSCOPE CALIBRATION START");
                     let sum =
                         self.gyro_data
                             .buf
@@ -439,8 +461,16 @@ impl Device for Imu {
                     let len = -(self.gyro_data.size as f32);
                     self.gyro_bias = [sum[0] / len, sum[1] / len, sum[2] / len];
                     self.calibrated = true;
+
+                    info!("WRITING TO GYROSCOPE CALIBRATION FILE");
+                    let file = File::create(self.gyro_calib_path.clone())?;
+                    let mut writer = BufWriter::new(file);
+                    serde_json::to_writer(&mut writer, &GyroCalib { gyro_bias: self.gyro_bias })?;
+                    info!("GYROSCOPE CALIBRATION SAVED TO FILE");
+
                     self.rotation = [0.0; 3];
                     self.gyro_data.reset([0.0; 3]);
+                    info!("GYROSCOPE CALIBRATION COMPLETED");
                 };
 
                 let newest = self.gyro_data.newest();
