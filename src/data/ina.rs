@@ -63,6 +63,15 @@ impl Device for Ina {
         let current = (self.device.current_raw()?).0 * 10;
         let power = (self.device.power_raw()?).0 * 2;
 
+        let d = Self::Data {
+            bus_voltage,
+            shunt_voltage,
+            current,
+            power,
+        };
+
+        eprintln!("{d:?}");
+
         Ok(Self::Data {
             bus_voltage,
             shunt_voltage,
