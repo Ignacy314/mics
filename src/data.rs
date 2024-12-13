@@ -145,7 +145,7 @@ impl Reader {
                             }
                         }
                     } else {
-                        match Imu::new(bus, samples, path) {
+                        match Imu::new(bus, samples, path.clone()) {
                             Ok(mut device) => match device.calibrate(true) {
                                 Ok(()) => {
                                     info! {"IMU device initialized"};
