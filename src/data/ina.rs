@@ -21,7 +21,10 @@ impl Ina {
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Copy)]
 pub struct Data {
-    bus_voltage: f32
+    bus_voltage: u16,
+    shunt_voltage: i16,
+    current: u16,
+    power: u16,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -55,11 +58,16 @@ impl Device for Ina {
         //if let Some(measure) = self.device.next_measurement()? {
         //    let power = measure.power;
         //}
-        let bus_voltage = self.device.bus_voltage()?;
-        let shunt_voltage = self.device.shunt_voltage()?;
+        let bus_voltage = (self.device.bus_voltage()?).voltage_4mv();
+        let shunt_voltage = (self.device.shunt_voltage()?).shunt_voltage_10uv();
+        let current = (self.device.current_raw()?).0 * 10;
+        let power = (self.device.power_raw()?).0 * 2;
 
         Ok(Self::Data {
-            ..Default::default()
+            bus_voltage,
+            shunt_voltage,
+            current,
+            power,
         })
     }
 }
