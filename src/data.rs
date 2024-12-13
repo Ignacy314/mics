@@ -66,7 +66,7 @@ impl Reader {
 
     fn handle_gps_data_error(&mut self, err: &gps::Error) {
         self.device_manager.statuses.gps = Status::NoData;
-        error!("GPS data error: {err}");
+        warn!("GPS data error: {err}");
     }
 
     fn handle_gps_init_error(&mut self, err: &gps::Error) {
@@ -126,6 +126,7 @@ impl Reader {
             let data = imu_data.clone();
             let bus = self.device_manager.settings.imu_bus;
             let period = Duration::from_millis(50);
+            let path = self.path.clone();
             thread::spawn(move || {
                 let samples: usize = 10000 / period.as_millis() as usize;
                 let mut imu: Option<Imu> = None;
@@ -144,7 +145,7 @@ impl Reader {
                             }
                         }
                     } else {
-                        match Imu::new(bus, samples) {
+                        match Imu::new(bus, samples, path) {
                             Ok(mut device) => match device.calibrate(true) {
                                 Ok(()) => {
                                     info! {"IMU device initialized"};

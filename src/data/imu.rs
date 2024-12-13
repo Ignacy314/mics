@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use log::info;
@@ -90,6 +90,8 @@ pub struct Imu {
     filtered_mag: [f32; 3],
     filtered_acc: [f32; 3],
     rotation: [f32; 3],
+    calib_path: PathBuf,
+    mag_calib_path: PathBuf,
     //calibrated: bool,
 }
 
@@ -138,12 +140,14 @@ impl Imu {
     const DEV_CALIB_FILE: &'static str = "calibration";
     const MAG_CALIB_FILE: &'static str = "mag_calibration";
 
-    pub fn new(bus: u8, samples: usize) -> Result<Self, Error> {
+    pub fn new(bus: u8, samples: usize, path: PathBuf) -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::with_bus(bus)?;
         let mut delay = rppal::hal::Delay::new();
         let mut config = MpuConfig::marg();
         config.mag_scale(mpu9250::MagScale::_16BITS);
         let mpu = Mpu9250::marg(i2c, &mut delay, &mut config)?;
+        let calib_path = path.join(Self::DEV_CALIB_FILE);
+        let mag_calib_path = path.join(Self::MAG_CALIB_FILE);
         let mut s = Self {
             device: mpu,
             acc_data: CircularVector::new(samples, [0.0; 3]),
@@ -156,6 +160,8 @@ impl Imu {
             filtered_mag: [0.0; 3],
             filtered_acc: [0.0; 3],
             rotation: [0.0; 3],
+            calib_path,
+            mag_calib_path,
             //calibrated: false,
         };
 
@@ -428,12 +434,7 @@ impl Device for Imu {
                     self.gyro_data.reset([0.0; 3]);
                 }
 
-                Ok(Self::Data {
-                    acc,
-                    gyro,
-                    mag,
-                    angle,
-                })
+                Ok(Self::Data { acc, gyro, mag, angle })
             }
             Err(e) => Err(Error::Bus(e)),
         }
