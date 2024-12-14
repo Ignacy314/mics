@@ -1,4 +1,3 @@
-//#![allow(unused)]
 use parking_lot::Mutex;
 use std::fs::File;
 use std::io::BufWriter;
@@ -47,19 +46,25 @@ pub struct Data {
 pub struct Reader {
     pub device_manager: DeviceManager,
     pub path: PathBuf,
+    pub calib_path: PathBuf,
+    pub data_link: PathBuf,
     pub read_period: Duration,
 }
 
 impl Reader {
     const PERIOD_MILLIS: u64 = 5000;
 
-    pub fn new<P>(path: P) -> Self
+    pub fn new<P>(path: P, calib_path: P) -> Self
     where
         P: Into<PathBuf>,
     {
+        let path: PathBuf = path.into();
+        let data_link = path.join("data.json");
         Self {
             device_manager: DeviceManager::new(),
-            path: path.into(),
+            path,
+            calib_path: calib_path.into(),
+            data_link,
             read_period: Duration::from_millis(Self::PERIOD_MILLIS),
         }
     }
@@ -126,7 +131,7 @@ impl Reader {
             let data = imu_data.clone();
             let bus = self.device_manager.settings.imu_bus;
             let period = Duration::from_millis(50);
-            let path = self.path.clone();
+            let path = self.calib_path.clone();
             thread::spawn(move || {
                 let samples: usize = 10000 / period.as_millis() as usize;
                 let mut imu: Option<Imu> = None;
@@ -136,7 +141,6 @@ impl Reader {
                     if let Some(imu) = imu.as_mut() {
                         match imu.get_data() {
                             Ok(d) => {
-                                //eprintln!("{}", d.angle_rel_to_north);
                                 *data.lock() = (d, Status::Ok);
                             }
                             Err(err) => {
@@ -214,12 +218,10 @@ impl Reader {
 
             let mut data = Data::default();
 
-            //eprintln!("Trying to read IMU data");
             if let Some(guard) = imu_data.try_lock_for(Duration::from_millis(50)) {
                 let (imu_data, imu_status) = *guard;
                 if imu_status == Status::Ok {
                     data.imu = Some(imu_data);
-                    //eprintln!("IMU data read success");
                 }
                 self.device_manager.statuses.imu = imu_status;
             } else {
@@ -309,7 +311,6 @@ impl Reader {
             }
 
             let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-            //let path = format!("{}/{nanos}.json", self.path);
             let path = self.path.join(format!("{nanos}.json"));
             match File::create(&path) {
                 Ok(file) => {
@@ -326,7 +327,14 @@ impl Reader {
                             data,
                         },
                     ) {
-                        Ok(()) => {}
+                        Ok(()) => {
+                            match std::os::unix::fs::symlink(&path, &self.data_link) {
+                                Ok(()) => {},
+                                Err(err) => {
+                                    error!("Failed to create data symlink: {err}");
+                                }
+                            };
+                        }
                         Err(e) => {
                             warn!("Failed to serialize data to json: {e}");
                         }

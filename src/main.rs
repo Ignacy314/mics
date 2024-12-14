@@ -159,7 +159,7 @@ fn main() {
         let running = running.clone();
         let data_dir = data_dir.clone();
         thread::spawn(move || {
-            let mut reader = data::Reader::new(data_dir.join("data"));
+            let mut reader = data::Reader::new(data_dir.join("data"), data_dir);
             reader.read(&running);
         })
     };
