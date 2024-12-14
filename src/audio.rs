@@ -14,9 +14,9 @@ use alsa::{
 pub enum CaptureDeviceError {
     #[error("Format unimplemented: {0}")]
     FormatUnimplemented(Format),
-    #[error("Alsa error")]
+    #[error("Alsa error: {0}")]
     Alsa(#[from] alsa::Error),
-    #[error("Hound error")]
+    #[error("Hound error: {0}")]
     Hound(#[from] hound::Error)
 }
 
