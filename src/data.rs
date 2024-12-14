@@ -328,6 +328,14 @@ impl Reader {
                         },
                     ) {
                         Ok(()) => {
+                            if self.data_link.exists() {
+                                match std::fs::remove_file(&self.data_link) {
+                                    Ok(()) => {},
+                                    Err(err) => {
+                                        error!("Failed to remove previous data symlink: {err}");
+                                    }
+                                }
+                            }
                             match std::os::unix::fs::symlink(&path, &self.data_link) {
                                 Ok(()) => {},
                                 Err(err) => {
