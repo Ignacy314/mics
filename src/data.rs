@@ -1,6 +1,7 @@
 use parking_lot::Mutex;
 use std::fs::File;
 use std::io::BufWriter;
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -319,15 +320,21 @@ impl Reader {
                         statuses: Statuses,
                         data: Data,
                     }
-                    let writer = BufWriter::new(file);
+                    let mut writer = BufWriter::new(file);
                     match serde_json::to_writer(
-                        writer,
+                        &mut writer,
                         &JsonData {
                             statuses: self.device_manager.statuses,
                             data,
                         },
                     ) {
                         Ok(()) => {
+                            match writer.write(b"\n") {
+                                Ok(_) => {},
+                                Err(err) => {
+                                    error!("Failed to write new line to data file: {err}");
+                                }
+                            }
                             if self.data_link.exists() {
                                 match std::fs::remove_file(&self.data_link) {
                                     Ok(()) => {},
