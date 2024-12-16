@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use alsa::pcm::Format;
 use crossbeam_channel::unbounded;
@@ -155,29 +155,29 @@ fn main() {
         })
     };
 
-    //let data_thread = {
-    //    let running = running.clone();
-    //    let data_dir = data_dir.clone();
-    //    let i2s_status = i2s_status.clone();
-    //    let umc_status = umc_status.clone();
-    //    thread::spawn(move || {
-    //        let mut reader =
-    //            data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
-    //        reader.read(&running);
-    //    })
-    //};
-    //
-    //while running.load(Ordering::Relaxed) {
-    //    let start = Instant::now();
-    //    //println!("Andros I2S status: {}", andros_status.load(Ordering::Relaxed));
-    //    //println!("UMC status: {}", umc_status.load(Ordering::Relaxed));
-    //    thread::sleep(Duration::from_secs(2).saturating_sub(start.elapsed()));
-    //}
+    let data_thread = {
+        let running = running.clone();
+        let data_dir = data_dir.clone();
+        let i2s_status = i2s_status.clone();
+        let umc_status = umc_status.clone();
+        thread::spawn(move || {
+            let mut reader =
+                data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
+            reader.read(&running);
+        })
+    };
 
-    let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
-    reader.read(&running);
+    while running.load(Ordering::Relaxed) {
+        let start = Instant::now();
+        //println!("Andros I2S status: {}", andros_status.load(Ordering::Relaxed));
+        //println!("UMC status: {}", umc_status.load(Ordering::Relaxed));
+        thread::sleep(Duration::from_secs(2).saturating_sub(start.elapsed()));
+    }
+
+    //let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
+    //reader.read(&running);
 
     i2s_thread.join().unwrap();
     umc_thread.join().unwrap();
-    //data_thread.join().unwrap();
+    data_thread.join().unwrap();
 }
