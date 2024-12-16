@@ -1,4 +1,3 @@
-//#![allow(unused)]
 use std::io::BufRead;
 use std::time::Duration;
 

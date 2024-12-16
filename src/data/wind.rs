@@ -1,4 +1,3 @@
-//#![allow(unused)]
 use std::time::{Duration, Instant};
 
 use rppal::uart::{Parity, Uart};

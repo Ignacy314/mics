@@ -17,7 +17,7 @@ pub enum CaptureDeviceError {
     #[error("Alsa error: {0}")]
     Alsa(#[from] alsa::Error),
     #[error("Hound error: {0}")]
-    Hound(#[from] hound::Error)
+    Hound(#[from] hound::Error),
 }
 
 pub struct CaptureDevice {
@@ -42,7 +42,10 @@ impl CaptureDevice {
         running: Arc<AtomicBool>,
         status: Arc<AtomicU8>,
         pps: Receiver<i64>,
-    ) -> Self where P: Into<PathBuf> {
+    ) -> Self
+    where
+        P: Into<PathBuf>,
+    {
         Self {
             device_name: device_name.to_owned(),
             channels,
@@ -109,9 +112,15 @@ impl CaptureDevice {
                 writer.write_sample(low)?;
             }
             if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
-                last_read = Instant::now();
+                let mut zeros = false;
                 for sample in buf {
+                    if sample.trailing_zeros() >= 24 {
+                        zeros = true;
+                    }
                     writer.write_sample(sample)?;
+                }
+                if !zeros {
+                    last_read = Instant::now();
                 }
             }
             if start.elapsed() >= file_duration {

@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use alsa::pcm::Format;
 use crossbeam_channel::unbounded;
@@ -102,14 +102,14 @@ fn main() {
         .unwrap();
 
     // Create the Andros I2S microphone capture thread
-    let andros_status = Arc::new(AtomicU8::new(0));
-    let andros_thread = {
+    let i2s_status = Arc::new(AtomicU8::new(0));
+    let i2s_thread = {
         let running = running.clone();
-        let status = andros_status.clone();
+        let status = i2s_status.clone();
         let rx = rx.clone();
         let data_dir = data_dir.clone();
         thread::spawn(move || {
-            let andros = CaptureDevice::new(
+            let i2s = CaptureDevice::new(
                 "hw:CARD=ANDROSi2s,DEV=1",
                 4,
                 192_000,
@@ -120,7 +120,7 @@ fn main() {
                 rx,
             );
             while running.load(Ordering::Relaxed) {
-                match andros.read(AUDIO_FILE_DURATION) {
+                match i2s.read(AUDIO_FILE_DURATION) {
                     Ok(()) => {}
                     Err(err) => handle_capture_device_error(&err),
                 };
@@ -155,22 +155,29 @@ fn main() {
         })
     };
 
-    let data_thread = {
-        let running = running.clone();
-        let data_dir = data_dir.clone();
-        thread::spawn(move || {
-            let mut reader = data::Reader::new(data_dir.join("data"), data_dir);
-            reader.read(&running);
-        })
-    };
+    //let data_thread = {
+    //    let running = running.clone();
+    //    let data_dir = data_dir.clone();
+    //    let i2s_status = i2s_status.clone();
+    //    let umc_status = umc_status.clone();
+    //    thread::spawn(move || {
+    //        let mut reader =
+    //            data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
+    //        reader.read(&running);
+    //    })
+    //};
+    //
+    //while running.load(Ordering::Relaxed) {
+    //    let start = Instant::now();
+    //    //println!("Andros I2S status: {}", andros_status.load(Ordering::Relaxed));
+    //    //println!("UMC status: {}", umc_status.load(Ordering::Relaxed));
+    //    thread::sleep(Duration::from_secs(2).saturating_sub(start.elapsed()));
+    //}
 
-    while running.load(Ordering::Relaxed) {
-        let start = Instant::now();
-        //println!("Andros I2S status: {}", andros_status.load(Ordering::Relaxed));
-        //println!("UMC status: {}", umc_status.load(Ordering::Relaxed));
-        thread::sleep(Duration::from_secs(2).saturating_sub(start.elapsed()));
-    }
-    andros_thread.join().unwrap();
+    let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
+    reader.read(&running);
+
+    i2s_thread.join().unwrap();
     umc_thread.join().unwrap();
-    data_thread.join().unwrap();
+    //data_thread.join().unwrap();
 }

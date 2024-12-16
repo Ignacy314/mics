@@ -1,4 +1,3 @@
-//#![allow(unused)]
 use core::fmt;
 use std::fmt::Debug;
 

@@ -19,6 +19,25 @@ impl Default for Status {
     }
 }
 
+impl From<u8> for Status {
+    fn from(value: u8) -> Self {
+        match value {
+            0u8 => {
+                Status::Ok
+            },
+            1u8 => {
+                Status::NoData
+            },
+            2u8 => {
+                Status::Disconnected
+            },
+            _ => {
+                Status::OtherError
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct Statuses {
     pub gps: Status,
@@ -27,6 +46,8 @@ pub struct Statuses {
     pub imu: Status,
     pub bmp: Status,
     pub ina: Status,
+    pub i2s: Status,
+    pub umc: Status,
 }
 
 #[derive(Default)]

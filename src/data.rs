@@ -4,6 +4,7 @@ use std::io::BufWriter;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::thread;
@@ -50,12 +51,19 @@ pub struct Reader {
     pub calib_path: PathBuf,
     pub data_link: PathBuf,
     pub read_period: Duration,
+    i2s_status: Arc<AtomicU8>,
+    umc_status: Arc<AtomicU8>,
 }
 
 impl Reader {
     const PERIOD_MILLIS: u64 = 5000;
 
-    pub fn new<P>(path: P, calib_path: P) -> Self
+    pub fn new<P>(
+        path: P,
+        calib_path: P,
+        i2s_status: Arc<AtomicU8>,
+        umc_status: Arc<AtomicU8>,
+    ) -> Self
     where
         P: Into<PathBuf>,
     {
@@ -67,6 +75,8 @@ impl Reader {
             calib_path: calib_path.into(),
             data_link,
             read_period: Duration::from_millis(Self::PERIOD_MILLIS),
+            i2s_status,
+            umc_status,
         }
     }
 
@@ -311,6 +321,9 @@ impl Reader {
                 }
             }
 
+            self.device_manager.statuses.i2s = self.i2s_status.load(Ordering::Relaxed).into();
+            self.device_manager.statuses.umc = self.umc_status.load(Ordering::Relaxed).into();
+
             let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
             let path = self.path.join(format!("{nanos}.json"));
             match File::create(&path) {
@@ -330,21 +343,21 @@ impl Reader {
                     ) {
                         Ok(()) => {
                             match writer.write(b"\n") {
-                                Ok(_) => {},
+                                Ok(_) => {}
                                 Err(err) => {
                                     error!("Failed to write new line to data file: {err}");
                                 }
                             }
                             if self.data_link.exists() {
                                 match std::fs::remove_file(&self.data_link) {
-                                    Ok(()) => {},
+                                    Ok(()) => {}
                                     Err(err) => {
                                         error!("Failed to remove previous data symlink: {err}");
                                     }
                                 }
                             }
                             match std::os::unix::fs::symlink(&path, &self.data_link) {
-                                Ok(()) => {},
+                                Ok(()) => {}
                                 Err(err) => {
                                     error!("Failed to create data symlink: {err}");
                                 }
