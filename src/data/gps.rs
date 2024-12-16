@@ -61,7 +61,7 @@ impl Device for Gps {
 
         let gga = lines.filter(|l| {
             if let Ok(l) = l {
-                eprintln!("{l}");
+                //eprintln!("{l}");
                 l.starts_with("$GPGGA")
             } else {
                 false
