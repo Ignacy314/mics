@@ -231,6 +231,7 @@ impl Reader {
 
             if let Some(guard) = imu_data.try_lock_for(Duration::from_millis(50)) {
                 let (imu_data, imu_status) = *guard;
+                drop(guard);
                 if imu_status == Status::Ok {
                     data.imu = Some(imu_data);
                 }
@@ -241,6 +242,7 @@ impl Reader {
 
             if let Some(guard) = wind_data.try_lock_for(Duration::from_millis(50)) {
                 let (wind_data, wind_status) = *guard;
+                drop(guard);
                 if wind_status == Status::Ok {
                     data.wind = Some(wind_data);
                 }
