@@ -189,6 +189,7 @@ fn main() {
 
         let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
         reader.read(running, s);
+        info!("Done");
     });
 
     //i2s_thread.join().unwrap();
