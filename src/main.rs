@@ -2,11 +2,12 @@
 mod audio;
 mod data;
 
+use std::io::Read;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 //use std::sync::Arc;
-use std::thread;
 use std::time::Duration;
+use std::{io, thread};
 
 use alsa::pcm::Format;
 use crossbeam_channel::unbounded;
@@ -66,25 +67,26 @@ fn main() {
     //std::fs::create_dir(data_dir.clone().join("data"))
     //    .unwrap_or_else(|e| warn!("Failed to create sensor data directory: {e}"));
 
-    //Logger::try_with_str("info")
-    //    .unwrap()
-    //    .log_to_file(FileSpec::default().directory(log_dir.clone()))
-    //    .print_message()
-    //    .create_symlink(log_dir.join("current"))
-    //    .format(with_thread)
-    //    .start()
-    //    .unwrap();
+    Logger::try_with_str("info")
+        .unwrap()
+        .log_to_file(FileSpec::default().directory(log_dir.clone()))
+        .print_message()
+        .create_symlink(log_dir.join("current"))
+        .format(with_thread)
+        .start()
+        .unwrap();
 
     //let running = Arc::new(AtomicBool::new(true));
     let running = &AtomicBool::new(true);
     let i2s_status = &AtomicU8::new(0);
     let umc_status = &AtomicU8::new(0);
     thread::scope(|s| {
-        let mut signals = Signals::new([SIGINT]).unwrap();
+        //let mut signals = Signals::new([SIGINT]).unwrap();
         s.spawn(move || {
-            for _sig in signals.forever() {
-                running.store(false, Ordering::Relaxed);
-            }
+            //for _sig in signals.forever() {
+            let _ = io::stdin().read(&mut [0u8]).unwrap();
+            running.store(false, Ordering::Relaxed);
+            //}
         });
 
         // set Ctrl-C interrupt handler to set the 'running' atomic bool to false
