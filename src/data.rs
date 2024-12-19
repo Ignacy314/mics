@@ -136,7 +136,7 @@ impl<'a> Reader<'a> {
     }
 
     #[allow(clippy::too_many_lines)]
-    pub fn read(&mut self, running: &'a AtomicBool, s: &'a Scope<'a, '_>) {
+    pub fn read<'b>(&mut self, running: &'a AtomicBool, s: &'a Scope<'a, 'b>) {
         let imu_data = Arc::new(Mutex::new((imu::Data::default(), Status::default())));
         let imu_thread = {
             //let running = running.clone();

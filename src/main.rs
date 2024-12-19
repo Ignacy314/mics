@@ -66,20 +66,19 @@ fn main() {
     //std::fs::create_dir(data_dir.clone().join("data"))
     //    .unwrap_or_else(|e| warn!("Failed to create sensor data directory: {e}"));
 
-    Logger::try_with_str("info")
-        .unwrap()
-        .log_to_file(FileSpec::default().directory(log_dir.clone()))
-        .print_message()
-        .create_symlink(log_dir.join("current"))
-        .format(with_thread)
-        .start()
-        .unwrap();
-
     //let running = Arc::new(AtomicBool::new(true));
     let running = &AtomicBool::new(true);
     let i2s_status = &AtomicU8::new(0);
     let umc_status = &AtomicU8::new(0);
     thread::scope(|s| {
+        Logger::try_with_str("info")
+            .unwrap()
+            .log_to_file(FileSpec::default().directory(log_dir.clone()))
+            .print_message()
+            .create_symlink(log_dir.join("current"))
+            .format(with_thread)
+            .start()
+            .unwrap();
         let mut signals = Signals::new([SIGINT]).unwrap();
         s.spawn(move || {
             for _sig in signals.forever() {
@@ -194,7 +193,7 @@ fn main() {
         umc_thread.join().unwrap();
         info!("Joined");
     });
-    info!("Outer Done");
+    println!("Outer Done");
 
     //i2s_thread.join().unwrap();
     //umc_thread.join().unwrap();
