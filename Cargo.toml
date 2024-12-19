@@ -11,11 +11,11 @@ path = "src/main.rs"
 aht10 = "0.0.1"
 alsa = "0.9.1"
 bmp280 = "0.4.0"
-bytemuck = "1.19.0"
+# bytemuck = "1.19.0"
 # bmp180-driver = "0.1.1"
 chrono = { version = "0.4.38", features = ["serde"] }
 crossbeam-channel = "0.5.13"
-ctrlc = "3.4.5"
+# ctrlc = "3.4.5"
 flexi_logger = "0.29.7"
 hound = "3.5.1"
 ina219 = { version = "0.2.0", features = ["std"] }
