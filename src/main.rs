@@ -192,6 +192,7 @@ fn main() {
         info!("Done");
         i2s_thread.join().unwrap();
         umc_thread.join().unwrap();
+        info!("Joined");
     });
     info!("Outer Done");
 
