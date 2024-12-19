@@ -2,20 +2,16 @@
 mod audio;
 mod data;
 
-use std::io::Read;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
-//use std::sync::Arc;
+use std::thread;
 use std::time::Duration;
-use std::{io, thread};
 
 use alsa::pcm::Format;
 use crossbeam_channel::unbounded;
 use flexi_logger::{with_thread, FileSpec, Logger};
 use log::{info, warn};
 use rppal::gpio::Gpio;
-use signal_hook::consts::SIGINT;
-use signal_hook::iterator::Signals;
 
 use self::audio::CaptureDevice;
 use self::audio::CaptureDeviceError;
@@ -81,12 +77,16 @@ fn main() {
     let i2s_status = &AtomicU8::new(0);
     let umc_status = &AtomicU8::new(0);
     thread::scope(|s| {
-        //let mut signals = Signals::new([SIGINT]).unwrap();
+        let mut signals =
+            signal_hook::iterator::Signals::new([signal_hook::consts::SIGINT]).unwrap();
         s.spawn(move || {
-            //for _sig in signals.forever() {
-            let _ = io::stdin().read(&mut [0u8]).unwrap();
-            running.store(false, Ordering::Relaxed);
-            //}
+            for sig in signals.forever() {
+                //let _ = io::stdin().read(&mut [0u8]).unwrap();
+                if sig == signal_hook::consts::SIGINT {
+                    running.store(false, Ordering::Relaxed);
+                    break;
+                }
+            }
         });
 
         // set Ctrl-C interrupt handler to set the 'running' atomic bool to false
@@ -118,7 +118,7 @@ fn main() {
 
         // Create the Andros I2S microphone capture thread
         //let i2s_status = Arc::new(AtomicU8::new(0));
-        let i2s_thread = {
+        let _i2s_thread = {
             //let running = running.clone();
             //let status = i2s_status.clone();
             let rx = rx.clone();
@@ -145,7 +145,7 @@ fn main() {
 
         // Create the UMC microphone capture thread
         //let umc_status = Arc::new(AtomicU8::new(0));
-        let umc_thread = {
+        let _umc_thread = {
             //let running = running.clone();
             //let status = umc_status.clone();
             let rx = rx.clone();
@@ -191,12 +191,12 @@ fn main() {
 
         let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
         reader.read(running, s);
-        info!("Done");
+        //info!("Done");
         //i2s_thread.join().unwrap();
         //umc_thread.join().unwrap();
-        info!("Joined");
+        //info!("Joined");
     });
-    info!("Outer Done");
+    //info!("Outer Done");
 
     //i2s_thread.join().unwrap();
     //umc_thread.join().unwrap();
