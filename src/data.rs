@@ -379,7 +379,7 @@ impl<'a> Reader<'a> {
             thread::sleep(self.read_period.saturating_sub(start.elapsed()));
         }
 
-        imu_thread.join().unwrap();
-        wind_thread.join().unwrap();
+        //imu_thread.join().unwrap();
+        //wind_thread.join().unwrap();
     }
 }

@@ -100,45 +100,45 @@ fn main() {
 
         let (tx, rx) = unbounded();
 
-        pps_pin
-            .set_async_interrupt(
-                rppal::gpio::Trigger::RisingEdge,
-                Some(Duration::from_millis(5)),
-                move |_| {
-                    let now = chrono::Utc::now();
-                    info!("PPS at UTC {now}");
-                    let nanos = now.timestamp_nanos_opt().unwrap();
-                    tx.send(nanos).unwrap();
-                },
-            )
-            .unwrap();
+        //pps_pin
+        //    .set_async_interrupt(
+        //        rppal::gpio::Trigger::RisingEdge,
+        //        Some(Duration::from_millis(5)),
+        //        move |_| {
+        //            let now = chrono::Utc::now();
+        //            info!("PPS at UTC {now}");
+        //            let nanos = now.timestamp_nanos_opt().unwrap();
+        //            tx.send(nanos).unwrap();
+        //        },
+        //    )
+        //    .unwrap();
 
         // Create the Andros I2S microphone capture thread
-        //let i2s_status = Arc::new(AtomicU8::new(0));
-        //let i2s_thread = {
-        //    //let running = running.clone();
-        //    //let status = i2s_status.clone();
-        //    let rx = rx.clone();
-        //    let data_dir = data_dir.clone();
-        //    s.spawn(move || {
-        //        let i2s = CaptureDevice::new(
-        //            "hw:CARD=ANDROSi2s,DEV=1",
-        //            4,
-        //            192_000,
-        //            Format::s32(),
-        //            data_dir.join("i2s"),
-        //            running,
-        //            i2s_status,
-        //            rx,
-        //        );
-        //        while running.load(Ordering::Relaxed) {
-        //            match i2s.read(AUDIO_FILE_DURATION) {
-        //                Ok(()) => {}
-        //                Err(err) => handle_capture_device_error(&err),
-        //            };
-        //        }
-        //    })
-        //};
+        let i2s_status = Arc::new(AtomicU8::new(0));
+        let i2s_thread = {
+            //let running = running.clone();
+            //let status = i2s_status.clone();
+            let rx = rx.clone();
+            let data_dir = data_dir.clone();
+            s.spawn(move || {
+                let i2s = CaptureDevice::new(
+                    "hw:CARD=ANDROSi2s,DEV=1",
+                    4,
+                    192_000,
+                    Format::s32(),
+                    data_dir.join("i2s"),
+                    running,
+                    i2s_status,
+                    rx,
+                );
+                while running.load(Ordering::Relaxed) {
+                    match i2s.read(AUDIO_FILE_DURATION) {
+                        Ok(()) => {}
+                        Err(err) => handle_capture_device_error(&err),
+                    };
+                }
+            })
+        };
 
         // Create the UMC microphone capture thread
         //let umc_status = Arc::new(AtomicU8::new(0));
