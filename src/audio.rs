@@ -2,7 +2,7 @@ use crossbeam_channel::Receiver;
 use hound::{SampleFormat, WavWriter};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
-use std::sync::Arc;
+//use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use alsa::{
@@ -20,27 +20,27 @@ pub enum CaptureDeviceError {
     Hound(#[from] hound::Error),
 }
 
-pub struct CaptureDevice {
+pub struct CaptureDevice<'a> {
     device_name: String,
     channels: u32,
     samplerate: u32,
     format: Format,
     output_dir: PathBuf,
-    running: Arc<AtomicBool>,
-    status: Arc<AtomicU8>,
+    running: &'a AtomicBool,
+    status: &'a AtomicU8,
     pps: Receiver<i64>,
 }
 
 #[allow(clippy::too_many_arguments)]
-impl CaptureDevice {
+impl<'a> CaptureDevice<'a> {
     pub fn new<P>(
         device_name: &str,
         channels: u32,
         samplerate: u32,
         format: Format,
         output_dir: P,
-        running: Arc<AtomicBool>,
-        status: Arc<AtomicU8>,
+        running: &'a AtomicBool,
+        status: &'a AtomicU8,
         pps: Receiver<i64>,
     ) -> Self
     where

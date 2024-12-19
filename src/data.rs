@@ -8,6 +8,7 @@ use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::thread;
+use std::thread::Scope;
 use std::time::{Duration, Instant};
 
 use ::serde::{Deserialize, Serialize};
@@ -45,24 +46,24 @@ pub struct Data {
     ina: Option<ina::Data>,
 }
 
-pub struct Reader {
+pub struct Reader<'a> {
     pub device_manager: DeviceManager,
     pub path: PathBuf,
     pub calib_path: PathBuf,
     pub data_link: PathBuf,
     pub read_period: Duration,
-    i2s_status: Arc<AtomicU8>,
-    umc_status: Arc<AtomicU8>,
+    i2s_status: &'a AtomicU8,
+    umc_status: &'a AtomicU8,
 }
 
-impl Reader {
+impl<'a> Reader<'a> {
     const PERIOD_MILLIS: u64 = 5000;
 
     pub fn new<P>(
         path: P,
         calib_path: P,
-        i2s_status: Arc<AtomicU8>,
-        umc_status: Arc<AtomicU8>,
+        i2s_status: &'a AtomicU8,
+        umc_status: &'a AtomicU8,
     ) -> Self
     where
         P: Into<PathBuf>,
@@ -135,15 +136,15 @@ impl Reader {
     }
 
     #[allow(clippy::too_many_lines)]
-    pub fn read(&mut self, running: &Arc<AtomicBool>) {
+    pub fn read(&mut self, running: &'a AtomicBool, s: &'a Scope<'a, '_>) {
         let imu_data = Arc::new(Mutex::new((imu::Data::default(), Status::default())));
         let imu_thread = {
-            let running = running.clone();
+            //let running = running.clone();
             let data = imu_data.clone();
             let bus = self.device_manager.settings.imu_bus;
             let period = Duration::from_millis(50);
             let path = self.calib_path.clone();
-            thread::spawn(move || {
+            s.spawn(move || {
                 let samples: usize = 10000 / period.as_millis() as usize;
                 let mut imu: Option<Imu> = None;
                 while running.load(Ordering::Relaxed) {
@@ -186,11 +187,11 @@ impl Reader {
 
         let wind_data = Arc::new(Mutex::new((wind::Data::default(), Status::default())));
         let wind_thread = {
-            let running = running.clone();
+            //let running = running.clone();
             let data = wind_data.clone();
             let settings = self.device_manager.settings.wind;
             let period = Duration::from_millis(1000);
-            thread::spawn(move || {
+            s.spawn(move || {
                 let mut wind: Option<Wind> = None;
                 while running.load(Ordering::Relaxed) {
                     let start = Instant::now();
