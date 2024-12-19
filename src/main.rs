@@ -84,6 +84,7 @@ fn main() {
                 //let _ = io::stdin().read(&mut [0u8]).unwrap();
                 if sig == signal_hook::consts::SIGINT {
                     running.store(false, Ordering::Relaxed);
+                    println!();
                     break;
                 }
             }
