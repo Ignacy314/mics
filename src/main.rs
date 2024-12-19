@@ -114,7 +114,7 @@ fn main() {
         //    .unwrap();
 
         // Create the Andros I2S microphone capture thread
-        let i2s_status = Arc::new(AtomicU8::new(0));
+        //let i2s_status = Arc::new(AtomicU8::new(0));
         let i2s_thread = {
             //let running = running.clone();
             //let status = i2s_status.clone();
@@ -142,30 +142,30 @@ fn main() {
 
         // Create the UMC microphone capture thread
         //let umc_status = Arc::new(AtomicU8::new(0));
-        //let umc_thread = {
-        //    //let running = running.clone();
-        //    //let status = umc_status.clone();
-        //    let rx = rx.clone();
-        //    let data_dir = data_dir.clone();
-        //    s.spawn(move || {
-        //        let umc = CaptureDevice::new(
-        //            "hw:CARD=U192k,DEV=0",
-        //            2,
-        //            48_000,
-        //            Format::s32(),
-        //            data_dir.join("umc"),
-        //            running,
-        //            umc_status,
-        //            rx,
-        //        );
-        //        while running.load(Ordering::Relaxed) {
-        //            match umc.read(AUDIO_FILE_DURATION) {
-        //                Ok(()) => {}
-        //                Err(err) => handle_capture_device_error(&err),
-        //            };
-        //        }
-        //    })
-        //};
+        let umc_thread = {
+            //let running = running.clone();
+            //let status = umc_status.clone();
+            let rx = rx.clone();
+            let data_dir = data_dir.clone();
+            s.spawn(move || {
+                let umc = CaptureDevice::new(
+                    "hw:CARD=U192k,DEV=0",
+                    2,
+                    48_000,
+                    Format::s32(),
+                    data_dir.join("umc"),
+                    running,
+                    umc_status,
+                    rx,
+                );
+                while running.load(Ordering::Relaxed) {
+                    match umc.read(AUDIO_FILE_DURATION) {
+                        Ok(()) => {}
+                        Err(err) => handle_capture_device_error(&err),
+                    };
+                }
+            })
+        };
 
         //let data_thread = {
         //    let running = running.clone();
@@ -186,8 +186,8 @@ fn main() {
         //    thread::sleep(Duration::from_secs(2).saturating_sub(start.elapsed()));
         //}
 
-        //let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
-        //reader.read(running, s);
+        let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
+        reader.read(running, s);
         info!("Done");
         //i2s_thread.join().unwrap();
         //umc_thread.join().unwrap();
