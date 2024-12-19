@@ -72,7 +72,6 @@ fn main() {
         .start()
         .unwrap();
 
-    //let running = Arc::new(AtomicBool::new(true));
     let running = &AtomicBool::new(true);
     let i2s_status = &AtomicU8::new(0);
     let umc_status = &AtomicU8::new(0);
@@ -81,7 +80,6 @@ fn main() {
             signal_hook::iterator::Signals::new([signal_hook::consts::SIGINT]).unwrap();
         s.spawn(move || {
             for sig in signals.forever() {
-                //let _ = io::stdin().read(&mut [0u8]).unwrap();
                 if sig == signal_hook::consts::SIGINT {
                     running.store(false, Ordering::Relaxed);
                     println!();
@@ -89,15 +87,6 @@ fn main() {
                 }
             }
         });
-
-        // set Ctrl-C interrupt handler to set the 'running' atomic bool to false
-        //{
-        //    //let running = running.clone();
-        //    ctrlc::set_handler(move || {
-        //        running.store(false, Ordering::Relaxed);
-        //    })
-        //    .expect("Error setting Ctrl-C handler");
-        //}
 
         let gpio = Gpio::new().unwrap();
         let mut pps_pin = gpio.get(13).unwrap().into_input_pulldown();
@@ -118,10 +107,7 @@ fn main() {
             .unwrap();
 
         // Create the Andros I2S microphone capture thread
-        //let i2s_status = Arc::new(AtomicU8::new(0));
         let _i2s_thread = {
-            //let running = running.clone();
-            //let status = i2s_status.clone();
             let rx = rx.clone();
             let data_dir = data_dir.clone();
             s.spawn(move || {
@@ -145,10 +131,7 @@ fn main() {
         };
 
         // Create the UMC microphone capture thread
-        //let umc_status = Arc::new(AtomicU8::new(0));
         let _umc_thread = {
-            //let running = running.clone();
-            //let status = umc_status.clone();
             let rx = rx.clone();
             let data_dir = data_dir.clone();
             s.spawn(move || {
@@ -171,35 +154,8 @@ fn main() {
             })
         };
 
-        //let data_thread = {
-        //    let running = running.clone();
-        //    let data_dir = data_dir.clone();
-        //    let i2s_status = i2s_status.clone();
-        //    let umc_status = umc_status.clone();
-        //    thread::spawn(move || {
-        //        let mut reader =
-        //            data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
-        //        reader.read(&running);
-        //    })
-        //};
-        //
-        //while running.load(Ordering::Relaxed) {
-        //    let start = Instant::now();
-        //    //println!("Andros I2S status: {}", andros_status.load(Ordering::Relaxed));
-        //    //println!("UMC status: {}", umc_status.load(Ordering::Relaxed));
-        //    thread::sleep(Duration::from_secs(2).saturating_sub(start.elapsed()));
-        //}
-
         let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
         reader.read(running, s);
-        //info!("Done");
-        //i2s_thread.join().unwrap();
-        //umc_thread.join().unwrap();
-        //info!("Joined");
     });
-    //info!("Outer Done");
-
-    //i2s_thread.join().unwrap();
-    //umc_thread.join().unwrap();
-    //data_thread.join().unwrap();
+    info!("Exited properly");
 }
