@@ -191,6 +191,7 @@ fn main() {
         reader.read(running, s);
         info!("Done");
     });
+    info!("Outer Done");
 
     //i2s_thread.join().unwrap();
     //umc_thread.join().unwrap();
