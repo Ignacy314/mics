@@ -138,7 +138,7 @@ impl<'a> Reader<'a> {
     #[allow(clippy::too_many_lines)]
     pub fn read(&mut self, running: &'a AtomicBool, s: &'a Scope<'a, '_>) {
         let imu_data = Arc::new(Mutex::new((imu::Data::default(), Status::default())));
-        let _imu_thread = {
+        let imu_thread = {
             //let running = running.clone();
             let data = imu_data.clone();
             let bus = self.device_manager.settings.imu_bus;
@@ -186,7 +186,7 @@ impl<'a> Reader<'a> {
         };
 
         let wind_data = Arc::new(Mutex::new((wind::Data::default(), Status::default())));
-        let _wind_thread = {
+        let wind_thread = {
             //let running = running.clone();
             let data = wind_data.clone();
             let settings = self.device_manager.settings.wind;
@@ -379,7 +379,7 @@ impl<'a> Reader<'a> {
             thread::sleep(self.read_period.saturating_sub(start.elapsed()));
         }
 
-        //imu_thread.join().unwrap();
-        //wind_thread.join().unwrap();
+        imu_thread.join().unwrap();
+        wind_thread.join().unwrap();
     }
 }

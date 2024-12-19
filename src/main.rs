@@ -116,7 +116,7 @@ fn main() {
 
         // Create the Andros I2S microphone capture thread
         //let i2s_status = Arc::new(AtomicU8::new(0));
-        let _i2s_thread = {
+        let i2s_thread = {
             //let running = running.clone();
             //let status = i2s_status.clone();
             let rx = rx.clone();
@@ -143,7 +143,7 @@ fn main() {
 
         // Create the UMC microphone capture thread
         //let umc_status = Arc::new(AtomicU8::new(0));
-        let _umc_thread = {
+        let umc_thread = {
             //let running = running.clone();
             //let status = umc_status.clone();
             let rx = rx.clone();
@@ -190,6 +190,8 @@ fn main() {
         let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
         reader.read(running, s);
         info!("Done");
+        i2s_thread.join().unwrap();
+        umc_thread.join().unwrap();
     });
     info!("Outer Done");
 
