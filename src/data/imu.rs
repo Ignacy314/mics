@@ -368,12 +368,13 @@ impl Device for Imu {
                 self.mag_data.push(mag);
 
                 eprintln!("gyro: {gyro:?}");
-                if self.calibrated {
-                    self.filtered_gyro = low_pass_filter(&self.filtered_gyro, &gyro);
-                    self.gyro_data.push(self.filtered_gyro);
-                } else {
-                    self.gyro_data.push(gyro);
-                }
+                //if self.calibrated {
+                //    self.filtered_gyro = low_pass_filter(&self.filtered_gyro, &gyro);
+                //    self.gyro_data.push(self.filtered_gyro);
+                //} else {
+                //    self.gyro_data.push(gyro);
+                //}
+                self.gyro_data.push(gyro);
 
                 let mag = [
                     (mag[0] - self.mag_bias[0]) * self.mag_scale[0],
