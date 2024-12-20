@@ -243,6 +243,7 @@ impl Imu {
                 let reader = BufReader::new(file);
                 let calib: GyroCalib = serde_json::from_reader(reader)?;
                 info!("GYROSCOPE CALIBRATION READ FROM FILE");
+                self.device.set_gyro_bias(false, [0.0, 0.0, 0.0])?;
                 self.gyro_bias = calib.gyro_bias;
                 self.calibrated = true;
             } else {
