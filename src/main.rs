@@ -12,6 +12,8 @@ use crossbeam_channel::unbounded;
 use flexi_logger::{with_thread, FileSpec, Logger};
 use log::{info, warn};
 use rppal::gpio::Gpio;
+use signal_hook::consts::SIGINT;
+use signal_hook::iterator::Signals;
 
 use self::audio::CaptureDevice;
 use self::audio::CaptureDeviceError;
@@ -43,8 +45,8 @@ fn main() {
         }
     };
 
-    let log_dir = andros_dir.join("log");
-    let data_dir = andros_dir.join("data");
+    let log_dir = &andros_dir.join("log");
+    let data_dir = &andros_dir.join("data");
 
     for dir in ["i2s", "umc", "data"] {
         let path = data_dir.join(dir);
@@ -65,7 +67,7 @@ fn main() {
 
     Logger::try_with_str("info")
         .unwrap()
-        .log_to_file(FileSpec::default().directory(log_dir.clone()))
+        .log_to_file(FileSpec::default().directory(log_dir))
         .print_message()
         .create_symlink(log_dir.join("current"))
         .format(with_thread)
@@ -75,9 +77,9 @@ fn main() {
     let running = &AtomicBool::new(true);
     let i2s_status = &AtomicU8::new(0);
     let umc_status = &AtomicU8::new(0);
+
     thread::scope(|s| {
-        let mut signals =
-            signal_hook::iterator::Signals::new([signal_hook::consts::SIGINT]).unwrap();
+        let mut signals = Signals::new([SIGINT]).unwrap();
         s.spawn(move || {
             for sig in signals.forever() {
                 if sig == signal_hook::consts::SIGINT {
@@ -107,52 +109,56 @@ fn main() {
             .unwrap();
 
         // Create the Andros I2S microphone capture thread
-        let _i2s_thread = {
-            let rx = rx.clone();
-            let data_dir = data_dir.clone();
-            s.spawn(move || {
-                let i2s = CaptureDevice::new(
-                    "hw:CARD=ANDROSi2s,DEV=1",
-                    4,
-                    192_000,
-                    Format::s32(),
-                    data_dir.join("i2s"),
-                    running,
-                    i2s_status,
-                    rx,
-                );
-                while running.load(Ordering::Relaxed) {
-                    match i2s.read(AUDIO_FILE_DURATION) {
-                        Ok(()) => {}
-                        Err(err) => handle_capture_device_error(&err),
-                    };
+        thread::Builder::new()
+            .name("i2s".to_owned())
+            .spawn_scoped(s, {
+                let rx = rx.clone();
+                move || {
+                    let i2s = CaptureDevice::new(
+                        "hw:CARD=ANDROSi2s,DEV=1",
+                        4,
+                        192_000,
+                        Format::s32(),
+                        data_dir.join("i2s"),
+                        running,
+                        i2s_status,
+                        rx,
+                    );
+                    while running.load(Ordering::Relaxed) {
+                        match i2s.read(AUDIO_FILE_DURATION) {
+                            Ok(()) => {}
+                            Err(err) => handle_capture_device_error(&err),
+                        };
+                    }
                 }
             })
-        };
+            .unwrap();
 
         // Create the UMC microphone capture thread
-        let _umc_thread = {
-            let rx = rx.clone();
-            let data_dir = data_dir.clone();
-            s.spawn(move || {
-                let umc = CaptureDevice::new(
-                    "hw:CARD=U192k,DEV=0",
-                    2,
-                    48_000,
-                    Format::s32(),
-                    data_dir.join("umc"),
-                    running,
-                    umc_status,
-                    rx,
-                );
-                while running.load(Ordering::Relaxed) {
-                    match umc.read(AUDIO_FILE_DURATION) {
-                        Ok(()) => {}
-                        Err(err) => handle_capture_device_error(&err),
-                    };
+        thread::Builder::new()
+            .name("umc".to_owned())
+            .spawn_scoped(s, {
+                let rx = rx.clone();
+                move || {
+                    let umc = CaptureDevice::new(
+                        "hw:CARD=U192k,DEV=0",
+                        2,
+                        48_000,
+                        Format::s32(),
+                        data_dir.join("umc"),
+                        running,
+                        umc_status,
+                        rx,
+                    );
+                    while running.load(Ordering::Relaxed) {
+                        match umc.read(AUDIO_FILE_DURATION) {
+                            Ok(()) => {}
+                            Err(err) => handle_capture_device_error(&err),
+                        };
+                    }
                 }
             })
-        };
+            .unwrap();
 
         let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
         reader.read(running, s);

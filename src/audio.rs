@@ -33,7 +33,7 @@ pub struct CaptureDevice<'a> {
 
 #[allow(clippy::too_many_arguments)]
 impl<'a> CaptureDevice<'a> {
-    pub fn new<P>(
+    pub fn new<P: Into<PathBuf>>(
         device_name: &str,
         channels: u32,
         samplerate: u32,
@@ -42,10 +42,7 @@ impl<'a> CaptureDevice<'a> {
         running: &'a AtomicBool,
         status: &'a AtomicU8,
         pps: Receiver<i64>,
-    ) -> Self
-    where
-        P: Into<PathBuf>,
-    {
+    ) -> Self {
         Self {
             device_name: device_name.to_owned(),
             channels,

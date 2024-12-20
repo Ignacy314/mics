@@ -49,7 +49,7 @@ pub struct Data {
 pub struct Reader<'a> {
     pub device_manager: DeviceManager,
     pub path: PathBuf,
-    pub calib_path: PathBuf,
+    pub calib_path: &'a PathBuf,
     pub data_link: PathBuf,
     pub read_period: Duration,
     i2s_status: &'a AtomicU8,
@@ -59,21 +59,18 @@ pub struct Reader<'a> {
 impl<'a> Reader<'a> {
     const PERIOD_MILLIS: u64 = 5000;
 
-    pub fn new<P>(
+    pub fn new<P: Into<PathBuf>>(
         path: P,
-        calib_path: P,
+        calib_path: &'a PathBuf,
         i2s_status: &'a AtomicU8,
         umc_status: &'a AtomicU8,
-    ) -> Self
-    where
-        P: Into<PathBuf>,
-    {
+    ) -> Self {
         let path: PathBuf = path.into();
         let data_link = path.join("data.json");
         Self {
             device_manager: DeviceManager::new(),
             path,
-            calib_path: calib_path.into(),
+            calib_path,
             data_link,
             read_period: Duration::from_millis(Self::PERIOD_MILLIS),
             i2s_status,
@@ -138,92 +135,96 @@ impl<'a> Reader<'a> {
     #[allow(clippy::too_many_lines)]
     pub fn read<'b>(&mut self, running: &'a AtomicBool, s: &'a Scope<'a, 'b>) {
         let imu_data = Arc::new(Mutex::new((imu::Data::default(), Status::default())));
-        let _imu_thread = {
-            //let running = running.clone();
-            let data = imu_data.clone();
-            let bus = self.device_manager.settings.imu_bus;
-            let period = Duration::from_millis(50);
-            let path = self.calib_path.clone();
-            s.spawn(move || {
-                let samples: usize = 10000 / period.as_millis() as usize;
-                let mut imu: Option<Imu> = None;
-                while running.load(Ordering::Relaxed) {
-                    let start = Instant::now();
+        thread::Builder::new()
+            .name("imu".to_owned())
+            .spawn_scoped(s, {
+                let data = imu_data.clone();
+                let bus = self.device_manager.settings.imu_bus;
+                let period = Duration::from_millis(50);
+                let path = self.calib_path.clone();
+                move || {
+                    let samples: usize = 10000 / period.as_millis() as usize;
+                    let mut imu: Option<Imu> = None;
+                    while running.load(Ordering::Relaxed) {
+                        let start = Instant::now();
 
-                    if let Some(imu) = imu.as_mut() {
-                        match imu.get_data() {
-                            Ok(d) => {
-                                *data.lock() = (d, Status::Ok);
+                        if let Some(imu) = imu.as_mut() {
+                            match imu.get_data() {
+                                Ok(d) => {
+                                    *data.lock() = (d, Status::Ok);
+                                }
+                                Err(err) => {
+                                    warn!("{err}");
+                                    data.lock().1 = Status::NoData;
+                                }
                             }
-                            Err(err) => {
-                                warn!("{err}");
-                                data.lock().1 = Status::NoData;
-                            }
+                        } else {
+                            match Imu::new(bus, samples, &path) {
+                                Ok(mut device) => match device.calibrate(true) {
+                                    Ok(()) => {
+                                        info! {"IMU device initialized"};
+                                        imu = Some(device);
+                                        data.lock().1 = Status::NoData;
+                                    }
+                                    Err(err) => {
+                                        warn!("{err}");
+                                        data.lock().1 = Status::Disconnected;
+                                    }
+                                },
+                                Err(err) => {
+                                    warn!("IMU init: {err}");
+                                    data.lock().1 = Status::Disconnected;
+                                }
+                            };
                         }
-                    } else {
-                        match Imu::new(bus, samples, &path) {
-                            Ok(mut device) => match device.calibrate(true) {
-                                Ok(()) => {
-                                    info! {"IMU device initialized"};
-                                    imu = Some(device);
+
+                        thread::sleep(period.saturating_sub(start.elapsed()));
+                    }
+                }
+            })
+            .unwrap();
+
+        let wind_data = Arc::new(Mutex::new((wind::Data::default(), Status::default())));
+        thread::Builder::new()
+            .name("wind".to_owned())
+            .spawn_scoped(s, {
+                let data = wind_data.clone();
+                let settings = self.device_manager.settings.wind;
+                let period = Duration::from_millis(1000);
+                move || {
+                    let mut wind: Option<Wind> = None;
+                    while running.load(Ordering::Relaxed) {
+                        let start = Instant::now();
+
+                        if let Some(wind) = wind.as_mut() {
+                            match wind.get_data() {
+                                Ok(d) => {
+                                    *data.lock() = (d, Status::Ok);
+                                }
+                                Err(err) => {
+                                    warn!("{err}");
+                                    data.lock().1 = Status::NoData;
+                                }
+                            }
+                        } else {
+                            match Wind::new(settings.port, settings.baud_rate, settings.timeout) {
+                                Ok(device) => {
+                                    info! {"Wind device initialized"};
+                                    wind = Some(device);
                                     data.lock().1 = Status::NoData;
                                 }
                                 Err(err) => {
                                     warn!("{err}");
                                     data.lock().1 = Status::Disconnected;
                                 }
-                            },
-                            Err(err) => {
-                                warn!("IMU init: {err}");
-                                data.lock().1 = Status::Disconnected;
-                            }
-                        };
-                    }
-
-                    thread::sleep(period.saturating_sub(start.elapsed()));
-                }
-            })
-        };
-
-        let wind_data = Arc::new(Mutex::new((wind::Data::default(), Status::default())));
-        let _wind_thread = {
-            //let running = running.clone();
-            let data = wind_data.clone();
-            let settings = self.device_manager.settings.wind;
-            let period = Duration::from_millis(1000);
-            s.spawn(move || {
-                let mut wind: Option<Wind> = None;
-                while running.load(Ordering::Relaxed) {
-                    let start = Instant::now();
-
-                    if let Some(wind) = wind.as_mut() {
-                        match wind.get_data() {
-                            Ok(d) => {
-                                *data.lock() = (d, Status::Ok);
-                            }
-                            Err(err) => {
-                                warn!("{err}");
-                                data.lock().1 = Status::NoData;
-                            }
+                            };
                         }
-                    } else {
-                        match Wind::new(settings.port, settings.baud_rate, settings.timeout) {
-                            Ok(device) => {
-                                info! {"Wind device initialized"};
-                                wind = Some(device);
-                                data.lock().1 = Status::NoData;
-                            }
-                            Err(err) => {
-                                warn!("{err}");
-                                data.lock().1 = Status::Disconnected;
-                            }
-                        };
-                    }
 
-                    thread::sleep(period.saturating_sub(start.elapsed()));
+                        thread::sleep(period.saturating_sub(start.elapsed()));
+                    }
                 }
             })
-        };
+            .unwrap();
 
         while running.load(Ordering::Relaxed) {
             let start = Instant::now();
