@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 
-use log::info;
+use log::{debug, info};
 use mpu9250::{Mpu9250, MpuConfig};
 use serde::{Deserialize, Serialize};
 
@@ -367,7 +367,7 @@ impl Device for Imu {
 
                 self.mag_data.push(mag);
 
-                eprintln!("gyro: {gyro:?}");
+                debug!("gyro: {gyro:?}");
                 if self.calibrated {
                     self.filtered_gyro = low_pass_filter(&self.filtered_gyro, &gyro);
                     self.gyro_data.push(self.filtered_gyro);
@@ -430,7 +430,7 @@ impl Device for Imu {
                 self.rotation[1] += newest[1] - oldest[1];
                 self.rotation[2] += newest[2] - oldest[2];
 
-                eprintln!("rotation: {:?}", self.rotation);
+                debug!("rotation: {:?}", self.rotation);
 
                 if self.calibrated && self.rotation.iter().any(|r| r.abs() >= 360.0) {
                     self.update_mag_calibartion()?;
