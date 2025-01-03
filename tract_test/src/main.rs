@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use tract_onnx::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -22,7 +24,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     .into();
 
     // run the model on the input
+    let start = Instant::now();
     let result = model.run(tvec!(image.into()))?;
+    println!("{}", start.elapsed().as_micros());
 
     // find and display the max value with its index
     //let best = result[0]
