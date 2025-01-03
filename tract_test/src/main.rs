@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .into_runnable()?;
 
     // open image, resize it and make a Tensor out of it
-    let image = image::open("images/0/s164_3.png").unwrap().to_rgb8();
+    let image = image::open("images/0/s163_3.png").unwrap().to_rgb8();
     let resized =
         image::imageops::resize(&image, 224, 224, ::image::imageops::FilterType::Triangle);
     #[allow(clippy::cast_possible_truncation)]
