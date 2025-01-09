@@ -61,4 +61,6 @@ cargo install --path \$HOME/andros/andros --locked" > \$HOME/update.sh
 (crontab -l 2>/dev/null; echo "@reboot \$HOME/update.sh") | crontab -
 EOF
 
+nmcli connection add type gsm ifname '*' apn internet user internet password internet connection.autoconnect yes
+
 chmod +x $HOME/update.sh
