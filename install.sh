@@ -61,6 +61,7 @@ cd \$HOME/andros/andros
 git pull
 cargo install --path \$HOME/andros/andros --locked
 sleep 5
+echo "start andros" > \$HOME/andros_started
 while true; do andros; sleep 5; done" > \$HOME/update.sh
 (crontab -l 2>/dev/null; echo "@reboot \$HOME/update.sh") | crontab -
 EOF
