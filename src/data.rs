@@ -133,7 +133,7 @@ impl<'a> Reader<'a> {
     }
 
     #[allow(clippy::too_many_lines)]
-    pub fn read<'b>(&mut self, running: &'a AtomicBool, s: &'a Scope<'a, 'b>) {
+    pub fn read<'b>(&mut self, running: &'a AtomicBool, s: &'a Scope<'a, 'b>, ip: Option<String>) {
         let imu_data = Arc::new(Mutex::new((imu::Data::default(), Status::default())));
         thread::Builder::new()
             .name("imu".to_owned())
@@ -226,6 +226,12 @@ impl<'a> Reader<'a> {
             })
             .unwrap();
 
+        let (client, ip) = if let Some(ip) = ip {
+            (Some(reqwest::blocking::Client::new()), ip)
+        } else {
+            (None, String::new())
+        };
+        //let client = reqwest::blocking::Client::new();
         while running.load(Ordering::Relaxed) {
             let start = Instant::now();
 
@@ -328,23 +334,23 @@ impl<'a> Reader<'a> {
             self.device_manager.statuses.i2s = self.i2s_status.load(Ordering::Relaxed).into();
             self.device_manager.statuses.umc = self.umc_status.load(Ordering::Relaxed).into();
 
+            #[allow(clippy::items_after_statements)]
+            #[derive(Serialize, Deserialize)]
+            struct JsonData {
+                statuses: Statuses,
+                data: Data,
+            }
+            let json_data = JsonData {
+                statuses: self.device_manager.statuses,
+                data,
+            };
+
             let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
             let path = self.path.join(format!("{nanos}.json"));
             match File::create(&path) {
                 Ok(file) => {
-                    #[derive(Serialize, Deserialize)]
-                    struct JsonData {
-                        statuses: Statuses,
-                        data: Data,
-                    }
                     let mut writer = BufWriter::new(file);
-                    match serde_json::to_writer(
-                        &mut writer,
-                        &JsonData {
-                            statuses: self.device_manager.statuses,
-                            data,
-                        },
-                    ) {
+                    match serde_json::to_writer(&mut writer, &json_data) {
                         Ok(()) => {
                             match writer.write(b"\n") {
                                 Ok(_) => {}
@@ -376,6 +382,23 @@ impl<'a> Reader<'a> {
                     warn!("Failed to create data file: {e}");
                 }
             };
+
+            if let Some(client) = client.as_ref() {
+                match serde_json::to_string(&json_data) {
+                    Ok(str) => {
+                        let msg = format!("{ip} {str}");
+                        match client.post("https://mlynarczyk.edu.pl/andros/publish").body(msg).send() {
+                            Ok(_) => {}
+                            Err(err) => {
+                                warn!("Failed to make POST request: {err}");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to serialize data to json: {e}");
+                    }
+                }
+            }
 
             thread::sleep(self.read_period.saturating_sub(start.elapsed()));
         }

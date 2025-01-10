@@ -2,6 +2,8 @@
 mod audio;
 mod data;
 
+use std::fs::File;
+use std::io::Read;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::thread;
@@ -42,6 +44,26 @@ fn main() {
         Err(err) => {
             warn!("Failed to create andros directory: {err}\nWriting data and logs to current directory.");
             Path::new(".")
+        }
+    };
+
+    let ip: Option<String> = {
+        let path = andros_dir.join("ip");
+        let open = File::open(path);
+        if let Ok(mut file) = open {
+            let mut buf = String::new();
+            match file.read_to_string(&mut buf) {
+                Ok(_) => {
+                    Some(buf)
+                }
+                Err(e) => {
+                    warn!("Failed to read ip from file: {e}");
+                    None
+                }
+            }
+        } else {
+            warn!("Failed to open ip file: {}", open.unwrap_err());
+            None
         }
     };
 
@@ -162,7 +184,7 @@ fn main() {
             .unwrap();
 
         let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
-        reader.read(running, s);
+        reader.read(running, s, ip);
     });
     info!("Exited properly");
 }
