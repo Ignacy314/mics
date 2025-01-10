@@ -13,12 +13,11 @@ rm -rf andros
 git clone https://github.com/Ignacy314/mics andros
 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-cd andros
-ln -s \$HOME/andros/andros/run.sh /usr/local/bin/andros
-echo -e "#!/bin/bash
+echo -e '#!/bin/bash
+sleep 10
 echo \$(ip a s wlan0 | grep ether | egrep -o ..:..:..:..:..:.. | head -1) > \$HOME/andros/mac
-echo \$(ip -4 -o a | grep wlan | egrep -o '192\.168\.[0-9]{1,3}\.[0-9]{1,3}' | head -1) > \$HOME/andros/ip" > \$HOME/save_mac_ip.sh
-(crontab -l 2>/dev/null; echo "@reboot \$HOME/save_mac_ip.sh") | crontab -
+echo \$(ip -4 -o a | grep wlan | egrep -o "192\.168\.[0-9]{1,3}\.[0-9]{1,3}" | head -1) > \$HOME/andros/ip' > $HOME/save_mac_ip.sh
+(crontab -l 2>/dev/null; echo "@reboot $HOME/save_mac_ip.sh") | crontab -
 EOF
 
 chmod +x /home/test/save_mac_ip.sh
@@ -55,15 +54,17 @@ apt-get install -y libssl-dev
 
 sudo -i -u test bash << EOF
 cargo install --path \$HOME/andros/andros --locked
-echo -e "#!/bin/bash
+echo -e '#!/bin/bash
 sleep 2
 cd \$HOME/andros/andros
 git pull
 cargo install --path \$HOME/andros/andros --locked
-sleep 5
+sleep 10
+echo \$(ip a s wlan0 | grep ether | egrep -o ..:..:..:..:..:.. | head -1) > \$HOME/andros/mac
+echo \$(ip -4 -o a | grep wlan | egrep -o "192\.168\.[0-9]{1,3}\.[0-9]{1,3}" | head -1) > \$HOME/andros/ip
 echo "start andros" > \$HOME/andros_started
-while true; do /home/test/.cargo/bin/andros; sleep 5; done" > \$HOME/update.sh
-(crontab -l 2>/dev/null; echo "@reboot \$HOME/update.sh") | crontab -
+while true; do /home/test/.cargo/bin/andros; sleep 5; done' > $HOME/update.sh
+(crontab -l 2>/dev/null; echo "@reboot $HOME/update.sh") | crontab -
 EOF
 
 nmcli connection add type gsm ifname '*' apn internet user internet password internet connection.autoconnect yes
