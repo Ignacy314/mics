@@ -387,7 +387,7 @@ impl<'a> Reader<'a> {
                 match serde_json::to_string(&json_data) {
                     Ok(str) => {
                         let msg = format!("{ip} {str}");
-                        match client.post("mlynarczyk.edu.pl:8080/andros/publish").body(msg).send() {
+                        match client.post("http://mlynarczyk.edu.pl:8080/andros/publish").body(msg).send() {
                             Ok(_) => {}
                             Err(err) => {
                                 warn!("Failed to make POST request: {err}");
