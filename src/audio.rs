@@ -118,7 +118,7 @@ impl<'a> CaptureDevice<'a> {
                     //writer.write_sample(sample)?;
                 }
                 if !zeros {
-                    info!("umc_buf: {buf:?}");
+                    //info!("umc_buf: {buf:?}");
                     last_read = Instant::now();
                 }
             }

@@ -336,8 +336,10 @@ impl<'a> Reader<'a> {
                 }
             }
 
-            self.device_manager.statuses.i2s = self.i2s_status.load(Ordering::Relaxed).into();
-            self.device_manager.statuses.umc = self.umc_status.load(Ordering::Relaxed).into();
+            //self.device_manager.statuses.i2s = self.i2s_status.load(Ordering::Relaxed).into();
+            //self.device_manager.statuses.umc = self.umc_status.load(Ordering::Relaxed).into();
+            self.device_manager.statuses.i2s = self.i2s_status.fetch_and(0, Ordering::Relaxed).into();
+            self.device_manager.statuses.umc = self.umc_status.fetch_and(0, Ordering::Relaxed).into();
 
             #[allow(clippy::items_after_statements)]
             #[derive(Serialize, Deserialize)]
