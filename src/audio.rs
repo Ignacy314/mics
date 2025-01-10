@@ -1,5 +1,6 @@
 use crossbeam_channel::Receiver;
 use hound::{SampleFormat, WavWriter};
+use log::info;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 //use std::sync::Arc;
@@ -99,14 +100,14 @@ impl<'a> CaptureDevice<'a> {
         let mut last_read = Instant::now();
         while self.running.load(Ordering::Relaxed) {
             //if let Ok(nanos) = self.pps.try_recv() {
-                //let low: i32 = (nanos & 0xffff_ffff) as i32;
-                //let high: i32 = (nanos >> 32) as i32;
-                //#[allow(clippy::cast_possible_wrap)]
-                //let prefix = 0xeeee_eeeeu32 as i32;
-                //writer.write_sample(prefix)?;
-                //writer.write_sample(prefix)?;
-                //writer.write_sample(high)?;
-                //writer.write_sample(low)?;
+            //let low: i32 = (nanos & 0xffff_ffff) as i32;
+            //let high: i32 = (nanos >> 32) as i32;
+            //#[allow(clippy::cast_possible_wrap)]
+            //let prefix = 0xeeee_eeeeu32 as i32;
+            //writer.write_sample(prefix)?;
+            //writer.write_sample(prefix)?;
+            //writer.write_sample(high)?;
+            //writer.write_sample(low)?;
             //}
             if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
                 let mut zeros = false;
@@ -117,6 +118,7 @@ impl<'a> CaptureDevice<'a> {
                     //writer.write_sample(sample)?;
                 }
                 if !zeros {
+                    info!("umc_buf: {buf:?}");
                     last_read = Instant::now();
                 }
             }

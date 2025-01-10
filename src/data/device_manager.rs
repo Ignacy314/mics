@@ -8,8 +8,8 @@ use std::time::Duration;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum Status {
     Ok = 0,
-    Disconnected = 1,
-    NoData = 2,
+    NoData = 1,
+    Disconnected = 2,
     OtherError = 3,
 }
 
