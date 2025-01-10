@@ -1,4 +1,4 @@
-//#![allow(unused)]
+#![allow(unused)]
 mod audio;
 mod data;
 
@@ -22,8 +22,9 @@ use self::audio::CaptureDeviceError;
 
 const AUDIO_FILE_DURATION: Duration = Duration::from_secs(10);
 
-fn handle_capture_device_error(err: &CaptureDeviceError) {
+fn handle_capture_device_error(err: &CaptureDeviceError, status: &AtomicU8) {
     warn!("{err}");
+    status.store(2, Ordering::Relaxed);
     thread::sleep(Duration::from_secs(1));
 }
 
@@ -170,7 +171,7 @@ fn main() {
                     while running.load(Ordering::Relaxed) {
                         match i2s.read(AUDIO_FILE_DURATION) {
                             Ok(()) => {}
-                            Err(err) => handle_capture_device_error(&err),
+                            Err(err) => handle_capture_device_error(&err, i2s_status),
                         };
                     }
                 }
@@ -196,7 +197,7 @@ fn main() {
                     while running.load(Ordering::Relaxed) {
                         match umc.read(AUDIO_FILE_DURATION) {
                             Ok(()) => {}
-                            Err(err) => handle_capture_device_error(&err),
+                            Err(err) => handle_capture_device_error(&err, umc_status),
                         };
                     }
                 }
