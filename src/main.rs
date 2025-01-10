@@ -69,7 +69,7 @@ fn main() {
         let mac = if let Ok(mut file) = open {
             let mut buf = String::new();
             match file.read_to_string(&mut buf) {
-                Ok(_) => Some(buf[(buf.len() - 5)..].to_string()),
+                Ok(_) => Some(buf[(buf.len() - 6)..].to_string()),
                 Err(e) => {
                     warn!("Failed to read mac from file: {e}");
                     None
