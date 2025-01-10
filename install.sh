@@ -56,17 +56,16 @@ apt-get install -y libssl-dev
 sudo -i -u test bash << EOF
 cargo install --path \$HOME/andros/andros --locked
 echo -e "#!/bin/sh
+sleep 2
 cd \$HOME/andros/andros
 git pull
-cargo install --path \$HOME/andros/andros --locked" > \$HOME/update.sh
-echo -e "#!/bin/sh
-sleep 10
-while true; do andros; sleep 5; done" > \$HOME/run_andros.sh
+cargo install --path \$HOME/andros/andros --locked
+sleep 5
+while true; do andros; sleep 5; done" > \$HOME/update.sh
 (crontab -l 2>/dev/null; echo "@reboot \$HOME/update.sh") | crontab -
-(crontab -l 2>/dev/null; echo "@reboot \$HOME/run_andros.sh") | crontab -
 EOF
 
 nmcli connection add type gsm ifname '*' apn internet user internet password internet connection.autoconnect yes
 
 chmod +x /home/test/update.sh
-chmod +x /home/test/run_andros.sh
+# chmod +x /home/test/run_andros.sh
