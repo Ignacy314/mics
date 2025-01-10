@@ -133,7 +133,12 @@ impl<'a> Reader<'a> {
     }
 
     #[allow(clippy::too_many_lines)]
-    pub fn read<'b>(&mut self, running: &'a AtomicBool, s: &'a Scope<'a, 'b>, ip: Option<String>) {
+    pub fn read<'b>(
+        &mut self,
+        running: &'a AtomicBool,
+        s: &'a Scope<'a, 'b>,
+        ip: Option<(String, String)>,
+    ) {
         let imu_data = Arc::new(Mutex::new((imu::Data::default(), Status::default())));
         thread::Builder::new()
             .name("imu".to_owned())
@@ -226,10 +231,10 @@ impl<'a> Reader<'a> {
             })
             .unwrap();
 
-        let (client, ip) = if let Some(ip) = ip {
-            (Some(reqwest::blocking::Client::new()), ip)
+        let (client, (ip, mac)) = if let Some((ip, mac)) = ip {
+            (Some(reqwest::blocking::Client::new()), (ip, mac))
         } else {
-            (None, String::new())
+            (None, (String::new(), String::new()))
         };
         //let client = reqwest::blocking::Client::new();
         while running.load(Ordering::Relaxed) {
@@ -386,8 +391,12 @@ impl<'a> Reader<'a> {
             if let Some(client) = client.as_ref() {
                 match serde_json::to_string(&json_data) {
                     Ok(str) => {
-                        let msg = format!("{ip} {str}");
-                        match client.post("http://mlynarczyk.edu.pl:8080/andros/publish").body(msg).send() {
+                        let msg = format!("{ip} {mac} {str}");
+                        match client
+                            .post("http://mlynarczyk.edu.pl:8080/andros/publish")
+                            .body(msg)
+                            .send()
+                        {
                             Ok(_) => {}
                             Err(err) => {
                                 warn!("Failed to make POST request: {err}");

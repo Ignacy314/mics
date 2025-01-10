@@ -47,15 +47,13 @@ fn main() {
         }
     };
 
-    let ip: Option<String> = {
+    let ip: Option<(String, String)> = {
         let path = andros_dir.join("ip");
         let open = File::open(path);
-        if let Ok(mut file) = open {
+        let ip = if let Ok(mut file) = open {
             let mut buf = String::new();
             match file.read_to_string(&mut buf) {
-                Ok(_) => {
-                    Some(buf)
-                }
+                Ok(_) => Some(buf),
                 Err(e) => {
                     warn!("Failed to read ip from file: {e}");
                     None
@@ -63,6 +61,32 @@ fn main() {
             }
         } else {
             warn!("Failed to open ip file: {}", open.unwrap_err());
+            None
+        };
+
+        let path = andros_dir.join("mac");
+        let open = File::open(path);
+        let mac = if let Ok(mut file) = open {
+            let mut buf = String::new();
+            match file.read_to_string(&mut buf) {
+                Ok(_) => Some(buf),
+                Err(e) => {
+                    warn!("Failed to read mac from file: {e}");
+                    None
+                }
+            }
+        } else {
+            warn!("Failed to open mac file: {}", open.unwrap_err());
+            None
+        };
+
+        if let Some(ip) = ip {
+            if let Some(mac) = mac {
+                Some((ip, mac))
+            } else {
+                None
+            }
+        } else {
             None
         }
     };
