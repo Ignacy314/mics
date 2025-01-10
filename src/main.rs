@@ -87,7 +87,7 @@ fn main() {
     //std::fs::create_dir(data_dir.clone().join("data"))
     //    .unwrap_or_else(|e| warn!("Failed to create sensor data directory: {e}"));
 
-    Logger::try_with_env()
+    Logger::try_with_env_or_str("info")
         .unwrap()
         .log_to_file(FileSpec::default().directory(log_dir))
         .log_to_stderr()

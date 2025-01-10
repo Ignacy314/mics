@@ -55,14 +55,14 @@ apt-get install -y libssl-dev
 
 sudo -i -u test bash << EOF
 cargo install --path \$HOME/andros/andros --locked
-echo -e "#!/bin/sh
+echo -e "#!/bin/bash
 sleep 2
 cd \$HOME/andros/andros
 git pull
 cargo install --path \$HOME/andros/andros --locked
 sleep 5
 echo "start andros" > \$HOME/andros_started
-while true; do andros; sleep 5; done" > \$HOME/update.sh
+while true; do /home/test/.cargo/bin/andros; sleep 5; done" > \$HOME/update.sh
 (crontab -l 2>/dev/null; echo "@reboot \$HOME/update.sh") | crontab -
 EOF
 
