@@ -112,7 +112,7 @@ impl<'a> CaptureDevice<'a> {
             if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
                 let mut zeros = false;
                 for sample in buf {
-                    if sample.trailing_zeros() >= 24 {
+                    if sample.trailing_zeros() >= 28 {
                         zeros = true;
                     }
                     writer.write_sample(sample)?;
