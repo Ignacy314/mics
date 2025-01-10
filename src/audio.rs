@@ -130,6 +130,7 @@ impl<'a> CaptureDevice<'a> {
                 writer = WavWriter::create(path, wav_spec)?;
             }
             if last_read.elapsed().as_secs() >= 2 {
+                info!("audio last read >= 2");
                 self.status.store(1, Ordering::Relaxed);
             }
         }
