@@ -49,6 +49,7 @@ systemctl enable --now wayvnc
 
 apt-get install -y libasound2-dev
 apt-get install -y libwebkit2gtk-4.0
+apt-get install -y libssl-dev
 # sudo apt-get install cmake;
 # sudo apt-get install gfortran;
 
@@ -58,9 +59,14 @@ echo -e "#!bin/sh
 cd \$HOME/andros/andros
 git pull
 cargo install --path \$HOME/andros/andros --locked" > \$HOME/update.sh
+echo -e "#!bin/sh
+sleep 10
+while true; do andros; sleep 5; done" > \$HOME/run_andros.sh
 (crontab -l 2>/dev/null; echo "@reboot \$HOME/update.sh") | crontab -
+(crontab -l 2>/dev/null; echo "@reboot \$HOME/run_andros.sh") | crontab -
 EOF
 
 nmcli connection add type gsm ifname '*' apn internet user internet password internet connection.autoconnect yes
 
-chmod +x $HOME/update.sh
+chmod +x /home/test/update.sh
+chmod +x /home/test/run_andros.sh
