@@ -92,30 +92,30 @@ impl<'a> CaptureDevice<'a> {
             sample_format: SampleFormat::Int,
         };
 
-        //let mut nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+        let mut nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
         //let mut path = format!("{}/{nanos}.wav", self.output_dir);
-        //let mut path = self.output_dir.join(format!("{nanos}.wav"));
-        //let mut writer = WavWriter::create(path, wav_spec)?;
+        let mut path = self.output_dir.join(format!("{nanos}.wav"));
+        let mut writer = WavWriter::create(path, wav_spec)?;
         let mut start = Instant::now();
         let mut last_read = Instant::now();
         while self.running.load(Ordering::Relaxed) {
-            //if let Ok(nanos) = self.pps.try_recv() {
-            //let low: i32 = (nanos & 0xffff_ffff) as i32;
-            //let high: i32 = (nanos >> 32) as i32;
-            //#[allow(clippy::cast_possible_wrap)]
-            //let prefix = 0xeeee_eeeeu32 as i32;
-            //writer.write_sample(prefix)?;
-            //writer.write_sample(prefix)?;
-            //writer.write_sample(high)?;
-            //writer.write_sample(low)?;
-            //}
+            if let Ok(nanos) = self.pps.try_recv() {
+                let low: i32 = (nanos & 0xffff_ffff) as i32;
+                let high: i32 = (nanos >> 32) as i32;
+                #[allow(clippy::cast_possible_wrap)]
+                let prefix = 0xeeee_eeeeu32 as i32;
+                writer.write_sample(prefix)?;
+                writer.write_sample(prefix)?;
+                writer.write_sample(high)?;
+                writer.write_sample(low)?;
+            }
             if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
                 let mut zeros = false;
                 for sample in buf {
                     if sample.trailing_zeros() >= 24 {
                         zeros = true;
                     }
-                    //writer.write_sample(sample)?;
+                    writer.write_sample(sample)?;
                 }
                 if !zeros {
                     //info!("umc_buf: {buf:?}");
@@ -124,10 +124,10 @@ impl<'a> CaptureDevice<'a> {
             }
             if start.elapsed() >= file_duration {
                 start = start.checked_add(file_duration).unwrap();
-                //writer.finalize()?;
-                //nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-                //path = self.output_dir.join(format!("{nanos}.wav"));
-                //writer = WavWriter::create(path, wav_spec)?;
+                writer.finalize()?;
+                nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+                path = self.output_dir.join(format!("{nanos}.wav"));
+                writer = WavWriter::create(path, wav_spec)?;
             }
             if last_read.elapsed().as_secs() >= 2 {
                 self.status.store(1, Ordering::Relaxed);
