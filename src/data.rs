@@ -140,7 +140,7 @@ impl<'a> Reader<'a> {
             .spawn_scoped(s, {
                 let data = imu_data.clone();
                 let bus = self.device_manager.settings.imu_bus;
-                let period = Duration::from_millis(50);
+                let period = Duration::from_millis(100);
                 let path = self.calib_path.clone();
                 move || {
                     let samples: usize = 10000 / period.as_millis() as usize;
