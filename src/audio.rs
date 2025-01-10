@@ -110,14 +110,16 @@ impl<'a> CaptureDevice<'a> {
                 writer.write_sample(low)?;
             }
             if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
-                let mut zeros = false;
+                let mut zeros = 0u16;
+                let mut samples = 0u16;
                 for sample in buf {
+                    samples += 1;
                     if sample.trailing_zeros() >= 28 {
-                        zeros = true;
+                        zeros += 1;
                     }
                     writer.write_sample(sample)?;
                 }
-                if !zeros {
+                if zeros < samples {
                     //info!("umc_buf: {buf:?}");
                     last_read = Instant::now();
                 }
