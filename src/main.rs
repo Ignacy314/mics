@@ -90,7 +90,7 @@ fn main() {
     Logger::try_with_env_or_str("info")
         .unwrap()
         .log_to_file(FileSpec::default().directory(log_dir))
-        .log_to_stderr()
+        .duplicate_to_stderr(flexi_logger::Duplicate::All)
         .print_message()
         .create_symlink(log_dir.join("current"))
         .format(with_thread)
