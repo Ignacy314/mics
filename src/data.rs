@@ -2,6 +2,7 @@ use parking_lot::Mutex;
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicU8;
@@ -10,6 +11,9 @@ use std::sync::Arc;
 use std::thread;
 use std::thread::Scope;
 use std::time::{Duration, Instant};
+use sysinfo::DiskRefreshKind;
+use sysinfo::Disks;
+use sysinfo::System;
 
 use ::serde::{Deserialize, Serialize};
 use log::{error, info, warn};
@@ -231,6 +235,12 @@ impl<'a> Reader<'a> {
             })
             .unwrap();
 
+        let mut disks = Disks::new_with_refreshed_list();
+        let mut disk = disks
+            .list_mut()
+            .iter_mut()
+            .find(|d| d.mount_point() == Path::new("/"));
+
         let (client, (ip, mac)) = if let Some((ip, mac)) = ip {
             (Some(reqwest::blocking::Client::new()), (ip, mac))
         } else {
@@ -338,8 +348,17 @@ impl<'a> Reader<'a> {
 
             //self.device_manager.statuses.i2s = self.i2s_status.load(Ordering::Relaxed).into();
             //self.device_manager.statuses.umc = self.umc_status.load(Ordering::Relaxed).into();
-            self.device_manager.statuses.i2s = self.i2s_status.fetch_and(0, Ordering::Relaxed).into();
-            self.device_manager.statuses.umc = self.umc_status.fetch_and(0, Ordering::Relaxed).into();
+            self.device_manager.statuses.i2s =
+                self.i2s_status.fetch_and(0, Ordering::Relaxed).into();
+            self.device_manager.statuses.umc =
+                self.umc_status.fetch_and(0, Ordering::Relaxed).into();
+
+            if let Some(disk) = disk.as_mut() {
+                disk.refresh_specifics(DiskRefreshKind::nothing().with_storage());
+                #[allow(clippy::cast_precision_loss)]
+                let free = disk.available_space() as f32 / (1024.0 * 1024.0 * 1024.0);
+                self.device_manager.statuses.free_space = free;
+            }
 
             #[allow(clippy::items_after_statements)]
             #[derive(Serialize, Deserialize)]
