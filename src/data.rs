@@ -237,7 +237,7 @@ impl<'a> Reader<'a> {
 
         let mut disks = Disks::new_with_refreshed_list();
         for disk in disks.list() {
-            info!("{disk:?}");
+            info!("{:?}", disk.mount_point());
         }
         let mut disk = disks
             .list_mut()
