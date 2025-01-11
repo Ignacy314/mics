@@ -48,7 +48,7 @@ pub struct Statuses {
     pub ina: Status,
     pub i2s: Status,
     pub umc: Status,
-    pub free_space: f32,
+    pub free: f32,
 }
 
 #[derive(Default)]

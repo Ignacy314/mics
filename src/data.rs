@@ -236,6 +236,9 @@ impl<'a> Reader<'a> {
             .unwrap();
 
         let mut disks = Disks::new_with_refreshed_list();
+        for disk in disks.list() {
+            info!("{disk:?}");
+        }
         let mut disk = disks
             .list_mut()
             .iter_mut()
@@ -357,7 +360,7 @@ impl<'a> Reader<'a> {
                 disk.refresh_specifics(DiskRefreshKind::nothing().with_storage());
                 #[allow(clippy::cast_precision_loss)]
                 let free = disk.available_space() as f32 / (1024.0 * 1024.0 * 1024.0);
-                self.device_manager.statuses.free_space = free;
+                self.device_manager.statuses.free = free;
             }
 
             #[allow(clippy::items_after_statements)]
