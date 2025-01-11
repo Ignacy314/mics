@@ -281,7 +281,10 @@ impl<'a> Reader<'a> {
 
             if let Some(gps) = self.device_manager.gps.as_mut() {
                 match gps.get_data() {
-                    Ok(d) => data.gps = Some(d),
+                    Ok(d) => {
+                        self.device_manager.statuses.gps = Status::Ok;
+                        data.gps = Some(d);
+                    }
                     Err(e) => {
                         self.handle_gps_data_error(&e);
                     }
@@ -299,7 +302,10 @@ impl<'a> Reader<'a> {
 
             if let Some(aht) = self.device_manager.aht.as_mut() {
                 match aht.get_data() {
-                    Ok(d) => data.aht = Some(d),
+                    Ok(d) => {
+                        self.device_manager.statuses.aht = Status::Ok;
+                        data.aht = Some(d);
+                    }
                     Err(e) => {
                         self.handle_aht_data_error(&e);
                     }
@@ -317,7 +323,10 @@ impl<'a> Reader<'a> {
 
             if let Some(bmp) = self.device_manager.bmp.as_mut() {
                 match bmp.get_data() {
-                    Ok(d) => data.bmp = Some(d),
+                    Ok(d) => {
+                        self.device_manager.statuses.bmp = Status::Ok;
+                        data.bmp = Some(d);
+                    }
                     Err(e) => {
                         self.handle_bmp_data_error(&e);
                     }
@@ -335,7 +344,10 @@ impl<'a> Reader<'a> {
 
             if let Some(ina) = self.device_manager.ina.as_mut() {
                 match ina.get_data() {
-                    Ok(d) => data.ina = Some(d),
+                    Ok(d) => {
+                        self.device_manager.statuses.ina = Status::Ok;
+                        data.ina = Some(d);
+                    }
                     Err(e) => {
                         self.handle_ina_data_error(&e);
                     }
