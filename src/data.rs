@@ -237,12 +237,14 @@ impl<'a> Reader<'a> {
 
         let mut disks = Disks::new_with_refreshed_list();
         for disk in disks.list() {
-            info!("{:?}", disk.mount_point());
+            info!("disk: {:?}", disk.mount_point());
+            info!("disk mount is / : {}", disk.mount_point() == Path::new("/"));
         }
         let mut disk = disks
             .list_mut()
             .iter_mut()
             .find(|d| d.mount_point() == Path::new("/"));
+        info!("option disk: {disk:?}");
 
         let (client, (ip, mac)) = if let Some((ip, mac)) = ip {
             (Some(reqwest::blocking::Client::new()), (ip, mac))
