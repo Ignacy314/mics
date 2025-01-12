@@ -120,7 +120,6 @@ impl<'a> CaptureDevice<'a> {
                     //writer.write_sample(sample)?;
                 }
                 if zeros < samples {
-                    //info!("umc_buf: {buf:?}");
                     last_read = Instant::now();
                 }
             }
