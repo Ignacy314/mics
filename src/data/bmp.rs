@@ -45,7 +45,7 @@ impl Device for Bmp {
 
     fn get_data(&mut self) -> Result<Self::Data, Self::Error> {
         let temperature = self.device.temperature_celsius()?;
-        let pressure = self.device.pressure_kpa()?;
+        let pressure = self.device.pressure_kpa()? * 10.0;
         let altitude = self.device.altitude_m_relative(101_325.0)?;
         Ok(Self::Data { temperature, pressure, altitude })
     }
