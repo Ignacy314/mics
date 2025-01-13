@@ -128,13 +128,13 @@ impl Default for Settings {
     fn default() -> Self {
         let gps = UartDeviceSettings {
             port: "/dev/ttyAMA0",
-            baud_rate: 5_000,
+            baud_rate: 9_600,
             timeout: Duration::from_millis(250),
         };
         let aht_bus = 1u8;
         let wind = UartDeviceSettings {
             port: "/dev/ttyAMA2",
-            baud_rate: 5_000,
+            baud_rate: 9_600,
             timeout: Duration::from_millis(250),
         };
         let imu_bus = 1u8;
