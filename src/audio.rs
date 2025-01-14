@@ -79,6 +79,9 @@ impl<'a> CaptureDevice<'a> {
     }
 
     pub fn read(&self, file_duration: Duration) -> Result<(), CaptureDeviceError> {
+        #[allow(clippy::cast_possible_wrap)]
+        const PREFIX: i32 = 0xeeee_eeeeu32 as i32;
+
         let pcm = self.init_device()?;
         let io = match &self.format {
             Format::S32LE | Format::S32BE => pcm.io_i32()?,
@@ -107,12 +110,19 @@ impl<'a> CaptureDevice<'a> {
                     pps.0 = false;
                     let low: i32 = (pps.1 & 0xffff_ffff) as i32;
                     let high: i32 = (pps.1 >> 32) as i32;
-                    #[allow(clippy::cast_possible_wrap)]
-                    let prefix = 0xeeee_eeeeu32 as i32;
-                    writer.write_sample(prefix)?;
-                    writer.write_sample(prefix)?;
+                    drop(pps);
+                    let now = chrono::Utc::now();
+                    let nanos = now.timestamp_nanos_opt().unwrap();
+                    let local_low: i32 = (nanos & 0xffff_ffff) as i32;
+                    let local_high: i32 = (nanos >> 32) as i32;
+                    writer.write_sample(PREFIX)?;
+                    writer.write_sample(PREFIX)?;
+                    writer.write_sample(PREFIX)?;
+                    writer.write_sample(PREFIX)?;
                     writer.write_sample(high)?;
                     writer.write_sample(low)?;
+                    writer.write_sample(local_high)?;
+                    writer.write_sample(local_low)?;
                 }
             }
             //if let Ok(nanos) = self.pps.try_recv() {

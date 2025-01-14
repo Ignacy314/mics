@@ -155,13 +155,14 @@ fn main() {
                     let i2s_pps = i2s_pps.clone();
                     let umc_pps = umc_pps.clone();
                     move |_| {
-                    let now = chrono::Utc::now();
-                    info!("PPS at UTC {now}");
-                    let nanos = now.timestamp_nanos_opt().unwrap();
-                    *i2s_pps.lock() = (true, nanos);
-                    *umc_pps.lock() = (true, nanos);
-                    //tx.send(nanos).unwrap();
-                }},
+                        let now = chrono::Utc::now();
+                        info!("PPS at UTC {now}");
+                        let nanos = now.timestamp_nanos_opt().unwrap();
+                        *i2s_pps.lock() = (true, nanos);
+                        *umc_pps.lock() = (true, nanos);
+                        //tx.send(nanos).unwrap();
+                    }
+                },
             )
             .unwrap();
 
