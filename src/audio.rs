@@ -64,7 +64,7 @@ impl<'a> CaptureDevice<'a> {
     }
 
     fn init_device(&self) -> Result<PCM, Error> {
-        let pcm = PCM::new(&self.device_name, Direction::Capture, true)?;
+        let pcm = PCM::new(&self.device_name, Direction::Capture, false)?;
         {
             let hwp = HwParams::any(&pcm)?;
             hwp.set_channels(self.channels)?;
@@ -88,7 +88,7 @@ impl<'a> CaptureDevice<'a> {
             default => return Err(CaptureDeviceError::FormatUnimplemented(*default)),
         };
 
-        let mut buf = [0i32; 8192];
+        let mut buf = [0i32; 1024];
         let wav_spec = hound::WavSpec {
             #[allow(clippy::cast_possible_truncation)]
             channels: self.channels as u16,
@@ -127,33 +127,33 @@ impl<'a> CaptureDevice<'a> {
             //    writer.write_sample(high)?;
             //    writer.write_sample(low)?;
             //}
-            if let Ok(s) = io.readi(&mut buf) {
-                let n = s * wav_spec.channels as usize;
+            //if let Ok(s) = io.readi(&mut buf) {
+            //    let n = s * wav_spec.channels as usize;
+            //    let mut zeros = 0;
+            //    for &sample in &buf[0..n] {
+            //        if sample.trailing_zeros() >= 28 {
+            //            zeros += 1;
+            //        }
+            //        writer.write_sample(sample)?;
+            //    }
+            //    if zeros < n {
+            //        last_read = Instant::now();
+            //    }
+            //}
+            if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
                 let mut zeros = 0;
-                for &sample in &buf[0..n] {
+                let mut samples = buf.len();
+                for sample in buf {
+                    //samples += 1;
                     if sample.trailing_zeros() >= 28 {
                         zeros += 1;
                     }
                     writer.write_sample(sample)?;
                 }
-                if zeros < n {
+                if zeros < samples {
                     last_read = Instant::now();
                 }
             }
-            //if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
-            //    let mut zeros = 0u16;
-            //    let mut samples = 0u16;
-            //    for sample in buf {
-            //        samples += 1;
-            //        if sample.trailing_zeros() >= 28 {
-            //            zeros += 1;
-            //        }
-            //        //writer.write_sample(sample)?;
-            //    }
-            //    if zeros < samples {
-            //        last_read = Instant::now();
-            //    }
-            //}
             if start.elapsed() >= file_duration {
                 start = start.checked_add(file_duration).unwrap();
                 writer.finalize()?;
