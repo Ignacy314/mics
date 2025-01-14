@@ -4,8 +4,10 @@ mod data;
 
 use std::fs::File;
 use std::io::Read;
+use std::ops::Deref;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU8, Ordering};
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
@@ -13,6 +15,7 @@ use alsa::pcm::Format;
 use crossbeam_channel::unbounded;
 use flexi_logger::{with_thread, FileSpec, Logger};
 use log::{info, warn};
+use parking_lot::Mutex;
 use rppal::gpio::Gpio;
 use signal_hook::consts::SIGINT;
 use signal_hook::iterator::Signals;
@@ -137,18 +140,28 @@ fn main() {
         let gpio = Gpio::new().unwrap();
         let mut pps_pin = gpio.get(13).unwrap().into_input_pulldown();
 
-        let (tx, rx) = unbounded();
+        //let (tx, rx) = unbounded();
+
+        let i2s_pps = Arc::new(Mutex::new((false, 0i64)));
+        let umc_pps = Arc::new(Mutex::new((false, 0i64)));
+        //let i2s_pps_rdy = &AtomicBool::new(false);
+        //let i2s_pps_data = &AtomicI64::new(0);
 
         pps_pin
             .set_async_interrupt(
                 rppal::gpio::Trigger::RisingEdge,
                 Some(Duration::from_millis(5)),
-                move |_| {
+                {
+                    let i2s_pps = i2s_pps.clone();
+                    let umc_pps = umc_pps.clone();
+                    move |_| {
                     let now = chrono::Utc::now();
                     info!("PPS at UTC {now}");
                     let nanos = now.timestamp_nanos_opt().unwrap();
-                    tx.send(nanos).unwrap();
-                },
+                    *i2s_pps.lock() = (true, nanos);
+                    *umc_pps.lock() = (true, nanos);
+                    //tx.send(nanos).unwrap();
+                }},
             )
             .unwrap();
 
@@ -156,7 +169,8 @@ fn main() {
         thread::Builder::new()
             .name("i2s".to_owned())
             .spawn_scoped(s, {
-                let rx = rx.clone();
+                //let rx = rx.clone();
+                //let i2s_pps = i2s_pps.clone();
                 move || {
                     let i2s = CaptureDevice::new(
                         "hw:CARD=ANDROSi2s,DEV=1",
@@ -166,7 +180,7 @@ fn main() {
                         data_dir.join("i2s"),
                         running,
                         i2s_status,
-                        rx,
+                        i2s_pps,
                     );
                     while running.load(Ordering::Relaxed) {
                         match i2s.read(AUDIO_FILE_DURATION) {
@@ -182,7 +196,8 @@ fn main() {
         thread::Builder::new()
             .name("umc".to_owned())
             .spawn_scoped(s, {
-                let rx = rx.clone();
+                //let rx = rx.clone();
+                //let umc_pps = umc_pps.clone();
                 move || {
                     let umc = CaptureDevice::new(
                         "hw:CARD=U192k,DEV=0",
@@ -192,7 +207,7 @@ fn main() {
                         data_dir.join("umc"),
                         running,
                         umc_status,
-                        rx,
+                        umc_pps,
                     );
                     while running.load(Ordering::Relaxed) {
                         match umc.read(AUDIO_FILE_DURATION) {

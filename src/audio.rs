@@ -1,8 +1,10 @@
 use crossbeam_channel::Receiver;
 use hound::{SampleFormat, WavWriter};
 use log::info;
+use parking_lot::Mutex;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::Arc;
 //use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -29,7 +31,7 @@ pub struct CaptureDevice<'a> {
     output_dir: PathBuf,
     running: &'a AtomicBool,
     status: &'a AtomicU8,
-    pps: Receiver<i64>,
+    pps: Arc<Mutex<(bool, i64)>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -42,7 +44,7 @@ impl<'a> CaptureDevice<'a> {
         output_dir: P,
         running: &'a AtomicBool,
         status: &'a AtomicU8,
-        pps: Receiver<i64>,
+        pps: Arc<Mutex<(bool, i64)>>,
     ) -> Self {
         Self {
             device_name: device_name.to_owned(),
@@ -99,16 +101,30 @@ impl<'a> CaptureDevice<'a> {
         let mut start = Instant::now();
         let mut last_read = Instant::now();
         while self.running.load(Ordering::Relaxed) {
-            if let Ok(nanos) = self.pps.try_recv() {
-                let low: i32 = (nanos & 0xffff_ffff) as i32;
-                let high: i32 = (nanos >> 32) as i32;
-                #[allow(clippy::cast_possible_wrap)]
-                let prefix = 0xeeee_eeeeu32 as i32;
-                writer.write_sample(prefix)?;
-                writer.write_sample(prefix)?;
-                writer.write_sample(high)?;
-                writer.write_sample(low)?;
+            {
+                let mut pps = self.pps.lock();
+                if pps.0 {
+                    pps.0 = false;
+                    let low: i32 = (pps.1 & 0xffff_ffff) as i32;
+                    let high: i32 = (pps.1 >> 32) as i32;
+                    #[allow(clippy::cast_possible_wrap)]
+                    let prefix = 0xeeee_eeeeu32 as i32;
+                    writer.write_sample(prefix)?;
+                    writer.write_sample(prefix)?;
+                    writer.write_sample(high)?;
+                    writer.write_sample(low)?;
+                }
             }
+            //if let Ok(nanos) = self.pps.try_recv() {
+            //    let low: i32 = (nanos & 0xffff_ffff) as i32;
+            //    let high: i32 = (nanos >> 32) as i32;
+            //    #[allow(clippy::cast_possible_wrap)]
+            //    let prefix = 0xeeee_eeeeu32 as i32;
+            //    writer.write_sample(prefix)?;
+            //    writer.write_sample(prefix)?;
+            //    writer.write_sample(high)?;
+            //    writer.write_sample(low)?;
+            //}
             if let Ok(s) = io.readi(&mut buf) {
                 let n = s * wav_spec.channels as usize;
                 let mut zeros = 0;
