@@ -111,18 +111,10 @@ impl<'a> CaptureDevice<'a> {
                     let low: i32 = (pps.1 & 0xffff_ffff) as i32;
                     let high: i32 = (pps.1 >> 32) as i32;
                     drop(pps);
-                    let now = chrono::Utc::now();
-                    let nanos = now.timestamp_nanos_opt().unwrap();
-                    let local_low: i32 = (nanos & 0xffff_ffff) as i32;
-                    let local_high: i32 = (nanos >> 32) as i32;
-                    writer.write_sample(PREFIX)?;
-                    writer.write_sample(PREFIX)?;
                     writer.write_sample(PREFIX)?;
                     writer.write_sample(PREFIX)?;
                     writer.write_sample(high)?;
                     writer.write_sample(low)?;
-                    writer.write_sample(local_high)?;
-                    writer.write_sample(local_low)?;
                 }
             }
             //if let Ok(nanos) = self.pps.try_recv() {
