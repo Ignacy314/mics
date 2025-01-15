@@ -4,15 +4,13 @@ mod data;
 
 use std::fs::File;
 use std::io::Read;
-use std::ops::Deref;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
 use alsa::pcm::Format;
-use crossbeam_channel::unbounded;
 use flexi_logger::{with_thread, FileSpec, Logger};
 use log::{info, warn};
 use parking_lot::Mutex;

@@ -13,7 +13,6 @@ use std::thread::Scope;
 use std::time::{Duration, Instant};
 use sysinfo::DiskRefreshKind;
 use sysinfo::Disks;
-use sysinfo::System;
 
 use ::serde::{Deserialize, Serialize};
 use log::{error, info, warn};
