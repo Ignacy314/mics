@@ -142,7 +142,7 @@ impl<'a> CaptureDevice<'a> {
                 let mut samples = buf.len();
                 for sample in buf {
                     //samples += 1;
-                    if sample.trailing_zeros() >= 28 {
+                    if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
                         zeros += 1;
                     }
                     writer.write_sample(sample)?;
