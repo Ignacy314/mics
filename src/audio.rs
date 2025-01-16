@@ -101,19 +101,19 @@ impl<'a> CaptureDevice<'a> {
         let mut start = Instant::now();
         let mut last_read = Instant::now();
         while self.running.load(Ordering::Relaxed) {
-            //{
-            //    let mut pps = self.pps.lock();
-            //    if pps.0 {
-            //        pps.0 = false;
-            //        let low: i32 = (pps.1 & 0xffff_ffff) as i32;
-            //        let high: i32 = (pps.1 >> 32) as i32;
-            //        drop(pps);
-            //        writer.write_sample(PREFIX)?;
-            //        writer.write_sample(PREFIX)?;
-            //        writer.write_sample(high)?;
-            //        writer.write_sample(low)?;
-            //    }
-            //}
+            {
+                let mut pps = self.pps.lock();
+                if pps.0 {
+                    pps.0 = false;
+                    let low: i32 = (pps.1 & 0xffff_ffff) as i32;
+                    let high: i32 = (pps.1 >> 32) as i32;
+                    drop(pps);
+                    writer.write_sample(PREFIX)?;
+                    writer.write_sample(PREFIX)?;
+                    writer.write_sample(high)?;
+                    writer.write_sample(low)?;
+                }
+            }
             //if let Ok(nanos) = self.pps.try_recv() {
             //    let low: i32 = (nanos & 0xffff_ffff) as i32;
             //    let high: i32 = (nanos >> 32) as i32;
@@ -145,7 +145,7 @@ impl<'a> CaptureDevice<'a> {
                     if sample.trailing_zeros() >= 28 {
                         zeros += 1;
                     }
-                    //writer.write_sample(sample)?;
+                    writer.write_sample(sample)?;
                 }
                 if zeros < samples {
                     last_read = Instant::now();
@@ -153,10 +153,10 @@ impl<'a> CaptureDevice<'a> {
             }
             if start.elapsed() >= file_duration {
                 start = start.checked_add(file_duration).unwrap();
-                //writer.finalize()?;
-                //nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-                //path = self.output_dir.join(format!("{nanos}.wav"));
-                //writer = WavWriter::create(path, wav_spec)?;
+                writer.finalize()?;
+                nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+                path = self.output_dir.join(format!("{nanos}.wav"));
+                writer = WavWriter::create(path, wav_spec)?;
             }
             if last_read.elapsed().as_secs() >= 2 {
                 //info!("audio last read >= 2");
