@@ -49,6 +49,9 @@ systemctl enable --now wayvnc
 apt-get install -y libasound2-dev
 apt-get install -y libwebkit2gtk-4.0
 apt-get install -y libssl-dev
+apt-get install -y chrony
+
+systemctl enable --now chrony
 # sudo apt-get install cmake;
 # sudo apt-get install gfortran;
 
