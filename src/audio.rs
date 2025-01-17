@@ -94,9 +94,9 @@ impl<'a> CaptureDevice<'a> {
             sample_format: SampleFormat::Int,
         };
 
-        let mut nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-        let mut path = self.output_dir.join(format!("{nanos}.wav"));
-        let mut writer = WavWriter::create(path, wav_spec)?;
+        //let mut nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+        //let mut path = self.output_dir.join(format!("{nanos}.wav"));
+        //let mut writer = WavWriter::create(path, wav_spec)?;
         let mut start = Instant::now();
         let mut last_read = Instant::now();
         while self.running.load(Ordering::Relaxed) {
