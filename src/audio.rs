@@ -94,7 +94,6 @@ impl<'a> CaptureDevice<'a> {
             sample_format: SampleFormat::Int,
         };
 
-        //let mut path = format!("{}/{nanos}.wav", self.output_dir);
         let mut nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
         let mut path = self.output_dir.join(format!("{nanos}.wav"));
         let mut writer = WavWriter::create(path, wav_spec)?;
@@ -102,28 +101,18 @@ impl<'a> CaptureDevice<'a> {
         let mut last_read = Instant::now();
         while self.running.load(Ordering::Relaxed) {
             {
-                //let mut pps = self.pps.lock();
-                //if pps.0 {
-                //    pps.0 = false;
-                //    let low: i32 = (pps.1 & 0xffff_ffff) as i32;
-                //    let high: i32 = (pps.1 >> 32) as i32;
-                //    drop(pps);
-                //    writer.write_sample(PREFIX)?;
-                //    writer.write_sample(PREFIX)?;
-                //    writer.write_sample(high)?;
-                //    writer.write_sample(low)?;
-                //}
+                let mut pps = self.pps.lock();
+                if pps.0 {
+                    pps.0 = false;
+                    let low: i32 = (pps.1 & 0xffff_ffff) as i32;
+                    let high: i32 = (pps.1 >> 32) as i32;
+                    drop(pps);
+                    //writer.write_sample(PREFIX)?;
+                    //writer.write_sample(PREFIX)?;
+                    //writer.write_sample(high)?;
+                    //writer.write_sample(low)?;
+                }
             }
-            //if let Ok(nanos) = self.pps.try_recv() {
-            //    let low: i32 = (nanos & 0xffff_ffff) as i32;
-            //    let high: i32 = (nanos >> 32) as i32;
-            //    #[allow(clippy::cast_possible_wrap)]
-            //    let prefix = 0xeeee_eeeeu32 as i32;
-            //    writer.write_sample(prefix)?;
-            //    writer.write_sample(prefix)?;
-            //    writer.write_sample(high)?;
-            //    writer.write_sample(low)?;
-            //}
             //if let Ok(s) = io.readi(&mut buf) {
             //    let n = s * wav_spec.channels as usize;
             //    let mut zeros = 0;
@@ -141,7 +130,6 @@ impl<'a> CaptureDevice<'a> {
                 let mut zeros = 0;
                 let mut samples = buf.len();
                 for sample in buf {
-                    //samples += 1;
                     if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
                         zeros += 1;
                     }
@@ -159,7 +147,6 @@ impl<'a> CaptureDevice<'a> {
                 //writer = WavWriter::create(path, wav_spec)?;
             }
             if last_read.elapsed().as_secs() >= 2 {
-                //info!("audio last read >= 2");
                 self.status.store(1, Ordering::Relaxed);
             }
         }
