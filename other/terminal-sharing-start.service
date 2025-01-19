@@ -1,0 +1,8 @@
+[Unit]
+Description=terminal sharing start service (runs every 15 seconds)
+
+[Service]
+ExecStart=/home/test/terminal_sharing_start.sh
+Restart=always
+RestartSec=15
+User=fraktal
