@@ -387,44 +387,46 @@ impl<'a> Reader<'a> {
                 data,
             };
 
-            let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-            let path = self.path.join(format!("{nanos}.json"));
             #[cfg(feature = "write_to_disk")]
-            match File::create(&path) {
-                Ok(file) => {
-                    let mut writer = BufWriter::new(file);
-                    match serde_json::to_writer(&mut writer, &json_data) {
-                        Ok(()) => {
-                            match writer.write(b"\n") {
-                                Ok(_) => {}
-                                Err(err) => {
-                                    error!("Failed to write new line to data file: {err}");
-                                }
-                            }
-                            if self.data_link.exists() {
-                                match std::fs::remove_file(&self.data_link) {
-                                    Ok(()) => {}
+            {
+                let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+                let path = self.path.join(format!("{nanos}.json"));
+                match File::create(&path) {
+                    Ok(file) => {
+                        let mut writer = BufWriter::new(file);
+                        match serde_json::to_writer(&mut writer, &json_data) {
+                            Ok(()) => {
+                                match writer.write(b"\n") {
+                                    Ok(_) => {}
                                     Err(err) => {
-                                        error!("Failed to remove previous data symlink: {err}");
+                                        error!("Failed to write new line to data file: {err}");
                                     }
                                 }
-                            }
-                            match std::os::unix::fs::symlink(&path, &self.data_link) {
-                                Ok(()) => {}
-                                Err(err) => {
-                                    error!("Failed to create data symlink: {err}");
+                                if self.data_link.exists() {
+                                    match std::fs::remove_file(&self.data_link) {
+                                        Ok(()) => {}
+                                        Err(err) => {
+                                            error!("Failed to remove previous data symlink: {err}");
+                                        }
+                                    }
                                 }
-                            };
-                        }
-                        Err(e) => {
-                            warn!("Failed to serialize data to json: {e}");
-                        }
-                    };
-                }
-                Err(e) => {
-                    warn!("Failed to create data file: {e}");
-                }
-            };
+                                match std::os::unix::fs::symlink(&path, &self.data_link) {
+                                    Ok(()) => {}
+                                    Err(err) => {
+                                        error!("Failed to create data symlink: {err}");
+                                    }
+                                };
+                            }
+                            Err(e) => {
+                                warn!("Failed to serialize data to json: {e}");
+                            }
+                        };
+                    }
+                    Err(e) => {
+                        warn!("Failed to create data file: {e}");
+                    }
+                };
+            }
 
             if let Some(client) = client.as_ref() {
                 match serde_json::to_string(&json_data) {
