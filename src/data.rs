@@ -69,7 +69,7 @@ impl<'a> Reader<'a> {
         umc_status: &'a AtomicU8,
     ) -> Self {
         let path: PathBuf = path.into();
-        let data_link = path.join("data.json");
+        let data_link = path.join("current");
         Self {
             device_manager: DeviceManager::new(),
             path,
