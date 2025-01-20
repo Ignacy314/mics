@@ -6,6 +6,10 @@ edition = "2021"
 [workspace]
 exclude = ["tract_test"]
 
+[features]
+default = ["write_to_disk"]
+write_to_disk = []
+
 [[bin]]
 name = "andros"
 path = "src/main.rs"

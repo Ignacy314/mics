@@ -94,9 +94,10 @@ impl<'a> CaptureDevice<'a> {
             sample_format: SampleFormat::Int,
         };
 
-        //let mut nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-        //let mut path = self.output_dir.join(format!("{nanos}.wav"));
-        //let mut writer = WavWriter::create(path, wav_spec)?;
+        let mut nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+        let mut path = self.output_dir.join(format!("{nanos}.wav"));
+        #[cfg(feature = "write_to_disk")]
+        let mut writer = WavWriter::create(path, wav_spec)?;
         let mut start = Instant::now();
         let mut last_read = Instant::now();
         while self.running.load(Ordering::Relaxed) {
@@ -107,10 +108,13 @@ impl<'a> CaptureDevice<'a> {
                     let low: i32 = (pps.1 & 0xffff_ffff) as i32;
                     let high: i32 = (pps.1 >> 32) as i32;
                     drop(pps);
-                    //writer.write_sample(PREFIX)?;
-                    //writer.write_sample(PREFIX)?;
-                    //writer.write_sample(high)?;
-                    //writer.write_sample(low)?;
+                    #[cfg(feature = "write_to_disk")]
+                    {
+                        writer.write_sample(PREFIX)?;
+                        writer.write_sample(PREFIX)?;
+                        writer.write_sample(high)?;
+                        writer.write_sample(low)?;
+                    }
                 }
             }
             //if let Ok(s) = io.readi(&mut buf) {
@@ -133,7 +137,8 @@ impl<'a> CaptureDevice<'a> {
                     if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
                         zeros += 1;
                     }
-                    //writer.write_sample(sample)?;
+                    #[cfg(feature = "write_to_disk")]
+                    writer.write_sample(sample)?;
                 }
                 if zeros < samples {
                     last_read = Instant::now();
@@ -141,10 +146,13 @@ impl<'a> CaptureDevice<'a> {
             }
             if start.elapsed() >= file_duration {
                 start = start.checked_add(file_duration).unwrap();
-                //writer.finalize()?;
-                //nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-                //path = self.output_dir.join(format!("{nanos}.wav"));
-                //writer = WavWriter::create(path, wav_spec)?;
+                #[cfg(feature = "write_to_disk")]
+                {
+                    writer.finalize()?;
+                    nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+                    path = self.output_dir.join(format!("{nanos}.wav"));
+                    writer = WavWriter::create(path, wav_spec)?;
+                }
             }
             if last_read.elapsed().as_secs() >= 2 {
                 self.status.store(1, Ordering::Relaxed);
