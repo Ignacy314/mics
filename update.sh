@@ -5,11 +5,13 @@ done
 
 cd $HOME/andros/andros && /usr/bin/git pull
 
-if [ $(cat $HOME/andros/andros/write_to_disk) = 1 ]; then
-  $HOME/.cargo/bin/cargo install --path \$HOME/andros/andros --locked
-else
-  $HOME/.cargo/bin/cargo install --path \$HOME/andros/andros --locked --no-default-features
-fi
+# if [ $(cat $HOME/andros/andros/write_to_disk) = 1 ]; then
+#   $HOME/.cargo/bin/cargo install --path \$HOME/andros/andros --locked
+# else
+#   $HOME/.cargo/bin/cargo install --path \$HOME/andros/andros --locked --no-default-features
+# fi
+
+$HOME/andros/andros/justfile
 
 sleep 2
 
