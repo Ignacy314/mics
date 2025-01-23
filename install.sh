@@ -55,22 +55,23 @@ systemctl enable --now chrony
 # sudo apt-get install cmake;
 # sudo apt-get install gfortran;
 
+# echo -e '#!/bin/bash
+# sleep 2
+# cd \$HOME/andros/andros
+# git pull
+# cargo install --path \$HOME/andros/andros --locked
+# sleep 10
+# echo \$(ip a s wlan0 | grep ether | egrep -o ..:..:..:..:..:.. | head -1) > \$HOME/andros/mac
+# echo \$(ip -4 -o a | grep wlan | egrep -o "192\.168\.[0-9]{1,3}\.[0-9]{1,3}" | head -1) > \$HOME/andros/ip
+# echo "start andros" > \$HOME/andros_started
+# while true; do /home/test/.cargo/bin/andros; sleep 5; done' > $HOME/update.sh
 sudo -i -u test bash << EOF
+cargo install just
 cargo install --path \$HOME/andros/andros --locked
-echo -e '#!/bin/bash
-sleep 2
-cd \$HOME/andros/andros
-git pull
-cargo install --path \$HOME/andros/andros --locked
-sleep 10
-echo \$(ip a s wlan0 | grep ether | egrep -o ..:..:..:..:..:.. | head -1) > \$HOME/andros/mac
-echo \$(ip -4 -o a | grep wlan | egrep -o "192\.168\.[0-9]{1,3}\.[0-9]{1,3}" | head -1) > \$HOME/andros/ip
-echo "start andros" > \$HOME/andros_started
-while true; do /home/test/.cargo/bin/andros; sleep 5; done' > $HOME/update.sh
-(crontab -l 2>/dev/null; echo "@reboot $HOME/update.sh") | crontab -
+(crontab -l 2>/dev/null; echo "@reboot $HOME/andros/andros/update.sh") | crontab -
 EOF
 
 nmcli connection add type gsm ifname '*' apn internet user internet password internet connection.autoconnect yes
 
-chmod +x /home/test/update.sh
+# chmod +x /home/test/update.sh
 # chmod +x /home/test/run_andros.sh
