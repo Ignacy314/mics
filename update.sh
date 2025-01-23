@@ -15,7 +15,7 @@ git -C $HOME/andros/andros pull
 #   $HOME/.cargo/bin/cargo install --path \$HOME/andros/andros --locked --no-default-features
 # fi
 
-$HOME/andros/andros/justfile
+just -f $HOME/andros/andros/justfile
 
 sleep 2
 
