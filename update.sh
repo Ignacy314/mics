@@ -1,4 +1,7 @@
 #!/bin/bash
+. $HOME/.profile
+. $HOME/.bashrc
+
 while ! [ "$(ping -c 1 google.com)" ]; do
   sleep 1
 done
