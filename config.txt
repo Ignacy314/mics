@@ -3,7 +3,7 @@
 # Some settings may impact device functionality. See link above for details
 
 # Uncomment some or all of these to enable the optional hardware interfaces
-dtparam=i2c_arm=on,i2c_arm_baudrate=50000
+dtparam=i2c_arm=on,i2c_arm_baudrate=400000
 dtparam=i2s=on
 #dtoverlay=adau7002-simple
 dtoverlay=ANDROSi2s
