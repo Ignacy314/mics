@@ -3,7 +3,8 @@ while ! [ "$(ping -c 1 google.com)" ]; do
   sleep 1
 done
 
-cd $HOME/andros/andros && /usr/bin/git pull
+# cd $HOME/andros/andros && /usr/bin/git pull
+/usr/bin/git -C $HOME/andros/andros pull
 
 # if [ $(cat $HOME/andros/andros/write_to_disk) = 1 ]; then
 #   $HOME/.cargo/bin/cargo install --path \$HOME/andros/andros --locked
