@@ -7,8 +7,8 @@ edition = "2021"
 exclude = ["tract_test"]
 
 [features]
-default = ["write_to_disk"]
-write_to_disk = []
+data = []
+audio = []
 
 [[bin]]
 name = "andros"

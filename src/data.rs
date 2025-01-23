@@ -387,7 +387,7 @@ impl<'a> Reader<'a> {
                 data,
             };
 
-            //#[cfg(feature = "write_to_disk")]
+            #[cfg(feature = "data")]
             {
                 let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
                 let path = self.path.join(format!("{nanos}.json"));

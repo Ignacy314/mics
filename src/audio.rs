@@ -94,11 +94,11 @@ impl<'a> CaptureDevice<'a> {
             sample_format: SampleFormat::Int,
         };
 
-        #[cfg(feature = "write_to_disk")]
+        #[cfg(feature = "audio")]
         let mut nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-        #[cfg(feature = "write_to_disk")]
+        #[cfg(feature = "audio")]
         let mut path = self.output_dir.join(format!("{nanos}.wav"));
-        #[cfg(feature = "write_to_disk")]
+        #[cfg(feature = "audio")]
         let mut writer = WavWriter::create(path, wav_spec)?;
 
         let mut start = Instant::now();
@@ -111,7 +111,7 @@ impl<'a> CaptureDevice<'a> {
                     let low: i32 = (pps.1 & 0xffff_ffff) as i32;
                     let high: i32 = (pps.1 >> 32) as i32;
                     drop(pps);
-                    #[cfg(feature = "write_to_disk")]
+                    #[cfg(feature = "audio")]
                     {
                         writer.write_sample(PREFIX)?;
                         writer.write_sample(PREFIX)?;
@@ -140,7 +140,7 @@ impl<'a> CaptureDevice<'a> {
                     if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
                         zeros += 1;
                     }
-                    #[cfg(feature = "write_to_disk")]
+                    #[cfg(feature = "audio")]
                     writer.write_sample(sample)?;
                 }
                 if zeros < samples {
@@ -149,7 +149,7 @@ impl<'a> CaptureDevice<'a> {
             }
             if start.elapsed() >= file_duration {
                 start = start.checked_add(file_duration).unwrap();
-                #[cfg(feature = "write_to_disk")]
+                #[cfg(feature = "audio")]
                 {
                     writer.finalize()?;
                     nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
