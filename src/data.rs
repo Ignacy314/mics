@@ -50,7 +50,7 @@ pub struct Data {
 }
 
 pub struct Reader<'a> {
-    pub device_manager: DeviceManager,
+    pub device_manager: DeviceManager<'a>,
     pub path: PathBuf,
     pub calib_path: &'a PathBuf,
     pub data_link: PathBuf,
@@ -250,6 +250,21 @@ impl<'a> Reader<'a> {
         } else {
             (None, (String::new(), String::new()))
         };
+
+        #[cfg(all(feature = "audio", feature = "data"))]
+        {
+            self.device_manager.statuses.writing = "audio,data";
+        }
+        #[cfg(all(feature = "audio", not(feature = "data")))]
+        {
+            self.device_manager.statuses.writing = "audio";
+        }
+        #[cfg(all(feature = "data", not(feature = "audio")))]
+        {
+            self.device_manager.statuses.writing = "data";
+        }
+
+
         //let client = reqwest::blocking::Client::new();
         while running.load(Ordering::Relaxed) {
             let start = Instant::now();
@@ -377,9 +392,9 @@ impl<'a> Reader<'a> {
             }
 
             #[allow(clippy::items_after_statements)]
-            #[derive(Serialize, Deserialize)]
-            struct JsonData {
-                statuses: Statuses,
+            #[derive(Serialize)]
+            struct JsonData<'a> {
+                statuses: Statuses<'a>,
                 data: Data,
             }
             let json_data = JsonData {

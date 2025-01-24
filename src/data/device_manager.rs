@@ -22,24 +22,16 @@ impl Default for Status {
 impl From<u8> for Status {
     fn from(value: u8) -> Self {
         match value {
-            0u8 => {
-                Status::Ok
-            },
-            1u8 => {
-                Status::NoData
-            },
-            2u8 => {
-                Status::Disconnected
-            },
-            _ => {
-                Status::OtherError
-            }
+            0u8 => Status::Ok,
+            1u8 => Status::NoData,
+            2u8 => Status::Disconnected,
+            _ => Status::OtherError,
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
-pub struct Statuses {
+pub struct Statuses<'a> {
     pub gps: Status,
     pub aht: Status,
     pub wind: Status,
@@ -49,10 +41,11 @@ pub struct Statuses {
     pub i2s: Status,
     pub umc: Status,
     pub free: f32,
+    pub writing: &'a str,
 }
 
 #[derive(Default)]
-pub struct DeviceManager {
+pub struct DeviceManager<'a> {
     pub gps: Option<Gps>,
     pub aht: Option<Aht>,
     //pub wind: Option<Wind>,
@@ -60,10 +53,10 @@ pub struct DeviceManager {
     pub bmp: Option<Bmp>,
     pub ina: Option<Ina>,
     pub settings: Settings,
-    pub statuses: Statuses,
+    pub statuses: Statuses<'a>,
 }
 
-impl DeviceManager {
+impl DeviceManager<'_> {
     pub fn new() -> Self {
         Self::default()
     }
