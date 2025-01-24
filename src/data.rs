@@ -392,7 +392,7 @@ impl<'a> Reader<'a> {
             }
 
             #[allow(clippy::items_after_statements)]
-            #[derive(Serialize)]
+            #[derive(Serialize, Debug)]
             struct JsonData<'a> {
                 statuses: Statuses<'a>,
                 data: Data,
@@ -444,6 +444,7 @@ impl<'a> Reader<'a> {
             }
 
             if let Some(client) = client.as_ref() {
+                info!("POST: {:?}", &json_data);
                 match serde_json::to_string(&json_data) {
                     Ok(str) => {
                         let msg = format!("{ip} {mac} {str}");
