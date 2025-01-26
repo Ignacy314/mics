@@ -141,7 +141,7 @@ impl<'a> CaptureDevice<'a> {
                 let mut zeros = 0;
                 let mut samples = buf.len();
                 for sample in buf {
-                    if sample > max_sample {
+                    if sample.abs() > max_sample {
                         max_sample = sample;
                     }
                     if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
