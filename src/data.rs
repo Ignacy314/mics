@@ -389,15 +389,19 @@ impl<'a> Reader<'a> {
             self.device_manager.statuses.umc =
                 self.umc_status.fetch_and(0, Ordering::Relaxed).into();
 
+            #[allow(clippy::cast_possible_truncation)]
+            #[allow(clippy::cast_precision_loss)]
             if let Some(mut guard) = self.i2s_max.try_lock_for(Duration::from_millis(50)) {
-                self.device_manager.statuses.max_i2s = *guard / 1_000_000;
+                self.device_manager.statuses.max_i2s = (*guard as f32 / 1e6) as i32;
                 *guard = i32::MIN;
             } else {
                 self.device_manager.statuses.max_i2s = i32::MIN;
             }
 
+            #[allow(clippy::cast_possible_truncation)]
+            #[allow(clippy::cast_precision_loss)]
             if let Some(mut guard) = self.umc_max.try_lock_for(Duration::from_millis(50)) {
-                self.device_manager.statuses.max_umc = *guard / 1_000_000;
+                self.device_manager.statuses.max_umc = (*guard as f32 / 1e6) as i32;
                 *guard = i32::MIN;
             } else {
                 self.device_manager.statuses.max_umc = i32::MIN;
