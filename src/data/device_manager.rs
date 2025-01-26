@@ -41,6 +41,8 @@ pub struct Statuses<'a> {
     pub i2s: Status,
     pub umc: Status,
     pub free: f32,
+    pub max_i2s: i32,
+    pub max_umc: i32,
     pub writing: &'a str,
 }
 

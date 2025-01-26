@@ -145,6 +145,9 @@ fn main() {
         //let i2s_pps_rdy = &AtomicBool::new(false);
         //let i2s_pps_data = &AtomicI64::new(0);
 
+        let i2s_max = Arc::new(Mutex::new(0i32));
+        let umc_max = Arc::new(Mutex::new(0i32));
+
         pps_pin
             .set_async_interrupt(
                 rppal::gpio::Trigger::RisingEdge,
@@ -170,6 +173,7 @@ fn main() {
             .spawn_scoped(s, {
                 //let rx = rx.clone();
                 //let i2s_pps = i2s_pps.clone();
+                let i2s_max = i2s_max.clone();
                 move || {
                     let i2s = CaptureDevice::new(
                         "hw:CARD=ANDROSi2s,DEV=1",
@@ -180,6 +184,7 @@ fn main() {
                         running,
                         i2s_status,
                         i2s_pps,
+                        i2s_max,
                     );
                     while running.load(Ordering::Relaxed) {
                         match i2s.read(AUDIO_FILE_DURATION) {
@@ -197,6 +202,7 @@ fn main() {
             .spawn_scoped(s, {
                 //let rx = rx.clone();
                 //let umc_pps = umc_pps.clone();
+                let umc_max = umc_max.clone();
                 move || {
                     let umc = CaptureDevice::new(
                         "hw:CARD=U192k,DEV=0",
@@ -207,6 +213,7 @@ fn main() {
                         running,
                         umc_status,
                         umc_pps,
+                        umc_max,
                     );
                     while running.load(Ordering::Relaxed) {
                         match umc.read(AUDIO_FILE_DURATION) {
@@ -218,7 +225,7 @@ fn main() {
             })
             .unwrap();
 
-        let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status);
+        let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status, i2s_max, umc_max);
         reader.read(running, s, ip);
     });
     info!("Exited properly");

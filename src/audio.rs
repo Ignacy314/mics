@@ -29,6 +29,7 @@ pub struct CaptureDevice<'a> {
     running: &'a AtomicBool,
     status: &'a AtomicU8,
     pps: Arc<Mutex<(bool, i64)>>,
+    max_read: Arc<Mutex<i32>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -42,6 +43,7 @@ impl<'a> CaptureDevice<'a> {
         running: &'a AtomicBool,
         status: &'a AtomicU8,
         pps: Arc<Mutex<(bool, i64)>>,
+        max_read: Arc<Mutex<i32>>,
     ) -> Self {
         Self {
             device_name: device_name.to_owned(),
@@ -52,6 +54,7 @@ impl<'a> CaptureDevice<'a> {
             running,
             status,
             pps,
+            max_read,
         }
     }
 
@@ -85,7 +88,7 @@ impl<'a> CaptureDevice<'a> {
             default => return Err(CaptureDeviceError::FormatUnimplemented(*default)),
         };
 
-        let mut buf = [0i32; 1024];
+        let mut buf = [0i32; 2048];
         let wav_spec = hound::WavSpec {
             #[allow(clippy::cast_possible_truncation)]
             channels: self.channels as u16,
@@ -134,15 +137,20 @@ impl<'a> CaptureDevice<'a> {
             //    }
             //}
             if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
+                let mut max_sample = i32::MIN;
                 let mut zeros = 0;
                 let mut samples = buf.len();
                 for sample in buf {
+                    if sample > max_sample {
+                        max_sample = sample;
+                    }
                     if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
                         zeros += 1;
                     }
                     #[cfg(feature = "audio")]
                     writer.write_sample(sample)?;
                 }
+                *self.max_read.lock() = max_sample;
                 if zeros < samples {
                     last_read = Instant::now();
                 }

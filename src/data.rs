@@ -57,6 +57,8 @@ pub struct Reader<'a> {
     pub read_period: Duration,
     i2s_status: &'a AtomicU8,
     umc_status: &'a AtomicU8,
+    i2s_max: Arc<Mutex<i32>>,
+    umc_max: Arc<Mutex<i32>>,
 }
 
 impl<'a> Reader<'a> {
@@ -67,6 +69,8 @@ impl<'a> Reader<'a> {
         calib_path: &'a PathBuf,
         i2s_status: &'a AtomicU8,
         umc_status: &'a AtomicU8,
+        i2s_max: Arc<Mutex<i32>>,
+        umc_max: Arc<Mutex<i32>>,
     ) -> Self {
         let path: PathBuf = path.into();
         let data_link = path.join("current");
@@ -78,6 +82,8 @@ impl<'a> Reader<'a> {
             read_period: Duration::from_millis(Self::PERIOD_MILLIS),
             i2s_status,
             umc_status,
+            i2s_max,
+            umc_max,
         }
     }
 
@@ -264,7 +270,6 @@ impl<'a> Reader<'a> {
             self.device_manager.statuses.writing = "data";
         }
 
-
         //let client = reqwest::blocking::Client::new();
         while running.load(Ordering::Relaxed) {
             let start = Instant::now();
@@ -383,6 +388,22 @@ impl<'a> Reader<'a> {
                 self.i2s_status.fetch_and(0, Ordering::Relaxed).into();
             self.device_manager.statuses.umc =
                 self.umc_status.fetch_and(0, Ordering::Relaxed).into();
+
+            if let Some(guard) = self.i2s_max.try_lock_for(Duration::from_millis(50)) {
+                let i2s_max = *guard;
+                drop(guard);
+                self.device_manager.statuses.max_i2s = i2s_max;
+            } else {
+                self.device_manager.statuses.max_i2s = i32::MIN;
+            }
+
+            if let Some(guard) = self.umc_max.try_lock_for(Duration::from_millis(50)) {
+                let umc_max = *guard;
+                drop(guard);
+                self.device_manager.statuses.max_umc = umc_max;
+            } else {
+                self.device_manager.statuses.max_umc = i32::MIN;
+            }
 
             if let Some(disk) = disk.as_mut() {
                 disk.refresh_specifics(DiskRefreshKind::nothing().with_storage());
