@@ -257,17 +257,17 @@ impl<'a> Reader<'a> {
             (None, (String::new(), String::new()))
         };
 
-        #[cfg(all(feature = "audio", feature = "data"))]
+        #[cfg(all(feature = "audio", feature = "sensors"))]
         {
-            self.device_manager.statuses.writing = "audio,data";
+            self.device_manager.statuses.writing = "audio,sensors";
         }
-        #[cfg(all(feature = "audio", not(feature = "data")))]
+        #[cfg(all(feature = "audio", not(feature = "sensors")))]
         {
             self.device_manager.statuses.writing = "audio";
         }
-        #[cfg(all(feature = "data", not(feature = "audio")))]
+        #[cfg(all(feature = "sensors", not(feature = "audio")))]
         {
-            self.device_manager.statuses.writing = "data";
+            self.device_manager.statuses.writing = "sensors";
         }
 
         //let client = reqwest::blocking::Client::new();
@@ -423,7 +423,7 @@ impl<'a> Reader<'a> {
                 data,
             };
 
-            #[cfg(feature = "data")]
+            #[cfg(feature = "sensors")]
             {
                 let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
                 let path = self.path.join(format!("{nanos}.json"));

@@ -7,7 +7,7 @@ edition = "2021"
 exclude = ["tract_test"]
 
 [features]
-data = []
+sensors = []
 audio = []
 
 [[bin]]
