@@ -389,18 +389,16 @@ impl<'a> Reader<'a> {
             self.device_manager.statuses.umc =
                 self.umc_status.fetch_and(0, Ordering::Relaxed).into();
 
-            if let Some(guard) = self.i2s_max.try_lock_for(Duration::from_millis(50)) {
-                let i2s_max = *guard;
-                drop(guard);
-                self.device_manager.statuses.max_i2s = i2s_max;
+            if let Some(mut guard) = self.i2s_max.try_lock_for(Duration::from_millis(50)) {
+                self.device_manager.statuses.max_i2s = *guard;
+                *guard = i32::MIN;
             } else {
                 self.device_manager.statuses.max_i2s = i32::MIN;
             }
 
-            if let Some(guard) = self.umc_max.try_lock_for(Duration::from_millis(50)) {
-                let umc_max = *guard;
-                drop(guard);
-                self.device_manager.statuses.max_umc = umc_max;
+            if let Some(mut guard) = self.umc_max.try_lock_for(Duration::from_millis(50)) {
+                self.device_manager.statuses.max_umc = *guard;
+                *guard = i32::MIN;
             } else {
                 self.device_manager.statuses.max_umc = i32::MIN;
             }

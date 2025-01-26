@@ -150,7 +150,8 @@ impl<'a> CaptureDevice<'a> {
                     #[cfg(feature = "audio")]
                     writer.write_sample(sample)?;
                 }
-                *self.max_read.lock() = max_sample;
+                let mut saved_max = self.max_read.lock();
+                *saved_max = saved_max.max(max_sample);
                 if zeros < samples {
                     last_read = Instant::now();
                 }
