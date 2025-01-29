@@ -11,5 +11,5 @@ just -f $HOME/andros/andros/justfile
 
 sleep 2
 
-echo "start andros" > $HOME/andros_started
+echo "start andros" > $HOME/started_andros
 while true; do andros; sleep 5; done
