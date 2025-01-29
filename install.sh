@@ -31,7 +31,7 @@ echo \$(ip -4 -o a | grep wg0 | egrep -o "10\.66\.66\.[0-9]{1,3}" | head -1) > \
 EOF
 # (crontab -l 2>/dev/null; echo "@reboot $HOME/save_mac_ip.sh") | crontab -
 
-# chmod +x /home/test/save_mac_ip.sh
+chmod +x /home/test/save_mac_ip.sh
 # nmcli connection add type gsm ifname '*' apn internet user internet password internet connection.autoconnect yes
 # # cp /home/test/save_mac_ip.sh /etc/init.d/
 # cp /home/test/andros/andros/ANDROSi2s.dtbo /boot/firmware/overlays
