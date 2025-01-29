@@ -8,6 +8,10 @@
 # sleep 10
 # echo \$(ip a s wlan0 | grep ether | egrep -o ..:..:..:..:..:.. | head -1) > \$HOME/andros/mac
 # echo \$(ip -4 -o a | grep wlan | egrep -o "192\.168\.[0-9]{1,3}\.[0-9]{1,3}" | head -1) > \$HOME/andros/ip' > $HOME/save_mac_ip.sh
+
+apt-get update -y
+apt-get upgrade -y
+
 sudo -i -u test bash << EOF
 mkdir -p \$HOME/andros
 cd \$HOME/andros
