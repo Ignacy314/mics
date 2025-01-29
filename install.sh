@@ -1,30 +1,38 @@
 #!/bin/sh
 
+# mkdir -p data/data
+# mkdir -p data/i2s
+# mkdir -p data/umc
+# mkdir -p samba
+# echo -e '#!/bin/bash
+# sleep 10
+# echo \$(ip a s wlan0 | grep ether | egrep -o ..:..:..:..:..:.. | head -1) > \$HOME/andros/mac
+# echo \$(ip -4 -o a | grep wlan | egrep -o "192\.168\.[0-9]{1,3}\.[0-9]{1,3}" | head -1) > \$HOME/andros/ip' > $HOME/save_mac_ip.sh
 sudo -i -u test bash << EOF
 mkdir -p \$HOME/andros
 cd \$HOME/andros
 mkdir -p data
-mkdir -p data/data
-mkdir -p data/i2s
-mkdir -p data/umc
 mkdir -p log
-mkdir -p samba
 rm -rf andros
 git clone https://github.com/Ignacy314/mics andros
 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
 echo -e '#!/bin/bash
-sleep 10
+while ! [ "\$(ping -c 1 google.com)" ]; do
+  sleep 1
+done
 echo \$(ip a s wlan0 | grep ether | egrep -o ..:..:..:..:..:.. | head -1) > \$HOME/andros/mac
-echo \$(ip -4 -o a | grep wlan | egrep -o "192\.168\.[0-9]{1,3}\.[0-9]{1,3}" | head -1) > \$HOME/andros/ip' > $HOME/save_mac_ip.sh
+echo \$(ip -4 -o a | grep wg0 | egrep -o "10\.66\.66\.[0-9]{1,3}" | head -1) > \$HOME/andros/ip' > $HOME/save_mac_ip.sh
 EOF
 # (crontab -l 2>/dev/null; echo "@reboot $HOME/save_mac_ip.sh") | crontab -
 
 chmod +x /home/test/save_mac_ip.sh
-cp /home/test/save_mac_ip.sh /etc/init.d/
+nmcli connection add type gsm ifname '*' apn internet user internet password internet connection.autoconnect yes
+# cp /home/test/save_mac_ip.sh /etc/init.d/
 cp /home/test/andros/andros/ANDROSi2s.dtbo /boot/firmware/overlays
 cp -f /home/test/andros/andros/config.txt /boot/firmware/config.txt
-chmod +x run.sh
+# chmod +x run.sh
 
 apt-get install -y samba samba-common-bin
 echo -e "[global]
@@ -66,12 +74,12 @@ systemctl enable --now chrony
 # echo "start andros" > \$HOME/andros_started
 # while true; do /home/test/.cargo/bin/andros; sleep 5; done' > $HOME/update.sh
 sudo -i -u test bash << EOF
+sh \$HOME/save_mac_ip.sh
 cargo install just
 cargo install --path \$HOME/andros/andros --locked
 (crontab -l 2>/dev/null; echo "@reboot $HOME/andros/andros/update.sh") | crontab -
 EOF
 
-nmcli connection add type gsm ifname '*' apn internet user internet password internet connection.autoconnect yes
 
 # chmod +x /home/test/update.sh
 # chmod +x /home/test/run_andros.sh
