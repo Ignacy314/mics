@@ -156,8 +156,10 @@ impl<'a> CaptureDevice<'a> {
                     last_read = Instant::now();
                 }
             }
-            if start.elapsed() >= file_duration {
-                start = start.checked_add(file_duration).unwrap();
+            let elapsed = start.elapsed();
+            if elapsed >= file_duration {
+                start = Instant::now().checked_sub(elapsed.saturating_sub(file_duration)).unwrap();
+                //start = start.checked_add(file_duration).unwrap();
                 #[cfg(feature = "audio")]
                 {
                     writer.finalize()?;
