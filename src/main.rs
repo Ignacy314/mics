@@ -26,7 +26,7 @@ const AUDIO_FILE_DURATION: Duration = Duration::from_secs(10);
 fn handle_capture_device_error(err: &CaptureDeviceError, status: &AtomicU8) {
     warn!("{err}");
     status.store(2, Ordering::Relaxed);
-    thread::sleep(Duration::from_secs(1));
+    //thread::sleep(Duration::from_secs(1));
 }
 
 #[allow(clippy::too_many_lines)]
