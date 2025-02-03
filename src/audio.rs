@@ -160,7 +160,7 @@ impl<'a> CaptureDevice<'a> {
             }
             let elapsed = start.elapsed();
             if elapsed >= file_duration {
-                info!("{}", elapsed.as_secs_f64());
+                //info!("{}", elapsed.as_secs_f64());
                 //start = Instant::now().checked_sub(elapsed.saturating_sub(file_duration)).unwrap();
                 start = start.checked_add(file_duration).unwrap();
                 #[cfg(feature = "audio")]
