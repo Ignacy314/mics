@@ -107,6 +107,7 @@ impl<'a> CaptureDevice<'a> {
 
         let mut start = Instant::now();
         let mut last_read = Instant::now();
+        info!("start audio read");
         while self.running.load(Ordering::Relaxed) {
             {
                 let mut pps = self.pps.lock();
