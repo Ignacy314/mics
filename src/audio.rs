@@ -65,7 +65,7 @@ impl<'a> CaptureDevice<'a> {
     }
 
     fn init_device(&self) -> Result<PCM, Error> {
-        let pcm = PCM::new(&self.device_name, Direction::Capture, false)?;
+        let pcm = PCM::new(&self.device_name, Direction::Capture, true)?;
         {
             let hwp = HwParams::any(&pcm)?;
             hwp.set_channels(self.channels)?;
@@ -125,39 +125,39 @@ impl<'a> CaptureDevice<'a> {
                     }
                 }
             }
-            //if let Ok(s) = io.readi(&mut buf) {
-            //    let n = s * wav_spec.channels as usize;
-            //    let mut zeros = 0;
-            //    for &sample in &buf[0..n] {
-            //        if sample.trailing_zeros() >= 28 {
-            //            zeros += 1;
-            //        }
-            //        writer.write_sample(sample)?;
-            //    }
-            //    if zeros < n {
-            //        last_read = Instant::now();
-            //    }
-            //}
-            if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
-                let mut max_sample = i32::MIN;
+            if let Ok(s) = io.readi(&mut buf) {
+                let n = s * wav_spec.channels as usize;
                 let mut zeros = 0;
-                let mut samples = buf.len();
-                for sample in buf {
-                    if sample.abs() > max_sample {
-                        max_sample = sample;
-                    }
-                    if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
+                for &sample in &buf[0..n] {
+                    if sample.trailing_zeros() >= 28 {
                         zeros += 1;
                     }
-                    #[cfg(feature = "audio")]
                     writer.write_sample(sample)?;
                 }
-                let mut saved_max = self.max_read.lock();
-                *saved_max = saved_max.max(max_sample);
-                if zeros < samples {
+                if zeros < n {
                     last_read = Instant::now();
                 }
             }
+            //if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
+            //    let mut max_sample = i32::MIN;
+            //    let mut zeros = 0;
+            //    let mut samples = buf.len();
+            //    for sample in buf {
+            //        if sample.abs() > max_sample {
+            //            max_sample = sample;
+            //        }
+            //        if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
+            //            zeros += 1;
+            //        }
+            //        #[cfg(feature = "audio")]
+            //        writer.write_sample(sample)?;
+            //    }
+            //    let mut saved_max = self.max_read.lock();
+            //    *saved_max = saved_max.max(max_sample);
+            //    if zeros < samples {
+            //        last_read = Instant::now();
+            //    }
+            //}
             let elapsed = start.elapsed();
             if elapsed >= file_duration {
                 info!("{}", elapsed.as_secs_f64());
