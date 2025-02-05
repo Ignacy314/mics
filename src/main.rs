@@ -118,6 +118,7 @@ fn main() {
         .print_message()
         .create_symlink(log_dir.join("current"))
         .format(with_thread)
+        .use_utc()
         .start()
         .unwrap();
 
