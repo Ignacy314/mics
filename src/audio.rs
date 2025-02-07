@@ -141,7 +141,7 @@ impl<'a> CaptureDevice<'a> {
             if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
                 let mut max_sample = i32::MIN;
                 let mut zeros = 0;
-                let mut samples = buf.len();
+                let samples = buf.len();
                 for sample in buf {
                     if sample.abs() > max_sample {
                         max_sample = sample;
