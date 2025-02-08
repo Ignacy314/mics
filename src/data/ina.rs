@@ -11,13 +11,18 @@ use super::Device;
 pub struct Ina {
     device: SyncIna219<rppal::i2c::I2c, UnCalibrated>,
     prev_voltage: u16,
+    prev_charge: Charge,
 }
 
 impl Ina {
     pub fn new() -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::new()?;
         let ina = SyncIna219::new(i2c, Address::from_byte(0x40)?)?;
-        Ok(Self { device: ina, prev_voltage: 0 })
+        Ok(Self {
+            device: ina,
+            prev_voltage: 0,
+            prev_charge: Charge::default(),
+        })
     }
 }
 
@@ -35,18 +40,18 @@ impl Default for Charge {
         Self::Unknown
     }
 }
-
-impl Display for Charge {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Charge::Unknown => write!(f, "Unknown"),
-            Charge::Charging(p) => write!(f, "Charging: {p}%"),
-            Charge::Discharging(p) => write!(f, "Discharging: {p}%"),
-            Charge::CriticalError => write!(f, "Critical Error"),
-            Charge::CriticalDischarge => write!(f, "Critical Discharge"),
-        }
-    }
-}
+//
+//impl Display for Charge {
+//    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//        match self {
+//            Charge::Unknown => write!(f, "Unknown"),
+//            Charge::Charging(p) => write!(f, "Charging: {p}%"),
+//            Charge::Discharging(p) => write!(f, "Discharging: {p}%"),
+//            Charge::CriticalError => write!(f, "Critical Error"),
+//            Charge::CriticalDischarge => write!(f, "Critical Discharge"),
+//        }
+//    }
+//}
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Copy)]
 pub struct Data {
@@ -103,7 +108,7 @@ impl Device for Ina {
             let percentage = (bus_voltage - 10500) / 24;
             Charge::Discharging(percentage)
         } else {
-            Charge::Unknown
+            self.prev_charge
         };
 
         self.prev_voltage = bus_voltage;
@@ -113,7 +118,7 @@ impl Device for Ina {
             shunt_voltage,
             current,
             power,
-            charge
+            charge,
         })
     }
 }
