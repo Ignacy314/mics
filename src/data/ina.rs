@@ -101,7 +101,7 @@ impl Device for Ina {
         #[allow(clippy::cast_precision_loss)]
         let power = shunt_voltage.unsigned_abs() as f32 / 100.0;
 
-        let old = self.voltage.push(bus_voltage);
+        let old = self.voltage.push(u32::from(bus_voltage));
         let new_ord = self.voltage.update_mean();
         let charge = if old == 0 {
             Charge::Unknown
@@ -132,7 +132,7 @@ impl Device for Ina {
 }
 
 pub struct CircularVoltage {
-    voltage: [u16; Self::SIZE],
+    voltage: [u32; Self::SIZE],
     index: usize,
     mean: u32,
 }
@@ -148,7 +148,7 @@ impl CircularVoltage {
         }
     }
 
-    pub fn push(&mut self, v: u16) -> u16 {
+    pub fn push(&mut self, v: u32) -> u32 {
         let old = self.voltage[self.index];
         self.voltage[self.index] = v;
         self.index = (self.index + 1) % Self::SIZE;
@@ -170,12 +170,17 @@ impl CircularVoltage {
     //}
 
     fn update_mean(&mut self) -> Ordering {
+        #[allow(clippy::cast_precision_loss)]
+        let mean = self.voltage.iter().sum::<u32>() as f32 / self.voltage.len() as f32;
+
         #[allow(clippy::cast_possible_truncation)]
+        #[allow(clippy::cast_precision_loss)]
         let new_mean: u32 = self
             .voltage
             .iter()
+            .filter(|v| **v as f32 >= mean)
             .enumerate()
-            .map(|(i, v)| (i as u32 + 1) * u32::from(*v))
+            .map(|(i, v)| (i as u32 + 1) * v)
             .sum();
 
         let c = new_mean.cmp(&self.mean);
