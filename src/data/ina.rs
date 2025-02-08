@@ -179,8 +179,8 @@ impl CircularVoltage {
             .voltage
             .iter()
             .filter(|v| **v as f32 >= mean)
-            .enumerate()
-            .map(|(i, v)| (i as u32 + 1) * v)
+            //.enumerate()
+            //.map(|(i, v)| (i as u32 + 1) * v)
             .sum();
 
         let c = new_mean.cmp(&self.mean);
