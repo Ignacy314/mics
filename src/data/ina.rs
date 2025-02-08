@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+use std::sync::atomic::Ordering;
 //use std::fmt::Display;
 use std::thread;
 
@@ -100,25 +102,25 @@ impl Device for Ina {
         #[allow(clippy::cast_precision_loss)]
         let power = shunt_voltage.unsigned_abs() as f32 / 100.0;
 
+        self.voltage.push(bus_voltage);
         let prev_voltage = self.voltage.oldest();
+        let new_ord = self.voltage.update_mean();
         let charge = if prev_voltage == 0 {
             Charge::Unknown
         } else if bus_voltage >= 15000 {
             Charge::CriticalError
         } else if bus_voltage <= 10000 {
             Charge::CriticalDischarge
-        } else if prev_voltage < bus_voltage {
+        } else if new_ord == Ordering::Greater {
             let percentage = (bus_voltage - 10500) / 43;
             Charge::Charging(percentage)
-        } else if prev_voltage > bus_voltage {
+        } else if new_ord == Ordering::Less {
             let percentage = (bus_voltage - 10500) / 24;
             Charge::Discharging(percentage)
         } else {
             self.prev_charge
         };
 
-        //self.prev_voltage = bus_voltage;
-        self.voltage.push(bus_voltage);
         self.prev_charge = charge;
 
         Ok(Self::Data {
@@ -134,13 +136,18 @@ impl Device for Ina {
 pub struct CircularVoltage {
     voltage: [u16; Self::SIZE],
     index: usize,
+    mean: u32,
 }
 
 impl CircularVoltage {
-    const SIZE: usize = 5;
+    const SIZE: usize = 10;
 
     pub fn new() -> Self {
-        Self { voltage: [0; Self::SIZE], index: 0 }
+        Self {
+            voltage: [0; Self::SIZE],
+            index: 0,
+            mean: 0,
+        }
     }
 
     pub fn push(&mut self, v: u16) {
@@ -160,5 +167,19 @@ impl CircularVoltage {
 
     pub fn oldest(&self) -> u16 {
         self.voltage[self.index]
+    }
+
+    fn update_mean(&mut self) -> Ordering {
+        #[allow(clippy::cast_possible_truncation)]
+        let new_mean: u32 = self
+            .voltage
+            .iter()
+            .enumerate()
+            .map(|(i, v)| (i as u32 + 1) * u32::from(*v))
+            .sum();
+
+        let c = new_mean.cmp(&self.mean);
+        self.mean = new_mean;
+        c
     }
 }
