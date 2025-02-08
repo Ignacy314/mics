@@ -1,5 +1,4 @@
 use std::cmp::Ordering;
-use std::sync::atomic::Ordering;
 //use std::fmt::Display;
 use std::thread;
 
@@ -136,7 +135,7 @@ impl Device for Ina {
 pub struct CircularVoltage {
     voltage: [u32; Self::SIZE],
     index: usize,
-    mean: u32,
+    //mean: u32,
 }
 
 impl CircularVoltage {
@@ -146,7 +145,7 @@ impl CircularVoltage {
         Self {
             voltage: [0; Self::SIZE],
             index: 0,
-            mean: 0,
+            //mean: 0,
         }
     }
 
@@ -187,7 +186,7 @@ impl CircularVoltage {
         if let Ok((a, _)) = lr {
             return a.total_cmp(&0.0);
         }
-        return Ordering::Equal;
+        Ordering::Equal
         //
         //#[allow(clippy::cast_precision_loss)]
         //let mean = self.voltage.iter().sum::<u32>() as f32 / self.voltage.len() as f32;
