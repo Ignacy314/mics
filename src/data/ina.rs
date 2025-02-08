@@ -24,6 +24,10 @@ impl Ina {
             prev_charge: Charge::default(),
         })
     }
+
+    pub fn get_charge(&self) -> Charge {
+        self.prev_charge
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -112,6 +116,7 @@ impl Device for Ina {
         };
 
         self.prev_voltage = bus_voltage;
+        self.prev_charge = charge;
 
         Ok(Self::Data {
             bus_voltage,
