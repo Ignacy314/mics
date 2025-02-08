@@ -270,7 +270,7 @@ impl<'a> Reader<'a> {
             self.device_manager.statuses.writing = "sensors";
         }
 
-        let mut prev_voltage = 0u16;
+        //let mut prev_voltage = 0u16;
         //let client = reqwest::blocking::Client::new();
         while running.load(Ordering::Relaxed) {
             let start = Instant::now();
