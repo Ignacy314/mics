@@ -21,7 +21,7 @@ impl Ina {
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Copy)]
 pub struct Data {
-    bus_voltage: u16,
+    pub bus_voltage: u16,
     shunt_voltage: i32,
     current: u16,
     power: f32,
@@ -82,3 +82,21 @@ impl Device for Ina {
         })
     }
 }
+
+//pub struct CircularVoltage {
+//    voltage: [u16; 5],
+//    index: usize,
+//}
+//
+//impl CircularVoltage {
+//    pub fn new() -> Self {
+//        Self { voltage: [0; 5], index: 0 }
+//    }
+//
+//    pub fn push(&mut self, v: u16) {
+//        self.voltage[self.index] = v;
+//        self.index = (self.index + 1) % 5;
+//    }
+//
+//    pub fn newest()
+//}

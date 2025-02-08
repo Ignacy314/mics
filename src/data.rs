@@ -270,6 +270,7 @@ impl<'a> Reader<'a> {
             self.device_manager.statuses.writing = "sensors";
         }
 
+        let mut prev_voltage = 0u16;
         //let client = reqwest::blocking::Client::new();
         while running.load(Ordering::Relaxed) {
             let start = Instant::now();
@@ -364,6 +365,14 @@ impl<'a> Reader<'a> {
             if let Some(ina) = self.device_manager.ina.as_mut() {
                 match ina.get_data() {
                     Ok(d) => {
+                        let volt = d.bus_voltage;
+                        if volt >= 15000 {
+
+                        } else if volt <= 10000 {
+
+                        } else if prev_voltage < volt {
+                            let percentage = (volt - 10500) as f64 / 2400.0;
+                        }
                         self.device_manager.statuses.ina = Status::Ok;
                         data.ina = Some(d);
                     }
