@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::thread;
 
 use ina219::address::Address;
@@ -9,13 +10,41 @@ use super::Device;
 
 pub struct Ina {
     device: SyncIna219<rppal::i2c::I2c, UnCalibrated>,
+    prev_voltage: u16,
 }
 
 impl Ina {
     pub fn new() -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::new()?;
         let ina = SyncIna219::new(i2c, Address::from_byte(0x40)?)?;
-        Ok(Self { device: ina })
+        Ok(Self { device: ina, prev_voltage: 0 })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+pub enum Charge {
+    Unknown,
+    Charging(u16),
+    Discharging(u16),
+    CriticalError,
+    CriticalDischarge,
+}
+
+impl Default for Charge {
+    fn default() -> Self {
+        Self::Unknown
+    }
+}
+
+impl Display for Charge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Charge::Unknown => write!(f, "Unknown"),
+            Charge::Charging(p) => write!(f, "Charging: {p}%"),
+            Charge::Discharging(p) => write!(f, "Discharging: {p}%"),
+            Charge::CriticalError => write!(f, "Critical Error"),
+            Charge::CriticalDischarge => write!(f, "Critical Discharge"),
+        }
     }
 }
 
@@ -25,6 +54,7 @@ pub struct Data {
     shunt_voltage: i32,
     current: u16,
     power: f32,
+    charge: Charge,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -54,31 +84,36 @@ impl Device for Ina {
             thread::sleep(time);
         }
 
-        //let measure: Option<ina219::measurements::Measurements<(), ()>> = self.device.next_measurement()?;
-        //if let Some(measure) = self.device.next_measurement()? {
-        //    let power = measure.power;
-        //}
         let bus_voltage = (self.device.bus_voltage()?).voltage_mv();
         let shunt_voltage = (self.device.shunt_voltage()?).shunt_voltage_uv();
         let current = (self.device.current_raw()?).0 * 10;
-        //let power = (self.device.power_raw()?).0 * 2;
         #[allow(clippy::cast_precision_loss)]
         let power = shunt_voltage.unsigned_abs() as f32 / 100.0;
 
-        //let d = Self::Data {
-        //    bus_voltage,
-        //    shunt_voltage,
-        //    current,
-        //    power,
-        //};
+        let charge = if self.prev_voltage == 0 {
+            Charge::Unknown
+        } else if bus_voltage >= 15000 {
+            Charge::CriticalError
+        } else if bus_voltage <= 10000 {
+            Charge::CriticalDischarge
+        } else if self.prev_voltage < bus_voltage {
+            let percentage = (bus_voltage - 10500) / 43;
+            Charge::Charging(percentage)
+        } else if self.prev_voltage > bus_voltage {
+            let percentage = (bus_voltage - 10500) / 24;
+            Charge::Discharging(percentage)
+        } else {
+            Charge::Unknown
+        };
 
-        //eprintln!("{d:?}");
+        self.prev_voltage = bus_voltage;
 
         Ok(Self::Data {
             bus_voltage,
             shunt_voltage,
             current,
             power,
+            charge
         })
     }
 }
