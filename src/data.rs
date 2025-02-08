@@ -365,14 +365,14 @@ impl<'a> Reader<'a> {
             if let Some(ina) = self.device_manager.ina.as_mut() {
                 match ina.get_data() {
                     Ok(d) => {
-                        let volt = d.bus_voltage;
-                        if volt >= 15000 {
-
-                        } else if volt <= 10000 {
-
-                        } else if prev_voltage < volt {
-                            let percentage = (volt - 10500) as f64 / 2400.0;
-                        }
+                        //let volt = d.bus_voltage;
+                        //if volt >= 15000 {
+                        //
+                        //} else if volt <= 10000 {
+                        //
+                        //} else if prev_voltage < volt {
+                        //    let percentage = (volt - 10500) as f64 / 2400.0;
+                        //}
                         self.device_manager.statuses.ina = Status::Ok;
                         data.ina = Some(d);
                     }
