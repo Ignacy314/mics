@@ -1,4 +1,4 @@
-use std::fmt::Display;
+//use std::fmt::Display;
 use std::thread;
 
 use ina219::address::Address;
@@ -10,7 +10,8 @@ use super::Device;
 
 pub struct Ina {
     device: SyncIna219<rppal::i2c::I2c, UnCalibrated>,
-    prev_voltage: u16,
+    //prev_voltage: u16,
+    voltage: CircularVoltage,
     prev_charge: Charge,
 }
 
@@ -20,14 +21,14 @@ impl Ina {
         let ina = SyncIna219::new(i2c, Address::from_byte(0x40)?)?;
         Ok(Self {
             device: ina,
-            prev_voltage: 0,
+            voltage: CircularVoltage::new(),
             prev_charge: Charge::default(),
         })
     }
 
-    pub fn get_charge(&self) -> Charge {
-        self.prev_charge
-    }
+    //pub fn get_charge(&self) -> Charge {
+    //    self.prev_charge
+    //}
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -99,23 +100,25 @@ impl Device for Ina {
         #[allow(clippy::cast_precision_loss)]
         let power = shunt_voltage.unsigned_abs() as f32 / 100.0;
 
-        let charge = if self.prev_voltage == 0 {
+        let prev_voltage = self.voltage.oldest();
+        let charge = if prev_voltage == 0 {
             Charge::Unknown
         } else if bus_voltage >= 15000 {
             Charge::CriticalError
         } else if bus_voltage <= 10000 {
             Charge::CriticalDischarge
-        } else if self.prev_voltage < bus_voltage {
+        } else if prev_voltage < bus_voltage {
             let percentage = (bus_voltage - 10500) / 43;
             Charge::Charging(percentage)
-        } else if self.prev_voltage > bus_voltage {
+        } else if prev_voltage > bus_voltage {
             let percentage = (bus_voltage - 10500) / 24;
             Charge::Discharging(percentage)
         } else {
             self.prev_charge
         };
 
-        self.prev_voltage = bus_voltage;
+        //self.prev_voltage = bus_voltage;
+        self.voltage.push(bus_voltage);
         self.prev_charge = charge;
 
         Ok(Self::Data {
@@ -128,20 +131,34 @@ impl Device for Ina {
     }
 }
 
-//pub struct CircularVoltage {
-//    voltage: [u16; 5],
-//    index: usize,
-//}
-//
-//impl CircularVoltage {
-//    pub fn new() -> Self {
-//        Self { voltage: [0; 5], index: 0 }
-//    }
-//
-//    pub fn push(&mut self, v: u16) {
-//        self.voltage[self.index] = v;
-//        self.index = (self.index + 1) % 5;
-//    }
-//
-//    pub fn newest()
-//}
+pub struct CircularVoltage {
+    voltage: [u16; Self::SIZE],
+    index: usize,
+}
+
+impl CircularVoltage {
+    const SIZE: usize = 5;
+
+    pub fn new() -> Self {
+        Self { voltage: [0; Self::SIZE], index: 0 }
+    }
+
+    pub fn push(&mut self, v: u16) {
+        self.voltage[self.index] = v;
+        self.index = (self.index + 1) % Self::SIZE;
+    }
+
+    //pub fn newest(&self) -> u16 {
+    //    let index = if self.index == 0 {
+    //        5
+    //    } else {
+    //        self.index - 1
+    //    };
+    //
+    //    self.voltage[index]
+    //}
+
+    pub fn oldest(&self) -> u16 {
+        self.voltage[self.index]
+    }
+}
