@@ -1,5 +1,4 @@
 use std::cmp::Ordering;
-use std::sync::atomic::Ordering;
 //use std::fmt::Display;
 use std::thread;
 
@@ -102,10 +101,9 @@ impl Device for Ina {
         #[allow(clippy::cast_precision_loss)]
         let power = shunt_voltage.unsigned_abs() as f32 / 100.0;
 
-        self.voltage.push(bus_voltage);
-        let prev_voltage = self.voltage.oldest();
+        let old = self.voltage.push(bus_voltage);
         let new_ord = self.voltage.update_mean();
-        let charge = if prev_voltage == 0 {
+        let charge = if old == 0 {
             Charge::Unknown
         } else if bus_voltage >= 15000 {
             Charge::CriticalError
@@ -150,9 +148,11 @@ impl CircularVoltage {
         }
     }
 
-    pub fn push(&mut self, v: u16) {
+    pub fn push(&mut self, v: u16) -> u16 {
+        let old = self.voltage[self.index];
         self.voltage[self.index] = v;
         self.index = (self.index + 1) % Self::SIZE;
+        old
     }
 
     //pub fn newest(&self) -> u16 {
@@ -165,9 +165,9 @@ impl CircularVoltage {
     //    self.voltage[index]
     //}
 
-    pub fn oldest(&self) -> u16 {
-        self.voltage[self.index]
-    }
+    //pub fn oldest(&self) -> u16 {
+    //    self.voltage[self.index]
+    //}
 
     fn update_mean(&mut self) -> Ordering {
         #[allow(clippy::cast_possible_truncation)]
