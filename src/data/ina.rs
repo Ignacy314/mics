@@ -1,10 +1,12 @@
 use std::cmp::Ordering;
+use std::sync::atomic::Ordering;
 //use std::fmt::Display;
 use std::thread;
 
 use ina219::address::Address;
 use ina219::calibration::UnCalibrated;
 use ina219::SyncIna219;
+use linreg::linear_regression_of;
 use serde::{Deserialize, Serialize};
 
 use super::Device;
@@ -171,20 +173,37 @@ impl CircularVoltage {
 
     fn update_mean(&mut self) -> Ordering {
         #[allow(clippy::cast_precision_loss)]
-        let mean = self.voltage.iter().sum::<u32>() as f32 / self.voltage.len() as f32;
-
-        #[allow(clippy::cast_possible_truncation)]
-        #[allow(clippy::cast_precision_loss)]
-        let new_mean: u32 = self
+        let tuples = self
             .voltage
             .iter()
-            .filter(|v| **v as f32 >= mean)
-            //.enumerate()
-            //.map(|(i, v)| (i as u32 + 1) * v)
-            .sum();
+            .cycle()
+            .skip(self.index)
+            .take(Self::SIZE)
+            .enumerate()
+            .map(|(i, v)| (i as f32, *v as f32))
+            .collect::<Vec<_>>();
 
-        let c = new_mean.cmp(&self.mean);
-        self.mean = new_mean;
-        c
+        let lr = linear_regression_of::<f32, f32, f32>(&tuples);
+        if let Ok((a, _)) = lr {
+            return a.total_cmp(&0.0);
+        }
+        return Ordering::Equal;
+        //
+        //#[allow(clippy::cast_precision_loss)]
+        //let mean = self.voltage.iter().sum::<u32>() as f32 / self.voltage.len() as f32;
+        //
+        //#[allow(clippy::cast_possible_truncation)]
+        //#[allow(clippy::cast_precision_loss)]
+        //let new_mean: u32 = self
+        //    .voltage
+        //    .iter()
+        //    .filter(|v| **v as f32 >= mean)
+        //    //.enumerate()
+        //    //.map(|(i, v)| (i as u32 + 1) * v)
+        //    .sum();
+        //
+        //let c = new_mean.cmp(&self.mean);
+        //self.mean = new_mean;
+        //c
     }
 }
