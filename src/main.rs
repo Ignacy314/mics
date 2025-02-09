@@ -31,7 +31,6 @@ fn handle_capture_device_error(err: &CaptureDeviceError, status: &AtomicU8) {
     }
 }
 
-#[allow(clippy::too_many_lines)]
 fn main() {
     let home = match std::env::var("HOME") {
         Ok(var) => var,

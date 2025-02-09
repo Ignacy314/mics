@@ -59,10 +59,9 @@ impl<'a> CaptureDevice<'a> {
         }
     }
 
-    #[allow(unused)]
-    pub fn set_device_name(&mut self, device_name: &str) {
-        device_name.clone_into(&mut self.device_name);
-    }
+    //pub fn set_device_name(&mut self, device_name: &str) {
+    //    device_name.clone_into(&mut self.device_name);
+    //}
 
     fn init_device(&self) -> Result<PCM, Error> {
         let pcm = PCM::new(&self.device_name, Direction::Capture, false)?;
@@ -80,7 +79,6 @@ impl<'a> CaptureDevice<'a> {
     }
 
     pub fn read(&self, file_duration: Duration) -> Result<(), CaptureDeviceError> {
-        #[allow(clippy::cast_possible_wrap)]
         const PREFIX: i32 = 0xeeee_eeeeu32 as i32;
 
         let pcm = self.init_device()?;
@@ -91,7 +89,6 @@ impl<'a> CaptureDevice<'a> {
 
         let mut buf = [0i32; 1024];
         let wav_spec = hound::WavSpec {
-            #[allow(clippy::cast_possible_truncation)]
             channels: self.channels as u16,
             sample_rate: self.samplerate,
             bits_per_sample: 32,

@@ -99,7 +99,6 @@ impl Device for Ina {
         let bus_voltage = (self.device.bus_voltage()?).voltage_mv();
         let shunt_voltage = (self.device.shunt_voltage()?).shunt_voltage_uv();
         let current = (self.device.current_raw()?).0 * 10;
-        #[allow(clippy::cast_precision_loss)]
         let power = shunt_voltage.unsigned_abs() as f32 / 100.0;
 
         let old = self.voltage.push(u32::from(bus_voltage));
@@ -171,7 +170,6 @@ impl CircularVoltage {
     //}
 
     fn update_mean(&mut self) -> Ordering {
-        #[allow(clippy::cast_precision_loss)]
         let tuples = self
             .voltage
             .iter()
@@ -187,12 +185,9 @@ impl CircularVoltage {
             return a.total_cmp(&0.0);
         }
         Ordering::Equal
-        //
-        //#[allow(clippy::cast_precision_loss)]
+
         //let mean = self.voltage.iter().sum::<u32>() as f32 / self.voltage.len() as f32;
         //
-        //#[allow(clippy::cast_possible_truncation)]
-        //#[allow(clippy::cast_precision_loss)]
         //let new_mean: u32 = self
         //    .voltage
         //    .iter()

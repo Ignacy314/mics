@@ -407,7 +407,6 @@ impl Device for Imu {
                                 sum[2] += z;
                                 sum
                             });
-                    #[allow(clippy::cast_precision_loss)]
                     let len = -(self.gyro_data.size as f32);
                     self.gyro_bias = [sum[0] / len, sum[1] / len, sum[2] / len];
                     self.calibrated = true;

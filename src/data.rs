@@ -141,7 +141,6 @@ impl<'a> Reader<'a> {
         warn!("INA219 init failed: {err}");
     }
 
-    #[allow(clippy::too_many_lines)]
     pub fn read<'b>(
         &mut self,
         running: &'a AtomicBool,
@@ -389,8 +388,6 @@ impl<'a> Reader<'a> {
             self.device_manager.statuses.umc =
                 self.umc_status.fetch_and(0, Ordering::Relaxed).into();
 
-            #[allow(clippy::cast_possible_truncation)]
-            #[allow(clippy::cast_precision_loss)]
             if let Some(mut guard) = self.i2s_max.try_lock_for(Duration::from_millis(50)) {
                 self.device_manager.statuses.max_i2s = (*guard as f32 / 1e6) as i32;
                 *guard = i32::MIN;
@@ -398,8 +395,6 @@ impl<'a> Reader<'a> {
                 self.device_manager.statuses.max_i2s = i32::MIN;
             }
 
-            #[allow(clippy::cast_possible_truncation)]
-            #[allow(clippy::cast_precision_loss)]
             if let Some(mut guard) = self.umc_max.try_lock_for(Duration::from_millis(50)) {
                 self.device_manager.statuses.max_umc = (*guard as f32 / 1e6) as i32;
                 *guard = i32::MIN;
@@ -409,12 +404,10 @@ impl<'a> Reader<'a> {
 
             if let Some(disk) = disk.as_mut() {
                 disk.refresh_specifics(DiskRefreshKind::nothing().with_storage());
-                #[allow(clippy::cast_precision_loss)]
                 let free = disk.available_space() as f32 / (1024.0 * 1024.0 * 1024.0);
                 self.device_manager.statuses.free = free;
             }
 
-            #[allow(clippy::items_after_statements)]
             #[derive(Serialize, Debug)]
             struct JsonData<'a> {
                 statuses: Statuses<'a>,
