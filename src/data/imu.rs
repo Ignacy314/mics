@@ -4,7 +4,7 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 
-use log::{debug, info};
+use log::{debug, info, warn};
 use mpu9250::{Mpu9250, MpuConfig};
 use serde::{Deserialize, Serialize};
 
@@ -138,11 +138,14 @@ impl Imu {
             info!("MAGNETOMETER CALIBRATION FILE FOUND");
             let file = File::open(mag_calib_path)?;
             let reader = BufReader::new(file);
-            let calib: MagCalib = serde_json::from_reader(reader)?;
-            info!("MAGNETOMETER CALIBRATION READ FROM FILE");
-            s.mag_bias = calib.bias;
-            s.mag_scale = calib.scale;
-            info!("MAGNETOMETER CALIBRATION COMPLETED");
+            if let Ok(calib) = serde_json::from_reader::<_, MagCalib>(reader) {
+                info!("MAGNETOMETER CALIBRATION READ FROM FILE");
+                s.mag_bias = calib.bias;
+                s.mag_scale = calib.scale;
+                info!("MAGNETOMETER CALIBRATION COMPLETED");
+            } else {
+                warn!("MAGNETOMETER CALIBRATION FILE WRONG CONTENTS - SKIPPING");
+            }
         } else {
             info!("MAGNETOMETER CALIBRATION FILE NOT FOUND");
         }
@@ -241,24 +244,30 @@ impl Imu {
                 info!("GYROSCOPE CALIBRATION FILE FOUND");
                 let file = File::open(gyro_file_path)?;
                 let reader = BufReader::new(file);
-                let calib: GyroCalib = serde_json::from_reader(reader)?;
-                info!("GYROSCOPE CALIBRATION READ FROM FILE");
-                self.device.set_gyro_bias(false, [0.0, 0.0, 0.0])?;
-                self.gyro_bias = calib.gyro_bias;
-                self.calibrated = true;
+                if let Ok(calib) = serde_json::from_reader::<_, GyroCalib>(reader) {
+                    info!("GYROSCOPE CALIBRATION READ FROM FILE");
+                    self.device.set_gyro_bias(false, [0.0, 0.0, 0.0])?;
+                    self.gyro_bias = calib.gyro_bias;
+                    self.calibrated = true;
+                } else {
+                    warn!("GYROSCOPE CALIBRATION FILE WRONG CONTENTS - SKIPPING");
+                }
             } else {
                 info!("GYROCOPE CALIBRATION FILE NOT FOUND");
             }
             if calib_file_path.exists() {
                 info!("DEVICE CALIBRATION FILE FOUND");
-                let file = File::open(calib_file_path)?;
+                let file = File::open(calib_file_path.clone())?;
                 let reader = BufReader::new(file);
-                let calib: Calib = serde_json::from_reader(reader)?;
-                info!("DEVICE CALIBRATION READ FROM FILE");
-                self.mag_sens_adj = calib.mag_sens_adj;
-                self.device.set_accel_bias(true, calib.acc_bias)?;
-                info!("DEVICE CALIBRATION COMPLETED");
-                return Ok(());
+                if let Ok(calib) = serde_json::from_reader::<_, Calib>(reader) {
+                    info!("DEVICE CALIBRATION READ FROM FILE");
+                    self.mag_sens_adj = calib.mag_sens_adj;
+                    self.device.set_accel_bias(true, calib.acc_bias)?;
+                    info!("DEVICE CALIBRATION COMPLETED");
+                    return Ok(());
+                } else {
+                    warn!("DEVICE CALIBRATION FILE WRONG CONTENTS - SKIPPING");
+                }
             }
             info!("DEVICE CALIBRATION FILE NOT FOUND");
         }
