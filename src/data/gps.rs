@@ -3,7 +3,7 @@ use std::num::ParseIntError;
 use std::time::Duration;
 
 use chrono::NaiveDateTime;
-use log::info;
+use log::{info, warn};
 use rppal::uart::{Parity, Uart};
 use serde::{Deserialize, Serialize};
 
@@ -14,24 +14,55 @@ pub struct Gps {
     device: Uart,
 }
 
-fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
-        .collect()
-}
+const B115200: [u8; 37] = [
+    0xb5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xd0, 0x08, 0x00, 0x00, 0x00, 0xc2,
+    0x01, 0x00, 0x07, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc4, 0x96, 0xb5, 0x62, 0x06, 0x00,
+    0x01, 0x00, 0x01, 0x08, 0x22,
+];
+
+const B9600: [u8; 37] = [
+    0xb5, 0x62, 0x06, 0x00, 0x14, 0x00, 0x01, 0x00, 0x00, 0x00, 0xd0, 0x08, 0x00, 0x00, 0x80, 0x25,
+    0x00, 0x00, 0x07, 0x00, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0xa6, 0xcd, 0xb5, 0x62, 0x06, 0x00,
+    0x01, 0x00, 0x01, 0x08, 0x22,
+];
+
+const BAUD_RATES: [u32; 4] = [4800, 9600, 38400, 115200];
+
+//fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
+//    (0..s.len())
+//        .step_by(2)
+//        .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+//        .collect()
+//}
 
 impl Gps {
     pub fn new(port: &str, baud_rate: u32, timeout: Duration) -> Result<Self, Error> {
-        let mut uart = Uart::with_path(port, baud_rate, Parity::None, 8, 1)?;
+        let mut uart = Uart::with_path(port, 9_600, Parity::None, 8, 1)?;
         uart.set_read_mode(0, timeout)?;
-        //let msg = "b5620600140001000000d008000000c201000700070000000000c496b56206000100010822";
-        //let write_settings = "B56206090D0000000000FFFF0000000000001731BF";
-        //let bytes = decode_hex(msg).unwrap();
-        //let write_settings_bytes = decode_hex(write_settings).unwrap();
-        //uart.write(&bytes).unwrap();
-        //uart.write(&bytes2).unwrap();
-        //uart.set_baud_rate(baud_rate).unwrap();
+        match baud_rate {
+            9_600 => {
+                for br in BAUD_RATES {
+                    uart.set_baud_rate(br).unwrap();
+                    uart.write(&B9600).unwrap();
+                }
+                uart.set_baud_rate(9_600).unwrap();
+            }
+            115_200 => {
+                for br in BAUD_RATES {
+                    uart.set_baud_rate(br).unwrap();
+                    uart.write(&B115200).unwrap();
+                }
+                uart.set_baud_rate(115_200).unwrap();
+            }
+            _ => {
+                warn!("unsupported GPS baud rate; defaulting to 9600");
+                for br in BAUD_RATES {
+                    uart.set_baud_rate(br).unwrap();
+                    uart.write(&B9600).unwrap();
+                }
+                uart.set_baud_rate(9_600).unwrap();
+            }
+        }
         Ok(Self { device: uart })
     }
 }
