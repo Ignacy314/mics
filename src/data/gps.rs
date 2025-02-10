@@ -71,7 +71,7 @@ impl Device for Gps {
         let lines = buf.lines();
 
         //eprintln!("{lines:?}");
-        info!("{lines:?}");
+        //info!("{lines:?}");
 
         let gga = lines.filter(|l| {
             if let Ok(l) = l {
