@@ -27,8 +27,8 @@ impl Gps {
         uart.set_read_mode(0, timeout)?;
         let msg = "b5620600140001000000d008000000c201000700070000000000c496b56206000100010822";
         let bytes = decode_hex(msg).unwrap();
-        uart.write(&bytes).unwrap();
-        uart.set_baud_rate(baud_rate).unwrap();
+        //uart.write(&bytes).unwrap();
+        //uart.set_baud_rate(baud_rate).unwrap();
         Ok(Self { device: uart })
     }
 }
