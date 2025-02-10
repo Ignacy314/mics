@@ -23,7 +23,7 @@ fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
 
 impl Gps {
     pub fn new(port: &str, baud_rate: u32, timeout: Duration) -> Result<Self, Error> {
-        let mut uart = Uart::with_path(port, 9600, Parity::None, 8, 1)?;
+        let mut uart = Uart::with_path(port, baud_rate, Parity::None, 8, 1)?;
         uart.set_read_mode(0, timeout)?;
         let msg = "b5620600140001000000d008000000c201000700070000000000c496b56206000100010822";
         let msg2 = "B56206090D0000000000FFFF0000000000001731BF";
