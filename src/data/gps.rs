@@ -71,6 +71,7 @@ impl Device for Gps {
         let lines = buf.lines();
 
         //eprintln!("{lines:?}");
+        info!("{lines:?}");
 
         let gga = lines.filter(|l| {
             if let Ok(l) = l {
@@ -89,8 +90,6 @@ impl Device for Gps {
         let Some(Ok(line)) = gga else {
             return Err(Error::NoData);
         };
-
-        info!("{line}");
 
         let Ok(data) = nmea::parse_str(line.as_str()) else {
             return Err(Error::InvalidNmeaString);
