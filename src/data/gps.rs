@@ -1,4 +1,5 @@
 use std::io::BufRead;
+use std::num::ParseIntError;
 use std::time::Duration;
 
 use chrono::NaiveDateTime;
@@ -12,9 +13,20 @@ pub struct Gps {
     device: Uart,
 }
 
+fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
+    (0..s.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
+        .collect()
+}
+
 impl Gps {
     pub fn new(port: &str, baud_rate: u32, timeout: Duration) -> Result<Self, Error> {
-        let mut uart = Uart::with_path(port, baud_rate, Parity::None, 8, 1)?;
+        let mut uart = Uart::with_path(port, 9_600, Parity::None, 8, 1)?;
+        let msg = "b5620600140001000000d008000000c201000700070000000000c496b56206000100010822";
+        let bytes = decode_hex(msg).unwrap();
+        uart.write(&bytes).unwrap();
+        uart.set_baud_rate(baud_rate).unwrap();
         uart.set_read_mode(0, timeout)?;
         Ok(Self { device: uart })
     }
