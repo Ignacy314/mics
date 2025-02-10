@@ -3,6 +3,7 @@ use std::num::ParseIntError;
 use std::time::Duration;
 
 use chrono::NaiveDateTime;
+use log::info;
 use rppal::uart::{Parity, Uart};
 use serde::{Deserialize, Serialize};
 
@@ -22,12 +23,12 @@ fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
 
 impl Gps {
     pub fn new(port: &str, baud_rate: u32, timeout: Duration) -> Result<Self, Error> {
-        let mut uart = Uart::with_path(port, baud_rate, Parity::None, 8, 1)?;
+        let mut uart = Uart::with_path(port, 9600, Parity::None, 8, 1)?;
         uart.set_read_mode(0, timeout)?;
         let msg = "b5620600140001000000d008000000c201000700070000000000c496b56206000100010822";
         let bytes = decode_hex(msg).unwrap();
         uart.write(&bytes).unwrap();
-        //uart.set_baud_rate(baud_rate).unwrap();
+        uart.set_baud_rate(baud_rate).unwrap();
         Ok(Self { device: uart })
     }
 }
@@ -88,6 +89,8 @@ impl Device for Gps {
         let Some(Ok(line)) = gga else {
             return Err(Error::NoData);
         };
+
+        info!("{line}");
 
         let Ok(data) = nmea::parse_str(line.as_str()) else {
             return Err(Error::InvalidNmeaString);
