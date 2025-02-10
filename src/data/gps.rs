@@ -26,9 +26,12 @@ impl Gps {
         let mut uart = Uart::with_path(port, 9600, Parity::None, 8, 1)?;
         uart.set_read_mode(0, timeout)?;
         let msg = "b5620600140001000000d008000000c201000700070000000000c496b56206000100010822";
+        let msg2 = "B56206090D0000000000FFFF0000000000001731BF";
         let bytes = decode_hex(msg).unwrap();
-        //uart.write(&bytes).unwrap();
-        //uart.set_baud_rate(baud_rate).unwrap();
+        let bytes2 = decode_hex(msg2).unwrap();
+        uart.write(&bytes).unwrap();
+        uart.write(&bytes2).unwrap();
+        uart.set_baud_rate(baud_rate).unwrap();
         Ok(Self { device: uart })
     }
 }
