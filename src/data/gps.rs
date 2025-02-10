@@ -29,8 +29,8 @@ impl Gps {
         let msg2 = "B56206090D0000000000FFFF0000000000001731BF";
         let bytes = decode_hex(msg).unwrap();
         let bytes2 = decode_hex(msg2).unwrap();
-        uart.write(&bytes).unwrap();
-        uart.write(&bytes2).unwrap();
+        //uart.write(&bytes).unwrap();
+        //uart.write(&bytes2).unwrap();
         //uart.set_baud_rate(baud_rate).unwrap();
         Ok(Self { device: uart })
     }
