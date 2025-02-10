@@ -221,8 +221,8 @@ impl Imu {
         let vec_north = Self::oproj(mag, acc);
         //let vec_north = mag;
 
-        // Assuming x is forward y is left (or the other way around, directions are hard)
-        vec_north[1].atan2(vec_north[0]) * 180.0 / PI
+        // Assuming x is left y is back (or the other way around, directions are hard)
+        -vec_north[1].atan2(vec_north[0]) * 180.0 / PI
     }
 
     pub fn calibrate(&mut self, try_from_file: bool) -> Result<(), Error> {
