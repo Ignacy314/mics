@@ -1,5 +1,6 @@
 use std::io::BufRead;
 use std::num::ParseIntError;
+use std::thread;
 use std::time::Duration;
 
 use chrono::NaiveDateTime;
@@ -39,30 +40,33 @@ impl Gps {
     pub fn new(port: &str, baud_rate: u32, timeout: Duration) -> Result<Self, Error> {
         let mut uart = Uart::with_path(port, 9_600, Parity::None, 8, 1)?;
         uart.set_read_mode(0, timeout)?;
-        match baud_rate {
-            9_600 => {
-                for br in BAUD_RATES {
-                    uart.set_baud_rate(br).unwrap();
-                    uart.write(&B9600).unwrap();
-                }
-                uart.set_baud_rate(9_600).unwrap();
-            }
-            115_200 => {
-                for br in BAUD_RATES {
-                    uart.set_baud_rate(br).unwrap();
-                    uart.write(&B115200).unwrap();
-                }
-                uart.set_baud_rate(115_200).unwrap();
-            }
-            _ => {
-                warn!("unsupported GPS baud rate; defaulting to 9600");
-                for br in BAUD_RATES {
-                    uart.set_baud_rate(br).unwrap();
-                    uart.write(&B9600).unwrap();
-                }
-                uart.set_baud_rate(9_600).unwrap();
-            }
-        }
+        //match baud_rate {
+        //    9_600 => {
+        //        for br in BAUD_RATES {
+        //            uart.set_baud_rate(br).unwrap();
+        //            uart.write(&B9600).unwrap();
+        //            thread::sleep(Duration::from_millis(100));
+        //        }
+        //        uart.set_baud_rate(9_600).unwrap();
+        //    }
+        //    115_200 => {
+        //        for br in BAUD_RATES {
+        //            uart.set_baud_rate(br).unwrap();
+        //            uart.write(&B115200).unwrap();
+        //            thread::sleep(Duration::from_millis(100));
+        //        }
+        //        uart.set_baud_rate(115_200).unwrap();
+        //    }
+        //    _ => {
+        //        warn!("unsupported GPS baud rate; defaulting to 9600");
+        //        for br in BAUD_RATES {
+        //            uart.set_baud_rate(br).unwrap();
+        //            uart.write(&B9600).unwrap();
+        //            thread::sleep(Duration::from_millis(100));
+        //        }
+        //        uart.set_baud_rate(9_600).unwrap();
+        //    }
+        //}
         Ok(Self { device: uart })
     }
 }
