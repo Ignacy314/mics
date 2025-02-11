@@ -1,7 +1,7 @@
 use std::io::BufRead;
 use std::time::Duration;
 
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use rppal::uart::{Parity, Uart};
 use serde::{Deserialize, Serialize};
 
@@ -73,7 +73,7 @@ pub struct Data {
     longitude: f64,
     latitude: f64,
     altitude: f32,
-    timestamp: NaiveDateTime,
+    timestamp: DateTime<Utc>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -144,7 +144,7 @@ impl Device for Gps {
                 let Some(altitude) = d.altitude else {
                     return Err(Error::NoData);
                 };
-                let timestamp = NaiveDateTime::new(chrono::Utc::now().date_naive(), timestamp);
+                let timestamp = chrono::Utc::now().with_time(timestamp).unwrap();
                 Ok(Self::Data {
                     longitude,
                     latitude,
