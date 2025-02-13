@@ -1,6 +1,9 @@
 use hound::{SampleFormat, WavWriter};
 use log::info;
 use parking_lot::Mutex;
+use std::fs::File;
+use std::io::Write;
+use std::io::{self, BufWriter};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
@@ -19,6 +22,8 @@ pub enum CaptureDeviceError {
     Alsa(#[from] alsa::Error),
     #[error("Hound error: {0}")]
     Hound(#[from] hound::Error),
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
 }
 
 pub struct CaptureDevice<'a> {
@@ -27,9 +32,9 @@ pub struct CaptureDevice<'a> {
     samplerate: u32,
     format: Format,
     output_dir: PathBuf,
+    clock_dir: PathBuf,
     running: &'a AtomicBool,
     status: &'a AtomicU8,
-    pps: Arc<Mutex<(bool, i64)>>,
     max_read: Arc<Mutex<i32>>,
 }
 
@@ -41,9 +46,9 @@ impl<'a> CaptureDevice<'a> {
         samplerate: u32,
         format: Format,
         output_dir: P,
+        clock_dir: P,
         running: &'a AtomicBool,
         status: &'a AtomicU8,
-        pps: Arc<Mutex<(bool, i64)>>,
         max_read: Arc<Mutex<i32>>,
     ) -> Self {
         Self {
@@ -52,16 +57,12 @@ impl<'a> CaptureDevice<'a> {
             samplerate,
             format,
             output_dir: output_dir.into(),
+            clock_dir: clock_dir.into(),
             running,
             status,
-            pps,
             max_read,
         }
     }
-
-    //pub fn set_device_name(&mut self, device_name: &str) {
-    //    device_name.clone_into(&mut self.device_name);
-    //}
 
     fn init_device(&self) -> Result<PCM, Error> {
         let pcm = PCM::new(&self.device_name, Direction::Capture, false)?;
@@ -79,8 +80,6 @@ impl<'a> CaptureDevice<'a> {
     }
 
     pub fn read(&self, file_duration: Duration) -> Result<(), CaptureDeviceError> {
-        const PREFIX: i32 = 0xeeee_eeeeu32 as i32;
-
         let pcm = self.init_device()?;
         let io = match &self.format {
             Format::S32LE | Format::S32BE => pcm.io_i32()?,
@@ -100,28 +99,20 @@ impl<'a> CaptureDevice<'a> {
         #[cfg(feature = "audio")]
         let mut path = self.output_dir.join(format!("{nanos}.wav"));
         #[cfg(feature = "audio")]
-        let mut writer = WavWriter::create(path, wav_spec)?;
+        let mut writer = WavWriter::create(path.clone(), wav_spec)?;
+        #[cfg(feature = "audio")]
+        let clock_path = self.clock_dir.join(format!("{nanos}.csv"));
+        #[cfg(feature = "audio")]
+        let mut clock_writer = BufWriter::new(File::create(clock_path)?);
+        #[cfg(feature = "audio")]
+        write!(clock_writer, "time,file,sample")?;
 
         let mut start = Instant::now();
         let mut last_read = Instant::now();
+        let mut clock = Instant::now();
+        let mut sample = 0;
         info!("start audio read");
         while self.running.load(Ordering::Relaxed) {
-            {
-                let mut pps = self.pps.lock();
-                if pps.0 {
-                    pps.0 = false;
-                    let low: i32 = (pps.1 & 0xffff_ffff) as i32;
-                    let high: i32 = (pps.1 >> 32) as i32;
-                    drop(pps);
-                    #[cfg(feature = "audio")]
-                    {
-                        writer.write_sample(PREFIX)?;
-                        writer.write_sample(PREFIX)?;
-                        writer.write_sample(high)?;
-                        writer.write_sample(low)?;
-                    }
-                }
-            }
             //if let Ok(s) = io.readi(&mut buf) {
             //    let n = s * wav_spec.channels as usize;
             //    let mut zeros = 0;
@@ -135,6 +126,16 @@ impl<'a> CaptureDevice<'a> {
             //        last_read = Instant::now();
             //    }
             //}
+            #[cfg(feature = "audio")]
+            if clock.elapsed() >= Duration::from_secs(1) {
+                let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+                clock = clock.checked_add(Duration::from_secs(1)).unwrap();
+                write!(
+                    clock_writer,
+                    "{nanos},{sample},{}",
+                    path.file_name().unwrap().to_string_lossy()
+                )?;
+            }
             if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
                 let mut max_sample = i32::MIN;
                 let mut zeros = 0;
@@ -149,23 +150,22 @@ impl<'a> CaptureDevice<'a> {
                     #[cfg(feature = "audio")]
                     writer.write_sample(sample)?;
                 }
+                sample += samples;
                 let mut saved_max = self.max_read.lock();
                 *saved_max = saved_max.max(max_sample);
                 if zeros < samples {
                     last_read = Instant::now();
                 }
             }
-            let elapsed = start.elapsed();
-            if elapsed >= file_duration {
-                //info!("{}", elapsed.as_secs_f64());
-                //start = Instant::now().checked_sub(elapsed.saturating_sub(file_duration)).unwrap();
+            if start.elapsed() >= file_duration {
                 start = start.checked_add(file_duration).unwrap();
                 #[cfg(feature = "audio")]
                 {
                     writer.finalize()?;
                     nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
                     path = self.output_dir.join(format!("{nanos}.wav"));
-                    writer = WavWriter::create(path, wav_spec)?;
+                    writer = WavWriter::create(path.clone(), wav_spec)?;
+                    sample = 0;
                 }
             }
             if last_read.elapsed().as_secs() >= 2 {

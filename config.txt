@@ -8,6 +8,7 @@ dtparam=i2s=on
 #dtoverlay=adau7002-simple
 dtoverlay=ANDROSi2s
 dtoverlay=uart2-pi5
+dtoverlay=pps-gpio,gpiopin=13
 #dtoverlay=mmap
 #dtoverlay=i2s-dac
 #dtoverlay=i2s-gpio28-31

@@ -28,15 +28,13 @@ while ! [ "\$(ping -c 1 google.com)" ]; do
 done
 echo \$(ip a s wlan0 | grep ether | egrep -o ..:..:..:..:..:.. | head -1) > \$HOME/andros/mac
 echo \$(ip -4 -o a | grep wg0 | egrep -o "10\.66\.66\.[0-9]{1,3}" | head -1) > \$HOME/andros/ip' > \$HOME/save_mac_ip.sh
+chmod 744 /home/test/save_mac_ip.sh
 EOF
 # (crontab -l 2>/dev/null; echo "@reboot $HOME/save_mac_ip.sh") | crontab -
 
-chmod +x /home/test/save_mac_ip.sh
 nmcli connection add type gsm ifname '*' apn internet user internet password internet connection.autoconnect yes
-# cp /home/test/save_mac_ip.sh /etc/init.d/
 cp /home/test/andros/andros/ANDROSi2s.dtbo /boot/firmware/overlays
 cp -f /home/test/andros/andros/config.txt /boot/firmware/config.txt
-# chmod +x run.sh
 
 apt-get install -y samba samba-common-bin
 echo -e "[global]
@@ -58,14 +56,23 @@ systemctl restart smbd
 systemctl enable --now ssh
 systemctl enable --now wayvnc
 
+bash -c "echo 'pps-gpio' >> /etc/modules"
 apt-get install -y libasound2-dev
 apt-get install -y libwebkit2gtk-4.0
 apt-get install -y libssl-dev
+apt-get install -y pps-tools gpsd gpsd-clients
 apt-get install -y chrony
 
+echo -e 'START_DAEMON="true"
+USBAUTO="true"
+DEVICES="/dev/ttyAMA0 /dev/pps0"
+GPSD_OPTIONS="-n"' > /etc/default/gpsd
+
+echo -e 'refclock PPS /dev/pps0 lock NMEA refid PPS precision 1e-7' >> /etc/chrony/chrony.conf
+
 systemctl enable --now chrony
-# sudo apt-get install cmake;
-# sudo apt-get install gfortran;
+# apt-get install cmake;
+# apt-get install gfortran;
 
 # echo -e '#!/bin/bash
 # sleep 2
@@ -83,7 +90,3 @@ cargo install just
 cargo install --path \$HOME/andros/andros --locked
 (crontab -l 2>/dev/null; echo "@reboot \$HOME/andros/andros/update.sh") | crontab -
 EOF
-
-
-# chmod +x /home/test/update.sh
-# chmod +x /home/test/run_andros.sh

@@ -1,7 +1,7 @@
 use std::io::BufRead;
 use std::time::Duration;
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Days, TimeDelta, Timelike, Utc};
 use rppal::uart::{Parity, Uart};
 use serde::{Deserialize, Serialize};
 
@@ -144,7 +144,16 @@ impl Device for Gps {
                 let Some(altitude) = d.altitude else {
                     return Err(Error::NoData);
                 };
-                let timestamp = chrono::Utc::now().with_time(timestamp).unwrap();
+                let now = chrono::Utc::now();
+                let diff = timestamp - now.time();
+                let timestamp = if diff > TimeDelta::hours(12) {
+                    now.checked_sub_days(Days::new(1))
+                        .unwrap()
+                        .with_time(timestamp)
+                        .unwrap()
+                } else {
+                    chrono::Utc::now().with_time(timestamp).unwrap()
+                };
                 Ok(Self::Data {
                     longitude,
                     latitude,

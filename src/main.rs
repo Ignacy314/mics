@@ -14,9 +14,6 @@ use alsa::pcm::Format;
 use flexi_logger::{with_thread, FileSpec, Logger};
 use log::{info, warn};
 use parking_lot::Mutex;
-use rppal::gpio::Gpio;
-use signal_hook::consts::SIGINT;
-use signal_hook::iterator::Signals;
 
 use self::audio::CaptureDevice;
 use self::audio::CaptureDeviceError;
@@ -91,9 +88,19 @@ fn main() {
     };
 
     let log_dir = &andros_dir.join("log");
+    if !log_dir.exists() {
+        std::fs::create_dir(log_dir).unwrap_or_else(|e| {
+            warn!("Failed to create {} data directory: {e}", log_dir.display())
+        });
+    }
     let data_dir = &andros_dir.join("data");
+    if !data_dir.exists() {
+        std::fs::create_dir(data_dir).unwrap_or_else(|e| {
+            warn!("Failed to create {} data directory: {e}", data_dir.display())
+        });
+    }
 
-    for dir in ["i2s", "umc", "data"] {
+    for dir in ["i2s", "umc", "data", "clock_umc", "clock_i2s"] {
         let path = data_dir.join(dir);
         if !path.exists() {
             std::fs::create_dir(path)
@@ -126,48 +133,48 @@ fn main() {
     let umc_status = &AtomicU8::new(0);
 
     thread::scope(|s| {
-        let mut signals = Signals::new([SIGINT]).unwrap();
-        s.spawn(move || {
-            for sig in signals.forever() {
-                if sig == signal_hook::consts::SIGINT {
-                    running.store(false, Ordering::Relaxed);
-                    println!();
-                    break;
-                }
-            }
-        });
+        //let mut signals = Signals::new([SIGINT]).unwrap();
+        //s.spawn(move || {
+        //    for sig in signals.forever() {
+        //        if sig == signal_hook::consts::SIGINT {
+        //            running.store(false, Ordering::Relaxed);
+        //            println!();
+        //            break;
+        //        }
+        //    }
+        //});
 
-        let gpio = Gpio::new().unwrap();
-        let mut pps_pin = gpio.get(13).unwrap().into_input_pulldown();
+        //let gpio = Gpio::new().unwrap();
+        //let mut pps_pin = gpio.get(13).unwrap().into_input_pulldown();
 
         //let (tx, rx) = unbounded();
 
-        let i2s_pps = Arc::new(Mutex::new((false, 0i64)));
-        let umc_pps = Arc::new(Mutex::new((false, 0i64)));
+        //let i2s_pps = Arc::new(Mutex::new((false, 0i64)));
+        //let umc_pps = Arc::new(Mutex::new((false, 0i64)));
         //let i2s_pps_rdy = &AtomicBool::new(false);
         //let i2s_pps_data = &AtomicI64::new(0);
 
         let i2s_max = Arc::new(Mutex::new(0i32));
         let umc_max = Arc::new(Mutex::new(0i32));
 
-        pps_pin
-            .set_async_interrupt(
-                rppal::gpio::Trigger::RisingEdge,
-                Some(Duration::from_millis(5)),
-                {
-                    let i2s_pps = i2s_pps.clone();
-                    let umc_pps = umc_pps.clone();
-                    move |_| {
-                        let now = chrono::Utc::now();
-                        info!("PPS at UTC {now}");
-                        let nanos = now.timestamp_nanos_opt().unwrap();
-                        *i2s_pps.lock() = (true, nanos);
-                        *umc_pps.lock() = (true, nanos);
-                        //tx.send(nanos).unwrap();
-                    }
-                },
-            )
-            .unwrap();
+        //pps_pin
+        //    .set_async_interrupt(
+        //        rppal::gpio::Trigger::RisingEdge,
+        //        Some(Duration::from_millis(5)),
+        //        {
+        //            let i2s_pps = i2s_pps.clone();
+        //            let umc_pps = umc_pps.clone();
+        //            move |_| {
+        //                let now = chrono::Utc::now();
+        //                info!("PPS at UTC {now}");
+        //                let nanos = now.timestamp_nanos_opt().unwrap();
+        //                *i2s_pps.lock() = (true, nanos);
+        //                *umc_pps.lock() = (true, nanos);
+        //                //tx.send(nanos).unwrap();
+        //            }
+        //        },
+        //    )
+        //    .unwrap();
 
         // Create the Andros I2S microphone capture thread
         thread::Builder::new()
@@ -183,9 +190,10 @@ fn main() {
                         192_000,
                         Format::s32(),
                         data_dir.join("i2s"),
+                        data_dir.join("clock_i2s"),
                         running,
                         i2s_status,
-                        i2s_pps,
+                        //i2s_pps,
                         i2s_max,
                     );
                     while running.load(Ordering::Relaxed) {
@@ -212,9 +220,10 @@ fn main() {
                         48_000,
                         Format::s32(),
                         data_dir.join("umc"),
+                        data_dir.join("clock_umc"),
                         running,
                         umc_status,
-                        umc_pps,
+                        //umc_pps,
                         umc_max,
                     );
                     while running.load(Ordering::Relaxed) {
@@ -227,7 +236,14 @@ fn main() {
             })
             .unwrap();
 
-        let mut reader = data::Reader::new(data_dir.join("data"), data_dir, i2s_status, umc_status, i2s_max, umc_max);
+        let mut reader = data::Reader::new(
+            data_dir.join("data"),
+            data_dir,
+            i2s_status,
+            umc_status,
+            i2s_max,
+            umc_max,
+        );
         reader.read(running, s, ip);
     });
     info!("Exited properly");
