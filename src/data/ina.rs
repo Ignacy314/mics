@@ -12,8 +12,8 @@ use super::Device;
 pub struct Ina {
     device: SyncIna219<rppal::i2c::I2c, UnCalibrated>,
     //prev_voltage: u16,
-    voltage: CircularVoltage<u32>,
-    bat_status: CircularVoltage<i8>,
+    voltage: CircularVec<u32>,
+    bat_status: CircularVec<i8>,
     prev_charge: Charge,
 }
 
@@ -23,8 +23,8 @@ impl Ina {
         let ina = SyncIna219::new(i2c, Address::from_byte(0x40)?)?;
         Ok(Self {
             device: ina,
-            voltage: CircularVoltage::<u32>::new(10 * 100),
-            bat_status: CircularVoltage::<i8>::new(50),
+            voltage: CircularVec::<u32>::new(10 * 100),
+            bat_status: CircularVec::<i8>::new(50),
             prev_charge: Charge::default(),
         })
     }
@@ -109,7 +109,7 @@ impl Device for Ina {
             Ordering::Equal => 0,
             Ordering::Greater => 1,
         });
-        let sum = self.bat_status.voltage.iter().sum::<i8>();
+        let sum = self.bat_status.vec.iter().sum::<i8>();
         let charge = if old == 0 {
             Charge::Unknown
         } else if bus_voltage >= 15000 {
@@ -138,36 +138,36 @@ impl Device for Ina {
     }
 }
 
-pub struct CircularVoltage<T> {
-    voltage: Vec<T>,
+pub struct CircularVec<T> {
+    vec: Vec<T>,
     index: usize,
     size: usize,
     //mean: u32,
 }
 
-impl CircularVoltage<i8> {
+impl CircularVec<i8> {
     pub fn new(size: usize) -> Self {
         Self {
-            voltage: vec![0; size],
+            vec: vec![0; size],
             index: 0,
             size,
         }
     }
 
     pub fn push(&mut self, v: i8) -> i8 {
-        let old = self.voltage[self.index];
-        self.voltage[self.index] = v;
+        let old = self.vec[self.index];
+        self.vec[self.index] = v;
         self.index = (self.index + 1) % self.size;
         old
     }
 }
 
-impl CircularVoltage<u32> {
+impl CircularVec<u32> {
     //const SIZE: usize = 10 * 100;
 
     pub fn new(size: usize) -> Self {
         Self {
-            voltage: vec![0; size],
+            vec: vec![0; size],
             index: 0,
             size,
             //mean: 0,
@@ -175,8 +175,8 @@ impl CircularVoltage<u32> {
     }
 
     pub fn push(&mut self, v: u32) -> u32 {
-        let old = self.voltage[self.index];
-        self.voltage[self.index] = v;
+        let old = self.vec[self.index];
+        self.vec[self.index] = v;
         self.index = (self.index + 1) % self.size;
         old
     }
@@ -221,22 +221,22 @@ impl CircularVoltage<u32> {
         //    .collect::<Vec<_>>();
 
         let mean_1 = self
-            .voltage
+            .vec
             .iter()
             .cycle()
             .skip(self.index)
             .take(self.size / 5)
             .sum::<u32>() as f32
-            / self.voltage.len() as f32;
+            / self.vec.len() as f32;
 
         let mean_2 = self
-            .voltage
+            .vec
             .iter()
             .cycle()
             .skip(self.index + self.size * 4 / 5)
             .take(self.size - self.size * 4 / 5)
             .sum::<u32>() as f32
-            / self.voltage.len() as f32;
+            / self.vec.len() as f32;
 
         mean_2.total_cmp(&mean_1)
 
