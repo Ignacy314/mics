@@ -26,7 +26,7 @@ impl Ina {
             voltage: CircularVec::<u32>::new(10 * 120),
             bat_status: CircularVec::<i8>::new(10),
             prev_charge: Charge::default(),
-            parts: 3,
+            parts: 4,
         })
     }
 }
