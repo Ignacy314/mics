@@ -139,7 +139,7 @@ pub struct CircularVoltage {
 }
 
 impl CircularVoltage {
-    const SIZE: usize = 10 * 2;
+    const SIZE: usize = 10 * 100;
 
     pub fn new() -> Self {
         Self {
@@ -202,7 +202,7 @@ impl CircularVoltage {
             .iter()
             .cycle()
             .skip(self.index)
-            .take(Self::SIZE / 2)
+            .take(Self::SIZE / 10)
             .sum::<u32>() as f32
             / self.voltage.len() as f32;
 
@@ -210,8 +210,8 @@ impl CircularVoltage {
             .voltage
             .iter()
             .cycle()
-            .skip(self.index + Self::SIZE / 2)
-            .take(Self::SIZE - Self::SIZE / 2)
+            .skip(self.index + Self::SIZE * 9 / 10)
+            .take(Self::SIZE - Self::SIZE * 9 / 10)
             .sum::<u32>() as f32
             / self.voltage.len() as f32;
 
