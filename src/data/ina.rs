@@ -24,9 +24,9 @@ impl Ina {
         Ok(Self {
             device: ina,
             voltage: CircularVec::<u32>::new(10 * 120),
-            bat_status: CircularVec::<i8>::new(10),
+            bat_status: CircularVec::<i8>::new(50),
             prev_charge: Charge::default(),
-            parts: 4,
+            parts: 5,
         })
     }
 }
@@ -101,11 +101,13 @@ impl Device for Ina {
 
         let old = self.voltage.push(u32::from(bus_voltage));
         let new_ord = self.voltage.update_mean(self.parts);
-        self.bat_status.push(match new_ord {
-            Ordering::Less => -1,
-            Ordering::Equal => 0,
-            Ordering::Greater => 1,
-        });
+        if old != 0 {
+            self.bat_status.push(match new_ord {
+                Ordering::Less => -1,
+                Ordering::Equal => 0,
+                Ordering::Greater => 1,
+            });
+        }
         let sum = self.bat_status.vec.iter().sum::<i8>();
         let charge = if old == 0 {
             Charge::Unknown
