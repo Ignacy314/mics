@@ -171,21 +171,21 @@ impl CircularVoltage {
     //}
 
     fn update_mean(&mut self) -> Ordering {
-        //let tuples = self
-        //    .voltage
-        //    .iter()
-        //    .cycle()
-        //    .skip(self.index)
-        //    .take(Self::SIZE)
-        //    .enumerate()
-        //    .map(|(i, v)| (i as f32, *v as f32))
-        //    .collect::<Vec<_>>();
-        //
-        //let lr = linear_regression_of::<f32, f32, f32>(&tuples);
-        //if let Ok((a, _)) = lr {
-        //    return a.total_cmp(&0.0);
-        //}
-        //Ordering::Equal
+        let tuples = self
+            .voltage
+            .iter()
+            .cycle()
+            .skip(self.index)
+            .take(Self::SIZE)
+            .enumerate()
+            .map(|(i, v)| (i as f32, *v as f32))
+            .collect::<Vec<_>>();
+
+        let lr = linear_regression_of::<f32, f32, f32>(&tuples);
+        if let Ok((a, _)) = lr {
+            return a.total_cmp(&0.0);
+        }
+        Ordering::Equal
 
         //let first_half = self
         //    .voltage
@@ -195,25 +195,25 @@ impl CircularVoltage {
         //    .take(Self::SIZE / 2)
         //    .collect::<Vec<_>>();
 
-        let mean_1 = self
-            .voltage
-            .iter()
-            .cycle()
-            .skip(self.index)
-            .take(Self::SIZE / 5)
-            .sum::<u32>() as f32
-            / self.voltage.len() as f32;
-
-        let mean_2 = self
-            .voltage
-            .iter()
-            .cycle()
-            .skip(self.index + Self::SIZE * 4 / 5)
-            .take(Self::SIZE - Self::SIZE * 4 / 5)
-            .sum::<u32>() as f32
-            / self.voltage.len() as f32;
-
-        mean_2.total_cmp(&mean_1)
+        //let mean_1 = self
+        //    .voltage
+        //    .iter()
+        //    .cycle()
+        //    .skip(self.index)
+        //    .take(Self::SIZE / 5)
+        //    .sum::<u32>() as f32
+        //    / self.voltage.len() as f32;
+        //
+        //let mean_2 = self
+        //    .voltage
+        //    .iter()
+        //    .cycle()
+        //    .skip(self.index + Self::SIZE * 4 / 5)
+        //    .take(Self::SIZE - Self::SIZE * 4 / 5)
+        //    .sum::<u32>() as f32
+        //    / self.voltage.len() as f32;
+        //
+        //mean_2.total_cmp(&mean_1)
 
         //let new_mean: u32 = self
         //    .voltage
