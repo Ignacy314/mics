@@ -138,6 +138,11 @@ pub struct CircularVoltage {
     //mean: u32,
 }
 
+struct CircularBatStatus {
+    status: [u8; 50],
+    index: usize,
+}
+
 impl CircularVoltage {
     const SIZE: usize = 10 * 100;
 
