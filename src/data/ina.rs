@@ -6,6 +6,7 @@ use ina219::address::Address;
 use ina219::calibration::UnCalibrated;
 use ina219::SyncIna219;
 use linreg::linear_regression_of;
+use log::info;
 use serde::{Deserialize, Serialize};
 
 use super::Device;
@@ -138,7 +139,7 @@ pub struct CircularVoltage {
 }
 
 impl CircularVoltage {
-    const SIZE: usize = 10 * 120;
+    const SIZE: usize = 10 * 2;
 
     pub fn new() -> Self {
         Self {
@@ -185,6 +186,16 @@ impl CircularVoltage {
         //    return a.total_cmp(&0.0);
         //}
         //Ordering::Equal
+
+        info!("{:?}", self.voltage);
+        let first_half = self
+            .voltage
+            .iter()
+            .cycle()
+            .skip(self.index)
+            .take(Self::SIZE / 2)
+            .collect::<Vec<_>>();
+        info!("{:?}", first_half);
 
         let mean_1 = self
             .voltage
