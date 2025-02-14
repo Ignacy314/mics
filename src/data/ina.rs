@@ -24,7 +24,7 @@ impl Ina {
         Ok(Self {
             device: ina,
             voltage: CircularVec::<u32>::new(10 * 200),
-            bat_status: CircularVec::<i8>::new(50),
+            bat_status: CircularVec::<i8>::new(100),
             prev_charge: Charge::default(),
         })
     }
@@ -220,8 +220,10 @@ impl CircularVec<u32> {
         //    .take(Self::SIZE / 2)
         //    .collect::<Vec<_>>();
 
-        let size_1 = self.size / 5;
-        let size_2 = self.size - self.size * 4 / 5;
+        let parts = 10;
+
+        let size_1 = self.size / parts;
+        let size_2 = self.size - self.size * (parts - 1) / parts;
 
         let mean_1 = self
             .vec
@@ -236,7 +238,7 @@ impl CircularVec<u32> {
             .vec
             .iter()
             .cycle()
-            .skip(self.index + self.size * 4 / 5)
+            .skip(self.index + self.size * (parts - 1) / parts)
             .take(size_2)
             .sum::<u32>() as f32
             / size_2 as f32;
