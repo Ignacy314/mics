@@ -135,6 +135,7 @@ impl<'a> CaptureDevice<'a> {
                     "{nanos},{sample},{}",
                     path.file_name().unwrap().to_string_lossy()
                 )?;
+                clock_writer.flush()?;
             }
             if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
                 let mut max_sample = i32::MIN;
