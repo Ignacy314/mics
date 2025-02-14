@@ -1,5 +1,4 @@
 use std::cmp::Ordering;
-//use std::fmt::Display;
 use std::thread;
 
 use ina219::address::Address;
@@ -15,6 +14,7 @@ pub struct Ina {
     voltage: CircularVec<u32>,
     bat_status: CircularVec<i8>,
     prev_charge: Charge,
+    parts: usize,
 }
 
 impl Ina {
@@ -26,12 +26,9 @@ impl Ina {
             voltage: CircularVec::<u32>::new(10 * 120),
             bat_status: CircularVec::<i8>::new(100),
             prev_charge: Charge::default(),
+            parts: 3,
         })
     }
-
-    //pub fn get_charge(&self) -> Charge {
-    //    self.prev_charge
-    //}
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -103,7 +100,7 @@ impl Device for Ina {
         let power = shunt_voltage.unsigned_abs() as f32 / 100.0;
 
         let old = self.voltage.push(u32::from(bus_voltage));
-        let new_ord = self.voltage.update_mean();
+        let new_ord = self.voltage.update_mean(self.parts);
         self.bat_status.push(match new_ord {
             Ordering::Less => -1,
             Ordering::Equal => 0,
@@ -195,7 +192,7 @@ impl CircularVec<u32> {
     //    self.voltage[self.index]
     //}
 
-    fn update_mean(&mut self) -> Ordering {
+    fn update_mean(&mut self, parts: usize) -> Ordering {
         //let tuples = self
         //    .voltage
         //    .iter()
@@ -220,7 +217,7 @@ impl CircularVec<u32> {
         //    .take(Self::SIZE / 2)
         //    .collect::<Vec<_>>();
 
-        let parts = 3;
+        //let parts = 3;
 
         let size_1 = self.size / parts;
         let size_2 = self.size - self.size * (parts - 1) / parts;
