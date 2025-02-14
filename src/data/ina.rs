@@ -138,7 +138,7 @@ pub struct CircularVoltage {
 }
 
 impl CircularVoltage {
-    const SIZE: usize = 50;
+    const SIZE: usize = 2 * 30;
 
     pub fn new() -> Self {
         Self {
@@ -170,24 +170,42 @@ impl CircularVoltage {
     //}
 
     fn update_mean(&mut self) -> Ordering {
-        let tuples = self
+        //let tuples = self
+        //    .voltage
+        //    .iter()
+        //    .cycle()
+        //    .skip(self.index)
+        //    .take(Self::SIZE)
+        //    .enumerate()
+        //    .map(|(i, v)| (i as f32, *v as f32))
+        //    .collect::<Vec<_>>();
+        //
+        //let lr = linear_regression_of::<f32, f32, f32>(&tuples);
+        //if let Ok((a, _)) = lr {
+        //    return a.total_cmp(&0.0);
+        //}
+        //Ordering::Equal
+
+        let mean_1 = self
             .voltage
             .iter()
             .cycle()
             .skip(self.index)
-            .take(Self::SIZE)
-            .enumerate()
-            .map(|(i, v)| (i as f32, *v as f32))
-            .collect::<Vec<_>>();
+            .take(Self::SIZE / 2)
+            .sum::<u32>() as f32
+            / self.voltage.len() as f32;
 
-        let lr = linear_regression_of::<f32, f32, f32>(&tuples);
-        if let Ok((a, _)) = lr {
-            return a.total_cmp(&0.0);
-        }
-        Ordering::Equal
+        let mean_2 = self
+            .voltage
+            .iter()
+            .cycle()
+            .skip(self.index + Self::SIZE / 2)
+            .take(Self::SIZE - Self::SIZE / 2)
+            .sum::<u32>() as f32
+            / self.voltage.len() as f32;
 
-        //let mean = self.voltage.iter().sum::<u32>() as f32 / self.voltage.len() as f32;
-        //
+        mean_2.total_cmp(&mean_1)
+
         //let new_mean: u32 = self
         //    .voltage
         //    .iter()
