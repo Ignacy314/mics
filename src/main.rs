@@ -14,6 +14,8 @@ use alsa::pcm::Format;
 use flexi_logger::{with_thread, FileSpec, Logger};
 use log::{info, warn};
 use parking_lot::Mutex;
+use signal_hook::consts::SIGINT;
+use signal_hook::iterator::Signals;
 
 use self::audio::CaptureDevice;
 use self::audio::CaptureDeviceError;
@@ -133,16 +135,16 @@ fn main() {
     let umc_status = &AtomicU8::new(0);
 
     thread::scope(|s| {
-        //let mut signals = Signals::new([SIGINT]).unwrap();
-        //s.spawn(move || {
-        //    for sig in signals.forever() {
-        //        if sig == signal_hook::consts::SIGINT {
-        //            running.store(false, Ordering::Relaxed);
-        //            println!();
-        //            break;
-        //        }
-        //    }
-        //});
+        let mut signals = Signals::new([SIGINT]).unwrap();
+        s.spawn(move || {
+            for sig in signals.forever() {
+                if sig == signal_hook::consts::SIGINT {
+                    running.store(false, Ordering::Relaxed);
+                    println!();
+                    break;
+                }
+            }
+        });
 
         //let gpio = Gpio::new().unwrap();
         //let mut pps_pin = gpio.get(13).unwrap().into_input_pulldown();
