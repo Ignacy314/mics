@@ -245,7 +245,7 @@ impl<'a> Reader<'a> {
             .name("ina".to_owned())
             .spawn_scoped(s, {
                 let data = ina_data.clone();
-                let period = Duration::from_millis(500);
+                let period = Duration::from_millis(250);
                 move || {
                     let mut ina: Option<Ina> = None;
                     while running.load(Ordering::Relaxed) {
