@@ -105,7 +105,7 @@ impl<'a> CaptureDevice<'a> {
         #[cfg(feature = "audio")]
         let mut clock_writer = BufWriter::new(File::create(clock_path)?);
         #[cfg(feature = "audio")]
-        write!(clock_writer, "time,file,sample")?;
+        writeln!(clock_writer, "time,file,sample")?;
 
         let mut start = Instant::now();
         let mut last_read = Instant::now();
@@ -130,7 +130,7 @@ impl<'a> CaptureDevice<'a> {
             if clock.elapsed() >= Duration::from_secs(1) {
                 let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
                 clock = clock.checked_add(Duration::from_secs(1)).unwrap();
-                write!(
+                writeln!(
                     clock_writer,
                     "{nanos},{sample},{}",
                     path.file_name().unwrap().to_string_lossy()
