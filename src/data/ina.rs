@@ -23,7 +23,7 @@ impl Ina {
         let ina = SyncIna219::new(i2c, Address::from_byte(0x40)?)?;
         Ok(Self {
             device: ina,
-            voltage: CircularVec::<u32>::new(10 * 200),
+            voltage: CircularVec::<u32>::new(10 * 100),
             bat_status: CircularVec::<i8>::new(10),
             prev_charge: Charge::default(),
         })
@@ -220,7 +220,7 @@ impl CircularVec<u32> {
         //    .take(Self::SIZE / 2)
         //    .collect::<Vec<_>>();
 
-        let parts = 5;
+        let parts = 4;
 
         let size_1 = self.size / parts;
         let size_2 = self.size - self.size * (parts - 1) / parts;
