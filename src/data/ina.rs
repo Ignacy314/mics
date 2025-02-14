@@ -5,8 +5,6 @@ use std::thread;
 use ina219::address::Address;
 use ina219::calibration::UnCalibrated;
 use ina219::SyncIna219;
-use linreg::linear_regression_of;
-use log::info;
 use serde::{Deserialize, Serialize};
 
 use super::Device;
@@ -14,7 +12,8 @@ use super::Device;
 pub struct Ina {
     device: SyncIna219<rppal::i2c::I2c, UnCalibrated>,
     //prev_voltage: u16,
-    voltage: CircularVoltage,
+    voltage: CircularVoltage<u32>,
+    bat_status: CircularVoltage<i8>,
     prev_charge: Charge,
 }
 
@@ -24,7 +23,8 @@ impl Ina {
         let ina = SyncIna219::new(i2c, Address::from_byte(0x40)?)?;
         Ok(Self {
             device: ina,
-            voltage: CircularVoltage::new(),
+            voltage: CircularVoltage::<u32>::new(10 * 30),
+            bat_status: CircularVoltage::<i8>::new(50),
             prev_charge: Charge::default(),
         })
     }
@@ -104,16 +104,22 @@ impl Device for Ina {
 
         let old = self.voltage.push(u32::from(bus_voltage));
         let new_ord = self.voltage.update_mean();
+        self.bat_status.push(match new_ord {
+            Ordering::Less => -1,
+            Ordering::Equal => 0,
+            Ordering::Greater => 1,
+        });
+        let sum = self.bat_status.voltage.iter().sum::<i8>();
         let charge = if old == 0 {
             Charge::Unknown
         } else if bus_voltage >= 15000 {
             Charge::CriticalError
         } else if bus_voltage <= 10000 {
             Charge::CriticalDischarge
-        } else if new_ord == Ordering::Greater {
+        } else if sum > 0 {
             let percentage = (bus_voltage - 10500) / 43;
             Charge::Charging(percentage)
-        } else if new_ord == Ordering::Less {
+        } else if sum < 0 {
             let percentage = (bus_voltage - 10500) / 24;
             Charge::Discharging(percentage)
         } else {
@@ -132,24 +138,38 @@ impl Device for Ina {
     }
 }
 
-pub struct CircularVoltage {
-    voltage: [u32; Self::SIZE],
+pub struct CircularVoltage<T> {
+    voltage: Vec<T>,
     index: usize,
+    size: usize,
     //mean: u32,
 }
 
-struct CircularBatStatus {
-    status: [u8; 50],
-    index: usize,
+impl CircularVoltage<i8> {
+    pub fn new(size: usize) -> Self {
+        Self {
+            voltage: vec![0; size],
+            index: 0,
+            size,
+        }
+    }
+
+    pub fn push(&mut self, v: i8) -> i8 {
+        let old = self.voltage[self.index];
+        self.voltage[self.index] = v;
+        self.index = (self.index + 1) % self.size;
+        old
+    }
 }
 
-impl CircularVoltage {
-    const SIZE: usize = 10 * 100;
+impl CircularVoltage<u32> {
+    //const SIZE: usize = 10 * 100;
 
-    pub fn new() -> Self {
+    pub fn new(size: usize) -> Self {
         Self {
-            voltage: [0; Self::SIZE],
+            voltage: vec![0; size],
             index: 0,
+            size,
             //mean: 0,
         }
     }
@@ -157,7 +177,7 @@ impl CircularVoltage {
     pub fn push(&mut self, v: u32) -> u32 {
         let old = self.voltage[self.index];
         self.voltage[self.index] = v;
-        self.index = (self.index + 1) % Self::SIZE;
+        self.index = (self.index + 1) % self.size;
         old
     }
 
@@ -205,7 +225,7 @@ impl CircularVoltage {
             .iter()
             .cycle()
             .skip(self.index)
-            .take(Self::SIZE / 5)
+            .take(self.size / 5)
             .sum::<u32>() as f32
             / self.voltage.len() as f32;
 
@@ -213,8 +233,8 @@ impl CircularVoltage {
             .voltage
             .iter()
             .cycle()
-            .skip(self.index + Self::SIZE * 4 / 5)
-            .take(Self::SIZE - Self::SIZE * 4 / 5)
+            .skip(self.index + self.size * 4 / 5)
+            .take(self.size - self.size * 4 / 5)
             .sum::<u32>() as f32
             / self.voltage.len() as f32;
 
