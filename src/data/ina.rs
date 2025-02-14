@@ -23,7 +23,7 @@ impl Ina {
         let ina = SyncIna219::new(i2c, Address::from_byte(0x40)?)?;
         Ok(Self {
             device: ina,
-            voltage: CircularVec::<u32>::new(10 * 100),
+            voltage: CircularVec::<u32>::new(10 * 200),
             bat_status: CircularVec::<i8>::new(50),
             prev_charge: Charge::default(),
         })
