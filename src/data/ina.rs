@@ -138,7 +138,7 @@ pub struct CircularVoltage {
 }
 
 impl CircularVoltage {
-    const SIZE: usize = 4 * 30;
+    const SIZE: usize = 4 * 60;
 
     pub fn new() -> Self {
         Self {
