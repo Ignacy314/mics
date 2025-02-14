@@ -24,7 +24,7 @@ impl Ina {
         Ok(Self {
             device: ina,
             voltage: CircularVoltage::<u32>::new(10 * 100),
-            bat_status: CircularVoltage::<i8>::new(20),
+            bat_status: CircularVoltage::<i8>::new(50),
             prev_charge: Charge::default(),
         })
     }
