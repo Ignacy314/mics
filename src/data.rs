@@ -22,6 +22,7 @@ use self::bmp::Bmp;
 use self::device_manager::{DeviceManager, Status, Statuses};
 use self::gps::Gps;
 use self::imu::Imu;
+use self::ina::Ina;
 use self::wind::Wind;
 
 pub mod aht;
@@ -131,15 +132,15 @@ impl<'a> Reader<'a> {
         }
     }
 
-    fn handle_ina_data_error(&mut self, err: &ina::Error) {
-        self.device_manager.statuses.ina = Status::NoData;
-        error!("INA219 data error: {err}");
-    }
-
-    fn handle_ina_init_error(&mut self, err: &ina::Error) {
-        self.device_manager.statuses.ina = Status::Disconnected;
-        warn!("INA219 init failed: {err}");
-    }
+    //fn handle_ina_data_error(&mut self, err: &ina::Error) {
+    //    self.device_manager.statuses.ina = Status::NoData;
+    //    error!("INA219 data error: {err}");
+    //}
+    //
+    //fn handle_ina_init_error(&mut self, err: &ina::Error) {
+    //    self.device_manager.statuses.ina = Status::Disconnected;
+    //    warn!("INA219 init failed: {err}");
+    //}
 
     pub fn read<'b>(
         &mut self,
@@ -239,6 +240,47 @@ impl<'a> Reader<'a> {
             })
             .unwrap();
 
+        let ina_data = Arc::new(Mutex::new((ina::Data::default(), Status::default())));
+        thread::Builder::new()
+            .name("ina".to_owned())
+            .spawn_scoped(s, {
+                let data = ina_data.clone();
+                let period = Duration::from_millis(200);
+                move || {
+                    let mut ina: Option<Ina> = None;
+                    while running.load(Ordering::Relaxed) {
+                        let start = Instant::now();
+
+                        if let Some(ina) = ina.as_mut() {
+                            match ina.get_data() {
+                                Ok(d) => {
+                                    *data.lock() = (d, Status::Ok);
+                                }
+                                Err(err) => {
+                                    warn!("{err}");
+                                    data.lock().1 = Status::NoData;
+                                }
+                            }
+                        } else {
+                            match Ina::new() {
+                                Ok(device) => {
+                                    info! {"Wind device initialized"};
+                                    ina = Some(device);
+                                    data.lock().1 = Status::NoData;
+                                }
+                                Err(err) => {
+                                    warn!("{err}");
+                                    data.lock().1 = Status::Disconnected;
+                                }
+                            };
+                        }
+
+                        thread::sleep(period.saturating_sub(start.elapsed()));
+                    }
+                }
+            })
+            .unwrap();
+
         let mut disks = Disks::new_with_refreshed_list();
         //for disk in disks.list() {
         //    info!("disk: {:?}", disk.mount_point());
@@ -295,6 +337,17 @@ impl<'a> Reader<'a> {
                 self.device_manager.statuses.wind = wind_status;
             } else {
                 self.device_manager.statuses.wind = Status::NoData;
+            }
+
+            if let Some(guard) = ina_data.try_lock_for(Duration::from_millis(50)) {
+                let (ina_data, ina_status) = *guard;
+                drop(guard);
+                if ina_status == Status::Ok {
+                    data.ina = Some(ina_data);
+                }
+                self.device_manager.statuses.ina = ina_status;
+            } else {
+                self.device_manager.statuses.ina = Status::NoData;
             }
 
             if let Some(gps) = self.device_manager.gps.as_mut() {
@@ -360,26 +413,26 @@ impl<'a> Reader<'a> {
                 }
             }
 
-            if let Some(ina) = self.device_manager.ina.as_mut() {
-                match ina.get_data() {
-                    Ok(d) => {
-                        self.device_manager.statuses.ina = Status::Ok;
-                        data.ina = Some(d);
-                    }
-                    Err(e) => {
-                        self.handle_ina_data_error(&e);
-                    }
-                }
-            } else {
-                match self.device_manager.try_set_ina() {
-                    Ok(()) => {
-                        info!("INA219 device initialized");
-                    }
-                    Err(e) => {
-                        self.handle_ina_init_error(&e);
-                    }
-                }
-            }
+            //if let Some(ina) = self.device_manager.ina.as_mut() {
+            //    match ina.get_data() {
+            //        Ok(d) => {
+            //            self.device_manager.statuses.ina = Status::Ok;
+            //            data.ina = Some(d);
+            //        }
+            //        Err(e) => {
+            //            self.handle_ina_data_error(&e);
+            //        }
+            //    }
+            //} else {
+            //    match self.device_manager.try_set_ina() {
+            //        Ok(()) => {
+            //            info!("INA219 device initialized");
+            //        }
+            //        Err(e) => {
+            //            self.handle_ina_init_error(&e);
+            //        }
+            //    }
+            //}
 
             //self.device_manager.statuses.i2s = self.i2s_status.load(Ordering::Relaxed).into();
             //self.device_manager.statuses.umc = self.umc_status.load(Ordering::Relaxed).into();

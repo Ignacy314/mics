@@ -1,7 +1,7 @@
 use std::io::BufRead;
 use std::time::Duration;
 
-use chrono::{DateTime, Days, TimeDelta, Timelike, Utc};
+use chrono::{DateTime, Days, TimeDelta, Utc};
 use rppal::uart::{Parity, Uart};
 use serde::{Deserialize, Serialize};
 

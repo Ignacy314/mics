@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use super::ina::{self, Ina};
 use super::{aht, bmp, gps};
 use crate::data::{Aht, Bmp, Gps};
 use std::time::Duration;
@@ -53,7 +52,7 @@ pub struct DeviceManager<'a> {
     //pub wind: Option<Wind>,
     //pub imu: Option<Imu>,
     pub bmp: Option<Bmp>,
-    pub ina: Option<Ina>,
+    //pub ina: Option<Ina>,
     pub settings: Settings,
     pub statuses: Statuses<'a>,
 }
@@ -97,11 +96,11 @@ impl DeviceManager<'_> {
         Ok(())
     }
 
-    pub fn try_set_ina(&mut self) -> Result<(), ina::Error> {
-        self.ina = Some(Ina::new()?);
-        self.statuses.ina = Status::Ok;
-        Ok(())
-    }
+    //pub fn try_set_ina(&mut self) -> Result<(), ina::Error> {
+    //    self.ina = Some(Ina::new()?);
+    //    self.statuses.ina = Status::Ok;
+    //    Ok(())
+    //}
 }
 
 #[derive(Debug, Clone, Copy)]
