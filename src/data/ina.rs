@@ -220,7 +220,7 @@ impl CircularVec<u32> {
         //    .take(Self::SIZE / 2)
         //    .collect::<Vec<_>>();
 
-        let parts = 10;
+        let parts = 5;
 
         let size_1 = self.size / parts;
         let size_2 = self.size - self.size * (parts - 1) / parts;
