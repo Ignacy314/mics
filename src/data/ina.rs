@@ -220,23 +220,26 @@ impl CircularVec<u32> {
         //    .take(Self::SIZE / 2)
         //    .collect::<Vec<_>>();
 
+        let size_1 = self.size / 5;
+        let size_2 = self.size - self.size * 4 / 5;
+
         let mean_1 = self
             .vec
             .iter()
             .cycle()
             .skip(self.index)
-            .take(self.size / 5)
+            .take(size_1)
             .sum::<u32>() as f32
-            / self.vec.len() as f32;
+            / size_1 as f32;
 
         let mean_2 = self
             .vec
             .iter()
             .cycle()
             .skip(self.index + self.size * 4 / 5)
-            .take(self.size - self.size * 4 / 5)
+            .take(size_2)
             .sum::<u32>() as f32
-            / self.vec.len() as f32;
+            / size_2 as f32;
 
         mean_2.total_cmp(&mean_1)
 
