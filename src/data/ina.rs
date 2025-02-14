@@ -116,10 +116,10 @@ impl Device for Ina {
         } else if bus_voltage <= 10000 {
             Charge::CriticalDischarge
         } else if sum > 0 {
-            let percentage = (bus_voltage - 10500) / 43;
+            let percentage = ((bus_voltage - 10500) / 43).clamp(0, 100);
             Charge::Charging(percentage)
         } else if sum < 0 {
-            let percentage = (bus_voltage - 10500) / 24;
+            let percentage = ((bus_voltage - 10500) / 24).clamp(0, 100);
             Charge::Discharging(percentage)
         } else {
             self.prev_charge
