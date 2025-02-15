@@ -123,8 +123,8 @@ impl Device for Ina {
                 Ordering::Greater => 1,
             });
         }
-        info!("{}/{} {} {:?}", self.voltage.len(), self.voltage.capacity(), self.voltage.is_full(), self.bat_status);
         let sum = self.bat_status.iter().sum::<i8>();
+        info!("{}/{} {} {:?} {}", self.voltage.len(), self.voltage.capacity(), self.voltage.is_full(), self.bat_status, sum);
         let charge = if !self.voltage.is_full() {
             Charge::Unknown
         } else if bus_voltage >= 15000 {
