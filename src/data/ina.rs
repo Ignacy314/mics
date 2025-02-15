@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::Device;
 
-const DATA_SECONDS: usize = 1;
+const DATA_SECONDS: usize = 60;
 const VOL_SAMPLES: usize = DATA_SECONDS * 10;
 const VOTERS: usize = 10;
 const PARTS: usize = 6;
