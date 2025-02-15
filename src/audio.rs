@@ -74,7 +74,7 @@ impl<'a> CaptureDevice<'a> {
             hwp.set_format(self.format)?;
             hwp.set_access(Access::RWInterleaved)?;
             hwp.set_buffer_size_near(131072)?;
-            info!("{hwp:?}");
+            //info!("{hwp:?}");
             pcm.hw_params(&hwp)?;
         }
         pcm.prepare()?;
