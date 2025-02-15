@@ -305,7 +305,6 @@ impl<'a> Reader<'a> {
         );
 
         let mut components = sysinfo::Components::new_with_refreshed_list();
-        components.iter().for_each(|c| info!("{c:?}"));
 
         let (client, (ip, mac)) = if let Some((ip, mac)) = ip {
             (Some(reqwest::blocking::Client::new()), (ip, mac))
