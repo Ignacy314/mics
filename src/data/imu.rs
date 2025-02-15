@@ -374,12 +374,12 @@ impl<const SAMPLES: usize> Device for Imu<SAMPLES> {
                 };
 
                 if self.gyro_data.is_full() {
-                    let newest = self.gyro_data.front().unwrap();
-                    let oldest = self.gyro_data.back().unwrap();
+                    let newest = self.gyro_data.back().unwrap();
+                    let oldest = self.gyro_data.front().unwrap();
                     self.rotation[0] += newest[0] - oldest[0];
                     self.rotation[1] += newest[1] - oldest[1];
                     self.rotation[2] += newest[2] - oldest[2];
-                } else if let Some(newest) = self.gyro_data.front() {
+                } else if let Some(newest) = self.gyro_data.back() {
                     self.rotation[0] += newest[0];
                     self.rotation[1] += newest[1];
                     self.rotation[2] += newest[2];
