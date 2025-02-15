@@ -179,7 +179,7 @@ fn main() {
         //    .unwrap();
 
         // Create the Andros I2S microphone capture thread
-        thread::Builder::new()
+        thread::Builder::new().stack_size(1024 * 1024 * 8)
             .name("i2s".to_owned())
             .spawn_scoped(s, {
                 //let rx = rx.clone();
@@ -209,7 +209,7 @@ fn main() {
             .unwrap();
 
         // Create the UMC microphone capture thread
-        thread::Builder::new()
+        thread::Builder::new().stack_size(1024 * 1024 * 8)
             .name("umc".to_owned())
             .spawn_scoped(s, {
                 //let rx = rx.clone();
