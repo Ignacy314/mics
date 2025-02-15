@@ -108,12 +108,13 @@ impl<'a> CaptureDevice<'a> {
         #[cfg(feature = "audio")]
         writeln!(clock_writer, "time,file,sample")?;
 
-        let mut start = Instant::now();
+        let mut file_start = Instant::now();
         let mut last_read = Instant::now();
         let mut clock = Instant::now();
         let mut sample = 0;
         info!("start audio read");
         while self.running.load(Ordering::Relaxed) {
+            let start = Instant::now();
             #[cfg(feature = "audio")]
             if clock.elapsed() >= Duration::from_secs(1) {
                 let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
@@ -183,8 +184,8 @@ impl<'a> CaptureDevice<'a> {
                 }
             }
             //}
-            if start.elapsed() >= file_duration {
-                start = start.checked_add(file_duration).unwrap();
+            if file_start.elapsed() >= file_duration {
+                file_start = file_start.checked_add(file_duration).unwrap();
                 #[cfg(feature = "audio")]
                 {
                     writer.finalize()?;
@@ -197,6 +198,8 @@ impl<'a> CaptureDevice<'a> {
             if last_read.elapsed().as_secs() >= 2 {
                 self.status.store(1, Ordering::Relaxed);
             }
+
+            thread::sleep(Duration::from_millis(5).saturating_sub(start.elapsed()));
         }
 
         Ok(())
