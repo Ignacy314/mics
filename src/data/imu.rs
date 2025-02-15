@@ -4,70 +4,12 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
 
+use circular_buffer::CircularBuffer;
 use log::{debug, info, warn};
 use mpu9250::{Mpu9250, MpuConfig};
 use serde::{Deserialize, Serialize};
 
 use super::Device;
-
-trait Buffer {
-    type Container;
-}
-
-impl<T> Buffer for Vec<T> {
-    type Container = Vec<T>;
-}
-
-struct CircularBuffer<B: Buffer> {
-    size: usize,
-    buf: B::Container,
-    index: usize,
-}
-
-impl<B: Buffer> CircularBuffer<B> {
-    fn increment_index(&mut self) {
-        self.index += 1;
-        self.index %= self.size;
-    }
-}
-
-impl<T: Clone + Copy> CircularBuffer<Vec<T>> {
-    fn new(size: usize, fill: T) -> Self {
-        Self {
-            size,
-            buf: vec![fill; size],
-            index: 0,
-        }
-    }
-
-    fn push(&mut self, value: T) {
-        self.buf[self.index] = value;
-        self.increment_index();
-    }
-
-    fn newest(&self) -> T {
-        if self.index == 0 {
-            return self.buf[self.size - 1];
-        }
-        self.buf[self.index - 1]
-    }
-
-    fn oldest(&self) -> T {
-        self.buf[self.index]
-    }
-
-    fn reset(&mut self, fill: T) {
-        self.index = 0;
-        self.buf = vec![fill; self.size];
-    }
-
-    //fn iter(&self) -> impl Iterator<Item = &T> {
-    //    //self.buf.iter().skip(self.index).chain(self.buf.iter().take(self.index))
-    //    self.buf.iter().cycle().skip(self.index).take(self.size)
-    //}
-}
-
-type CircularVector<T> = CircularBuffer<Vec<T>>;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 struct MagCalib {
@@ -80,10 +22,10 @@ struct GyroCalib {
     gyro_bias: [f32; 3],
 }
 
-pub struct Imu {
+pub struct Imu<const SAMPLES: usize> {
     device: Mpu9250<mpu9250::I2cDevice<rppal::i2c::I2c>, mpu9250::Marg>,
-    gyro_data: CircularVector<[f32; 3]>,
-    mag_data: CircularVector<[f32; 3]>,
+    gyro_data: CircularBuffer<SAMPLES, [f32; 3]>,
+    mag_data: CircularBuffer<SAMPLES, [f32; 3]>,
     mag_sens_adj: [f32; 3],
     mag_bias: [f32; 3],
     mag_scale: [f32; 3],
@@ -98,7 +40,7 @@ pub struct Imu {
     calibrated: bool,
 }
 
-impl Imu {
+impl<const SAMPLES: usize> Imu<SAMPLES> {
     const ACCEL_SCALE: f32 = 2.0 / 32768.0;
     //const DEG_TO_RAD: f32 = PI / 180.0;
     const GYRO_SCALE: f32 = 250.0 / 32768.0;
@@ -107,7 +49,7 @@ impl Imu {
     const MAG_CALIB_FILE: &'static str = "mag_calibration";
     const GYRO_CALIB_FILE: &'static str = "gyro_calibration";
 
-    pub fn new(bus: u8, samples: usize, path: &Path) -> Result<Self, Error> {
+    pub fn new(bus: u8, path: &Path) -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::with_bus(bus)?;
         let mut delay = rppal::hal::Delay::new();
         let mut config = MpuConfig::marg();
@@ -118,8 +60,8 @@ impl Imu {
         let gyro_calib_path = path.join(Self::GYRO_CALIB_FILE);
         let mut s = Self {
             device: mpu,
-            gyro_data: CircularVector::new(samples, [0.0; 3]),
-            mag_data: CircularVector::new(samples, [0.0; 3]),
+            gyro_data: CircularBuffer::new(),
+            mag_data: CircularBuffer::new(),
             mag_sens_adj: [0.0; 3],
             mag_bias: [0.0; 3],
             mag_scale: [1.0; 3],
@@ -156,9 +98,9 @@ impl Imu {
     fn update_mag_calibartion(&mut self) -> Result<(), Error> {
         info!("MAGNETOMETER CALIBRATION START");
 
-        let [mut max_x, mut max_y, mut max_z] = self.mag_data.buf[0];
-        let [mut min_x, mut min_y, mut min_z] = self.mag_data.buf[0];
-        for &[x, y, z] in self.mag_data.buf.iter().skip(1) {
+        let [mut max_x, mut max_y, mut max_z] = self.mag_data.front().unwrap();
+        let [mut min_x, mut min_y, mut min_z] = self.mag_data.front().unwrap();
+        for &[x, y, z] in self.mag_data.iter().skip(1) {
             max_x = max_x.max(x);
             max_y = max_y.max(y);
             max_z = max_z.max(z);
@@ -205,12 +147,14 @@ impl Imu {
         Ok(())
     }
 
+    #[inline]
     fn dot(v: &[f32; 3], w: &[f32; 3]) -> f32 {
         v[0] * w[0] + v[1] * w[1] + v[2] * w[2]
         //v.iter().zip(w.iter()).map(|(x, y)| x * y).sum()
     }
 
     /// Orthogonal projection of v on onto the plane orthogonal to w
+    #[inline]
     fn oproj(v: &[f32; 3], w: &[f32; 3]) -> [f32; 3] {
         let a = Self::dot(v, w) / Self::dot(w, w);
         [v[0] - a * w[0], v[1] - a * w[1], v[2] - a * w[2]]
@@ -351,7 +295,7 @@ fn low_pass_filter(a: &[f32; 3], b: &[f32; 3]) -> [f32; 3] {
     ]
 }
 
-impl Device for Imu {
+impl<const SAMPLES: usize> Device for Imu<SAMPLES> {
     type Data = Data;
     type Error = Error;
 
@@ -374,14 +318,14 @@ impl Device for Imu {
                     f32::from(data.gyro[2]) * Self::GYRO_SCALE + self.gyro_bias[2],
                 ];
 
-                self.mag_data.push(mag);
+                self.mag_data.push_back(mag);
 
                 debug!("gyro: {gyro:?}");
                 if self.calibrated {
                     self.filtered_gyro = low_pass_filter(&self.filtered_gyro, &gyro);
-                    self.gyro_data.push(self.filtered_gyro);
+                    self.gyro_data.push_back(self.filtered_gyro);
                 } else {
-                    self.gyro_data.push(gyro);
+                    self.gyro_data.push_back(gyro);
                 }
 
                 let mag = [
@@ -403,12 +347,10 @@ impl Device for Imu {
                 //    self.filtered_acc, self.filtered_mag
                 //);
 
-                let n = self.gyro_data.index;
-                if !self.calibrated && n == 0 {
+                if !self.calibrated && self.gyro_data.is_full() {
                     info!("GYROSCOPE CALIBRATION START");
                     let sum =
                         self.gyro_data
-                            .buf
                             .iter()
                             .fold([0.0, 0.0, 0.0], |mut sum, &[x, y, z]| {
                                 sum[0] += x;
@@ -416,7 +358,7 @@ impl Device for Imu {
                                 sum[2] += z;
                                 sum
                             });
-                    let len = -(self.gyro_data.size as f32);
+                    let len = -(self.gyro_data.len() as f32);
                     self.gyro_bias = [sum[0] / len, sum[1] / len, sum[2] / len];
                     self.calibrated = true;
 
@@ -427,23 +369,28 @@ impl Device for Imu {
                     info!("GYROSCOPE CALIBRATION SAVED TO FILE");
 
                     self.rotation = [0.0; 3];
-                    self.gyro_data.reset([0.0; 3]);
+                    self.gyro_data.clear();
                     info!("GYROSCOPE CALIBRATION COMPLETED");
                 };
 
-                let newest = self.gyro_data.newest();
-                let oldest = self.gyro_data.oldest();
-
-                self.rotation[0] += newest[0] - oldest[0];
-                self.rotation[1] += newest[1] - oldest[1];
-                self.rotation[2] += newest[2] - oldest[2];
+                if self.gyro_data.is_full() {
+                    let newest = self.gyro_data.front().unwrap();
+                    let oldest = self.gyro_data.back().unwrap();
+                    self.rotation[0] += newest[0] - oldest[0];
+                    self.rotation[1] += newest[1] - oldest[1];
+                    self.rotation[2] += newest[2] - oldest[2];
+                } else if let Some(newest) = self.gyro_data.front() {
+                    self.rotation[0] += newest[0];
+                    self.rotation[1] += newest[1];
+                    self.rotation[2] += newest[2];
+                }
 
                 debug!("rotation: {:?}", self.rotation);
 
                 if self.calibrated && self.rotation.iter().any(|r| r.abs() >= 360.0) {
                     self.update_mag_calibartion()?;
                     self.rotation = [0.0; 3];
-                    self.gyro_data.reset([0.0; 3]);
+                    self.gyro_data.clear();
                 }
 
                 Ok(Self::Data { acc, gyro, mag, angle })

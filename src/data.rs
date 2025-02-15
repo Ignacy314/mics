@@ -154,11 +154,11 @@ impl<'a> Reader<'a> {
             .spawn_scoped(s, {
                 let data = imu_data.clone();
                 let bus = self.device_manager.settings.imu_bus;
-                let period = Duration::from_millis(100);
+                const PERIOD: Duration = Duration::from_millis(100);
                 let path = self.calib_path.clone();
                 move || {
-                    let samples: usize = 10000 / period.as_millis() as usize;
-                    let mut imu: Option<Imu> = None;
+                    const SAMPLES: usize = 10000 / PERIOD.as_millis() as usize;
+                    let mut imu: Option<Imu<SAMPLES>> = None;
                     while running.load(Ordering::Relaxed) {
                         let start = Instant::now();
 
@@ -173,7 +173,7 @@ impl<'a> Reader<'a> {
                                 }
                             }
                         } else {
-                            match Imu::new(bus, samples, &path) {
+                            match Imu::new(bus,&path) {
                                 Ok(mut device) => match device.calibrate(true) {
                                     Ok(()) => {
                                         info! {"IMU device initialized"};
@@ -192,7 +192,7 @@ impl<'a> Reader<'a> {
                             };
                         }
 
-                        thread::sleep(period.saturating_sub(start.elapsed()));
+                        thread::sleep(PERIOD.saturating_sub(start.elapsed()));
                     }
                 }
             })

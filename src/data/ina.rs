@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::thread;
 
+use circular_buffer::CircularBuffer;
 use ina219::address::Address;
 use ina219::calibration::UnCalibrated;
 use ina219::SyncIna219;
@@ -8,26 +9,40 @@ use serde::{Deserialize, Serialize};
 
 use super::Device;
 
+const DATA_SECONDS: usize = 120;
+const VOL_SAMPLES: usize = DATA_SECONDS * 10;
+const VOTERS: usize = 10;
+const PARTS: usize = 6;
+
 pub struct Ina {
     device: SyncIna219<rppal::i2c::I2c, UnCalibrated>,
-    //prev_voltage: u16,
-    voltage: CircularVec<u32>,
-    bat_status: CircularVec<i8>,
+    voltage: CircularBuffer<VOL_SAMPLES, u32>,
+    bat_status: CircularBuffer<VOTERS, i8>,
     prev_charge: Charge,
-    parts: usize,
 }
 
 impl Ina {
     pub fn new() -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::new()?;
         let ina = SyncIna219::new(i2c, Address::from_byte(0x40)?)?;
+        //let mut bat_status = CircularBuffer::<VOTERS, i8>::new();
+        //bat_status.fill(0);
         Ok(Self {
             device: ina,
-            voltage: CircularVec::<u32>::new(10 * 120),
-            bat_status: CircularVec::<i8>::new(10),
+            voltage: CircularBuffer::new(),
+            bat_status: CircularBuffer::new(),
             prev_charge: Charge::default(),
-            parts: 6,
         })
+    }
+
+    fn charging(&self) -> Ordering {
+        const SIZE_1: usize = VOL_SAMPLES / PARTS;
+        const SIZE_2: usize = VOL_SAMPLES - VOL_SAMPLES * (PARTS - 1) / PARTS;
+
+        let mean_1 = self.voltage.iter().take(SIZE_1).sum::<u32>() as f32 / SIZE_1 as f32;
+        let mean_2 = self.voltage.iter().take(SIZE_2).sum::<u32>() as f32 / SIZE_2 as f32;
+
+        mean_2.total_cmp(&mean_1)
     }
 }
 
@@ -45,7 +60,7 @@ impl Default for Charge {
         Self::Unknown
     }
 }
-//
+
 //impl Display for Charge {
 //    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 //        match self {
@@ -99,17 +114,17 @@ impl Device for Ina {
         let current = (self.device.current_raw()?).0 * 10;
         let power = shunt_voltage.unsigned_abs() as f32 / 100.0;
 
-        let old = self.voltage.push(u32::from(bus_voltage));
-        let new_ord = self.voltage.update_mean(self.parts);
-        if old != 0 {
-            self.bat_status.push(match new_ord {
+        self.voltage.push_back(u32::from(bus_voltage));
+        let new_ord = self.charging();
+        if self.voltage.is_full() {
+            self.bat_status.push_back(match new_ord {
                 Ordering::Less => -1,
                 Ordering::Equal => 0,
                 Ordering::Greater => 1,
             });
         }
-        let sum = self.bat_status.vec.iter().sum::<i8>();
-        let charge = if old == 0 {
+        let sum = self.bat_status.iter().sum::<i8>();
+        let charge = if !self.voltage.is_full() {
             Charge::Unknown
         } else if bus_voltage >= 15000 {
             Charge::CriticalError
@@ -134,126 +149,5 @@ impl Device for Ina {
             power,
             charge,
         })
-    }
-}
-
-pub struct CircularVec<T> {
-    vec: Vec<T>,
-    index: usize,
-    size: usize,
-    //mean: u32,
-}
-
-impl CircularVec<i8> {
-    pub fn new(size: usize) -> Self {
-        Self {
-            vec: vec![0; size],
-            index: 0,
-            size,
-        }
-    }
-
-    pub fn push(&mut self, v: i8) -> i8 {
-        let old = self.vec[self.index];
-        self.vec[self.index] = v;
-        self.index = (self.index + 1) % self.size;
-        old
-    }
-}
-
-impl CircularVec<u32> {
-    //const SIZE: usize = 10 * 100;
-
-    pub fn new(size: usize) -> Self {
-        Self {
-            vec: vec![0; size],
-            index: 0,
-            size,
-            //mean: 0,
-        }
-    }
-
-    pub fn push(&mut self, v: u32) -> u32 {
-        let old = self.vec[self.index];
-        self.vec[self.index] = v;
-        self.index = (self.index + 1) % self.size;
-        old
-    }
-
-    //pub fn newest(&self) -> u16 {
-    //    let index = if self.index == 0 {
-    //        5
-    //    } else {
-    //        self.index - 1
-    //    };
-    //
-    //    self.voltage[index]
-    //}
-
-    //pub fn oldest(&self) -> u16 {
-    //    self.voltage[self.index]
-    //}
-
-    fn update_mean(&mut self, parts: usize) -> Ordering {
-        //let tuples = self
-        //    .voltage
-        //    .iter()
-        //    .cycle()
-        //    .skip(self.index)
-        //    .take(Self::SIZE)
-        //    .enumerate()
-        //    .map(|(i, v)| (i as f32, *v as f32))
-        //    .collect::<Vec<_>>();
-        //
-        //let lr = linear_regression_of::<f32, f32, f32>(&tuples);
-        //if let Ok((a, _)) = lr {
-        //    return a.total_cmp(&0.0);
-        //}
-        //Ordering::Equal
-
-        //let first_half = self
-        //    .voltage
-        //    .iter()
-        //    .cycle()
-        //    .skip(self.index)
-        //    .take(Self::SIZE / 2)
-        //    .collect::<Vec<_>>();
-
-        //let parts = 3;
-
-        let size_1 = self.size / parts;
-        let size_2 = self.size - self.size * (parts - 1) / parts;
-
-        let mean_1 = self
-            .vec
-            .iter()
-            .cycle()
-            .skip(self.index)
-            .take(size_1)
-            .sum::<u32>() as f32
-            / size_1 as f32;
-
-        let mean_2 = self
-            .vec
-            .iter()
-            .cycle()
-            .skip(self.index + self.size * (parts - 1) / parts)
-            .take(size_2)
-            .sum::<u32>() as f32
-            / size_2 as f32;
-
-        mean_2.total_cmp(&mean_1)
-
-        //let new_mean: u32 = self
-        //    .voltage
-        //    .iter()
-        //    .filter(|v| **v as f32 >= mean)
-        //    //.enumerate()
-        //    //.map(|(i, v)| (i as u32 + 1) * v)
-        //    .sum();
-        //
-        //let c = new_mean.cmp(&self.mean);
-        //self.mean = new_mean;
-        //c
     }
 }

@@ -21,6 +21,7 @@ bmp280 = "0.4.0"
 # bytemuck = "1.19.0"
 # bmp180-driver = "0.1.1"
 chrono = { version = "0.4.38", features = ["serde"] }
+circular-buffer = "1.0.0"
 crossbeam-channel = "0.5.13"
 # ctrlc = "3.4.5"
 flexi_logger = "0.29.7"

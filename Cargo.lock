@@ -189,6 +189,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "circular-buffer"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4dacb91f972298e70fc507a2ffcaf1545807f1a36da586fb846646030adc542f"
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -917,6 +923,7 @@ dependencies = [
  "alsa",
  "bmp280",
  "chrono",
+ "circular-buffer",
  "crossbeam-channel",
  "flexi_logger",
  "hound",
