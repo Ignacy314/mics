@@ -12,7 +12,7 @@ use super::Device;
 const DATA_SECONDS: usize = 120;
 const VOL_SAMPLES: usize = DATA_SECONDS * 10;
 const VOTERS: usize = 10;
-const PARTS: usize = 6;
+const PARTS: usize = 10;
 
 pub struct Ina {
     device: SyncIna219<rppal::i2c::I2c, UnCalibrated>,
