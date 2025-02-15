@@ -1,5 +1,5 @@
 use hound::{SampleFormat, WavWriter};
-use log::info;
+use log::{info, warn};
 use parking_lot::Mutex;
 use std::fs::File;
 use std::io::Write;
@@ -146,26 +146,36 @@ impl<'a> CaptureDevice<'a> {
             //    }
             //}
             //if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
-            let s = io.readi(&mut buf)?;
-            let n = s * wav_spec.channels as usize;
-            let mut max_sample = i32::MIN;
-            let mut zeros = 0;
-            //let samples = buf.len();
-            for sample in &buf[0..n] {
-                if sample.abs() > max_sample {
-                    max_sample = *sample;
+            //let s = io.readi(&mut buf)?;
+            match io.readi(&mut buf) {
+                Ok(s) => {
+                    let n = s * wav_spec.channels as usize;
+                    let mut max_sample = i32::MIN;
+                    let mut zeros = 0;
+                    //let samples = buf.len();
+                    for sample in &buf[0..n] {
+                        if sample.abs() > max_sample {
+                            max_sample = *sample;
+                        }
+                        if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
+                            zeros += 1;
+                        }
+                        #[cfg(feature = "audio")]
+                        writer.write_sample(*sample)?;
+                    }
+                    sample += s;
+                    let mut saved_max = self.max_read.lock();
+                    *saved_max = saved_max.max(max_sample);
+                    if zeros < n {
+                        last_read = Instant::now();
+                    }
+                },
+                Err(err) => {
+                    warn!("{err}");
+                    if err.errno() != 11 {
+                        return Err(CaptureDeviceError::Alsa(err))
+                    }
                 }
-                if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
-                    zeros += 1;
-                }
-                #[cfg(feature = "audio")]
-                writer.write_sample(*sample)?;
-            }
-            sample += s;
-            let mut saved_max = self.max_read.lock();
-            *saved_max = saved_max.max(max_sample);
-            if zeros < n {
-                last_read = Instant::now();
             }
             //}
             if start.elapsed() >= file_duration {
