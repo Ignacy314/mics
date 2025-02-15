@@ -66,7 +66,7 @@ impl<'a> CaptureDevice<'a> {
     }
 
     fn init_device(&self) -> Result<PCM, Error> {
-        let pcm = PCM::new(&self.device_name, Direction::Capture, true)?;
+        let pcm = PCM::new(&self.device_name, Direction::Capture, false)?;
         {
             let hwp = HwParams::any(&pcm)?;
             hwp.set_channels(self.channels)?;
@@ -148,6 +148,7 @@ impl<'a> CaptureDevice<'a> {
             //}
             //if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
             //let s = io.readi(&mut buf)?;
+
             match io.readi(&mut buf) {
                 Ok(s) => {
                     let n = s * wav_spec.channels as usize;
@@ -172,9 +173,10 @@ impl<'a> CaptureDevice<'a> {
                     }
                 }
                 Err(err) => {
-                    if err.errno() != 11 {
-                        return Err(CaptureDeviceError::Alsa(err));
-                    }
+                    pcm.try_recover(err, false)?;
+                    //if err.errno() != 11 {
+                    //    return Err(CaptureDeviceError::Alsa(err));
+                    //}
                 }
             }
             //}
