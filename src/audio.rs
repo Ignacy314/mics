@@ -66,7 +66,7 @@ impl<'a> CaptureDevice<'a> {
     }
 
     fn init_device(&self) -> Result<PCM, Error> {
-        let pcm = PCM::new(&self.device_name, Direction::Capture, false)?;
+        let pcm = PCM::new(&self.device_name, Direction::Capture, true)?;
         {
             let hwp = HwParams::any(&pcm)?;
             hwp.set_channels(self.channels)?;
