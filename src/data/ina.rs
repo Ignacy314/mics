@@ -5,6 +5,7 @@ use circular_buffer::CircularBuffer;
 use ina219::address::Address;
 use ina219::calibration::UnCalibrated;
 use ina219::SyncIna219;
+use log::info;
 use serde::{Deserialize, Serialize};
 
 use super::Device;
@@ -115,9 +116,9 @@ impl Device for Ina {
         let power = shunt_voltage.unsigned_abs() as f32 / 100.0;
 
         self.voltage.push_back(u32::from(bus_voltage));
-        let new_ord = self.charging();
+        info!("{:?}", self.voltage);
         if self.voltage.is_full() {
-            self.bat_status.push_back(match new_ord {
+            self.bat_status.push_back(match self.charging() {
                 Ordering::Less => -1,
                 Ordering::Equal => 0,
                 Ordering::Greater => 1,
