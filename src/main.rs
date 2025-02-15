@@ -250,9 +250,23 @@ fn main() {
                                 }
                                 #[cfg(not(feature = "audio"))]
                                 Ok(_) => {}
-                                Err(err) => {
-                                    handle_capture_device_error("i2s", &err, i2s_status);
-                                }
+                                Err(err) => match err {
+                                    CaptureDeviceError::Alsa(alsa_err) => {
+                                        match i2s_pcm.try_recover(alsa_err, false) {
+                                            Ok(()) => {}
+                                            Err(err) => {
+                                                handle_capture_device_error(
+                                                    "i2s",
+                                                    &err.into(),
+                                                    i2s_status,
+                                                );
+                                            }
+                                        }
+                                    }
+                                    _ => {
+                                        handle_capture_device_error("i2s", &err, i2s_status);
+                                    }
+                                },
                             };
                             match umc.read(&umc_io, &mut buf, &umc_max) {
                                 #[cfg(feature = "audio")]
@@ -289,9 +303,23 @@ fn main() {
                                 }
                                 #[cfg(not(feature = "audio"))]
                                 Ok(_) => {}
-                                Err(err) => {
-                                    handle_capture_device_error("umc", &err, umc_status);
-                                }
+                                Err(err) => match err {
+                                    CaptureDeviceError::Alsa(alsa_err) => {
+                                        match umc_pcm.try_recover(alsa_err, false) {
+                                            Ok(()) => {}
+                                            Err(err) => {
+                                                handle_capture_device_error(
+                                                    "umc",
+                                                    &err.into(),
+                                                    umc_status,
+                                                );
+                                            }
+                                        }
+                                    }
+                                    _ => {
+                                        handle_capture_device_error("umc", &err, umc_status);
+                                    }
+                                },
                             };
                             thread::sleep(Duration::from_millis(1).saturating_sub(start.elapsed()));
                         }
