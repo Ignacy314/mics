@@ -66,7 +66,7 @@ impl<'a> CaptureDevice<'a> {
     }
 
     fn init_device(&self) -> Result<PCM, Error> {
-        let pcm = PCM::new(&self.device_name, Direction::Capture, true)?;
+        let pcm = PCM::new(&self.device_name, Direction::Capture, false)?;
         {
             let hwp = HwParams::any(&pcm)?;
             hwp.set_channels(self.channels)?;
@@ -89,7 +89,7 @@ impl<'a> CaptureDevice<'a> {
             default => return Err(CaptureDeviceError::FormatUnimplemented(*default)),
         };
 
-        let mut buf = [0i32; 1024 * 1024 * 5];
+        let mut buf = [0i32; 1024];
         let wav_spec = hound::WavSpec {
             channels: self.channels as u16,
             sample_rate: self.samplerate,
@@ -157,7 +157,6 @@ impl<'a> CaptureDevice<'a> {
                     let n = s * wav_spec.channels as usize;
                     let mut max_sample = i32::MIN;
                     let mut zeros = 0;
-                    //let samples = buf.len();
                     for sample in &buf[0..n] {
                         if sample.abs() > max_sample {
                             max_sample = *sample;
@@ -168,24 +167,26 @@ impl<'a> CaptureDevice<'a> {
                         #[cfg(feature = "audio")]
                         writer.write_sample(*sample)?;
                     }
-                    sample += s;
-                    let mut saved_max = self.max_read.lock();
-                    *saved_max = saved_max.max(max_sample);
                     if zeros < n {
                         last_read = Instant::now();
                     }
+                    sample += s;
+                    let mut saved_max = self.max_read.lock();
+                    *saved_max = saved_max.max(max_sample);
                 }
                 Err(err) => {
-                    if err.errno() != 11 {
-                        info!("ALSA try recover from: {err}");
-                        pcm.try_recover(err, false)?;
-                    }
+                    //if err.errno() != 11 {
+                    info!("ALSA try recover from: {err}");
+                    pcm.try_recover(err, false)?;
+                    //}
                     //if err.errno() != 11 {
                     //    return Err(CaptureDeviceError::Alsa(err));
                     //}
                 }
             }
-            //}
+            if last_read.elapsed().as_secs() >= 2 {
+                self.status.store(1, Ordering::Relaxed);
+            }
             if file_start.elapsed() >= file_duration {
                 file_start = file_start.checked_add(file_duration).unwrap();
                 #[cfg(feature = "audio")]
@@ -196,9 +197,6 @@ impl<'a> CaptureDevice<'a> {
                     writer = WavWriter::create(path.clone(), wav_spec)?;
                     sample = 0;
                 }
-            }
-            if last_read.elapsed().as_secs() >= 2 {
-                self.status.store(1, Ordering::Relaxed);
             }
 
             thread::sleep(Duration::from_millis(1).saturating_sub(start.elapsed()));
