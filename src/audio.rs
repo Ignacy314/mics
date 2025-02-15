@@ -1,5 +1,5 @@
 use hound::{SampleFormat, WavWriter};
-use log::{info, warn};
+use log::info;
 use parking_lot::Mutex;
 use std::fs::File;
 use std::io::Write;

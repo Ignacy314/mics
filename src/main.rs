@@ -209,34 +209,34 @@ fn main() {
             .unwrap();
 
         // Create the UMC microphone capture thread
-        thread::Builder::new()
-            .name("umc".to_owned())
-            .spawn_scoped(s, {
-                //let rx = rx.clone();
-                //let umc_pps = umc_pps.clone();
-                let umc_max = umc_max.clone();
-                move || {
-                    let umc = CaptureDevice::new(
-                        "hw:CARD=U192k,DEV=0",
-                        2,
-                        48_000,
-                        Format::s32(),
-                        data_dir.join("umc"),
-                        data_dir.join("clock_umc"),
-                        running,
-                        umc_status,
-                        //umc_pps,
-                        umc_max,
-                    );
-                    while running.load(Ordering::Relaxed) {
-                        match umc.read(AUDIO_FILE_DURATION) {
-                            Ok(()) => {}
-                            Err(err) => handle_capture_device_error(&err, umc_status),
-                        };
-                    }
-                }
-            })
-            .unwrap();
+        //thread::Builder::new()
+        //    .name("umc".to_owned())
+        //    .spawn_scoped(s, {
+        //        //let rx = rx.clone();
+        //        //let umc_pps = umc_pps.clone();
+        //        let umc_max = umc_max.clone();
+        //        move || {
+        //            let umc = CaptureDevice::new(
+        //                "hw:CARD=U192k,DEV=0",
+        //                2,
+        //                48_000,
+        //                Format::s32(),
+        //                data_dir.join("umc"),
+        //                data_dir.join("clock_umc"),
+        //                running,
+        //                umc_status,
+        //                //umc_pps,
+        //                umc_max,
+        //            );
+        //            while running.load(Ordering::Relaxed) {
+        //                match umc.read(AUDIO_FILE_DURATION) {
+        //                    Ok(()) => {}
+        //                    Err(err) => handle_capture_device_error(&err, umc_status),
+        //                };
+        //            }
+        //        }
+        //    })
+        //    .unwrap();
 
         let mut reader = data::Reader::new(
             data_dir.join("data"),
