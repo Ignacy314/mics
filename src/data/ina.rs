@@ -116,7 +116,7 @@ impl Device for Ina {
         let power = shunt_voltage.unsigned_abs() as f32 / 100.0;
 
         self.voltage.push_back(u32::from(bus_voltage));
-        info!("{}/{}", self.voltage.len(), self.voltage.capacity());
+        info!("{}/{} {}", self.voltage.len(), self.voltage.capacity(), self.voltage.is_full());
         if self.voltage.is_full() {
             self.bat_status.push_back(match self.charging() {
                 Ordering::Less => -1,
