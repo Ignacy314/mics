@@ -65,7 +65,7 @@ impl<'a> CaptureDevice<'a> {
     }
 
     fn init_device(&self) -> Result<PCM, Error> {
-        let pcm = PCM::new(&self.device_name, Direction::Capture, false)?;
+        let pcm = PCM::new(&self.device_name, Direction::Capture, true)?;
         {
             let hwp = HwParams::any(&pcm)?;
             hwp.set_channels(self.channels)?;
@@ -113,19 +113,6 @@ impl<'a> CaptureDevice<'a> {
         let mut sample = 0;
         info!("start audio read");
         while self.running.load(Ordering::Relaxed) {
-            //if let Ok(s) = io.readi(&mut buf) {
-            //    let n = s * wav_spec.channels as usize;
-            //    let mut zeros = 0;
-            //    for &sample in &buf[0..n] {
-            //        if sample.trailing_zeros() >= 28 {
-            //            zeros += 1;
-            //        }
-            //        writer.write_sample(sample)?;
-            //    }
-            //    if zeros < n {
-            //        last_read = Instant::now();
-            //    }
-            //}
             #[cfg(feature = "audio")]
             if clock.elapsed() >= Duration::from_secs(1) {
                 let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
@@ -137,27 +124,50 @@ impl<'a> CaptureDevice<'a> {
                 )?;
                 clock_writer.flush()?;
             }
-            if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
-                let mut max_sample = i32::MIN;
-                let mut zeros = 0;
-                let samples = buf.len();
-                for sample in buf {
-                    if sample.abs() > max_sample {
-                        max_sample = sample;
-                    }
-                    if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
-                        zeros += 1;
-                    }
-                    #[cfg(feature = "audio")]
-                    writer.write_sample(sample)?;
+            //if let Ok(s) = io.readi(&mut buf) {
+            //    let n = s * wav_spec.channels as usize;
+            //    let mut max_sample = i32::MIN;
+            //    let mut zeros = 0;
+            //    for &sample in &buf[0..n] {
+            //        if sample.abs() > max_sample {
+            //            max_sample = sample;
+            //        }
+            //        if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
+            //            zeros += 1;
+            //        }
+            //        #[cfg(feature = "audio")]
+            //        writer.write_sample(sample)?;
+            //    }
+            //    sample += s;
+            //    let mut saved_max = self.max_read.lock();
+            //    *saved_max = saved_max.max(max_sample);
+            //    if zeros < n {
+            //        last_read = Instant::now();
+            //    }
+            //}
+            //if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
+            let s = io.readi(&mut buf)?;
+            let n = s * wav_spec.channels as usize;
+            let mut max_sample = i32::MIN;
+            let mut zeros = 0;
+            //let samples = buf.len();
+            for sample in &buf[0..n] {
+                if sample.abs() > max_sample {
+                    max_sample = *sample;
                 }
-                sample += samples;
-                let mut saved_max = self.max_read.lock();
-                *saved_max = saved_max.max(max_sample);
-                if zeros < samples {
-                    last_read = Instant::now();
+                if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
+                    zeros += 1;
                 }
+                #[cfg(feature = "audio")]
+                writer.write_sample(*sample)?;
             }
+            sample += s;
+            let mut saved_max = self.max_read.lock();
+            *saved_max = saved_max.max(max_sample);
+            if zeros < n {
+                last_read = Instant::now();
+            }
+            //}
             if start.elapsed() >= file_duration {
                 start = start.checked_add(file_duration).unwrap();
                 #[cfg(feature = "audio")]
