@@ -89,7 +89,7 @@ impl<'a> CaptureDevice<'a> {
             default => return Err(CaptureDeviceError::FormatUnimplemented(*default)),
         };
 
-        let mut buf = [0i32; 1024 * 1024 * 5];
+        let mut buf = [0i32; 1024 * 1024];
         let wav_spec = hound::WavSpec {
             channels: self.channels as u16,
             sample_rate: self.samplerate,
