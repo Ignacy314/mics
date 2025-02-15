@@ -92,7 +92,10 @@ impl<'a> Reader<'a> {
 
     fn handle_gps_data_error(&mut self, err: &gps::Error) {
         self.device_manager.statuses.gps = Status::NoData;
-        warn!("GPS data error: {err}");
+        match err {
+            gps::Error::NoData => {}
+            _ => warn!("GPS data error: {err}"),
+        }
     }
 
     fn handle_gps_init_error(&mut self, err: &gps::Error) {
@@ -218,7 +221,10 @@ impl<'a> Reader<'a> {
                                     *data.lock() = (d, Status::Ok);
                                 }
                                 Err(err) => {
-                                    warn!("{err}");
+                                    match err {
+                                        wind::Error::NoData => {}
+                                        _ => warn!("{err}"),
+                                    }
                                     data.lock().1 = Status::NoData;
                                 }
                             }
