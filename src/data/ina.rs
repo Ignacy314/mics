@@ -5,7 +5,6 @@ use circular_buffer::CircularBuffer;
 use ina219::address::Address;
 use ina219::calibration::UnCalibrated;
 use ina219::SyncIna219;
-use log::info;
 use serde::{Deserialize, Serialize};
 
 use super::Device;
@@ -124,7 +123,7 @@ impl Device for Ina {
             });
         }
         let sum = self.bat_status.iter().sum::<i8>();
-        info!("{}/{} {} {:?} {}", self.voltage.len(), self.voltage.capacity(), self.voltage.is_full(), self.bat_status, sum);
+        //info!("{}/{} {} {:?} {}", self.voltage.len(), self.voltage.capacity(), self.voltage.is_full(), self.bat_status, sum);
         let charge = if !self.voltage.is_full() {
             Charge::Unknown
         } else if bus_voltage >= 15000 {
