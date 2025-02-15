@@ -474,7 +474,7 @@ impl<'a> Reader<'a> {
             components.refresh(false);
 
             self.device_manager.statuses.cpu_usage = system.global_cpu_usage();
-            self.device_manager.statuses.cpu_temp = components
+            self.device_manager.statuses.temp = components
                 .iter()
                 .filter_map(|c| c.temperature())
                 .max_by(|a, b| a.total_cmp(b));
