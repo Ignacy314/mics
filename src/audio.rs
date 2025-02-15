@@ -173,6 +173,7 @@ impl<'a> CaptureDevice<'a> {
                     }
                 }
                 Err(err) => {
+                    info!("ALSA try recover from: {err}");
                     pcm.try_recover(err, false)?;
                     //if err.errno() != 11 {
                     //    return Err(CaptureDeviceError::Alsa(err));
