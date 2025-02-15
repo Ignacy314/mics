@@ -66,7 +66,7 @@ impl<'a> CaptureDevice<'a> {
     }
 
     fn init_device(&self) -> Result<PCM, Error> {
-        let pcm = PCM::new(&self.device_name, Direction::Capture, false)?;
+        let pcm = PCM::new(&self.device_name, Direction::Capture, true)?;
         {
             let hwp = HwParams::any(&pcm)?;
             hwp.set_channels(self.channels)?;
@@ -89,7 +89,7 @@ impl<'a> CaptureDevice<'a> {
             default => return Err(CaptureDeviceError::FormatUnimplemented(*default)),
         };
 
-        let mut buf = [0i32; 1024];
+        let mut buf = [0i32; 1024 * 128];
         let wav_spec = hound::WavSpec {
             channels: self.channels as u16,
             sample_rate: self.samplerate,
@@ -149,8 +149,6 @@ impl<'a> CaptureDevice<'a> {
             //        last_read = Instant::now();
             //    }
             //}
-            //if io.readi(&mut buf)? * wav_spec.channels as usize == buf.len() {
-            //let s = io.readi(&mut buf)?;
 
             match io.readi(&mut buf) {
                 Ok(s) => {
@@ -175,10 +173,10 @@ impl<'a> CaptureDevice<'a> {
                     *saved_max = saved_max.max(max_sample);
                 }
                 Err(err) => {
-                    //if err.errno() != 11 {
-                    info!("ALSA try recover from: {err}");
-                    pcm.try_recover(err, false)?;
-                    //}
+                    if err.errno() != 11 {
+                        info!("ALSA try recover from: {err}");
+                        pcm.try_recover(err, false)?;
+                    }
                     //if err.errno() != 11 {
                     //    return Err(CaptureDeviceError::Alsa(err));
                     //}
