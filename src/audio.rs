@@ -69,6 +69,7 @@ impl<'a> CaptureDevice<'a> {
         let pcm = PCM::new(&self.device_name, Direction::Capture, true)?;
         {
             let hwp = HwParams::any(&pcm)?;
+            hwp.set_buffer_size_near(131072)?;
             hwp.set_channels(self.channels)?;
             hwp.set_rate(self.samplerate, ValueOr::Nearest)?;
             hwp.set_format(self.format)?;
@@ -87,7 +88,7 @@ impl<'a> CaptureDevice<'a> {
             default => return Err(CaptureDeviceError::FormatUnimplemented(*default)),
         };
 
-        let mut buf = [0i32; 65536];
+        let mut buf = [0i32; 131072 * 2];
         let wav_spec = hound::WavSpec {
             channels: self.channels as u16,
             sample_rate: self.samplerate,
@@ -199,7 +200,7 @@ impl<'a> CaptureDevice<'a> {
                 self.status.store(1, Ordering::Relaxed);
             }
 
-            thread::sleep(Duration::from_millis(5).saturating_sub(start.elapsed()));
+            thread::sleep(Duration::from_millis(1).saturating_sub(start.elapsed()));
         }
 
         Ok(())
