@@ -7,6 +7,7 @@ use std::io::{self, BufWriter};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
+use std::thread;
 use std::time::{Duration, Instant};
 
 use alsa::{
@@ -169,11 +170,10 @@ impl<'a> CaptureDevice<'a> {
                     if zeros < n {
                         last_read = Instant::now();
                     }
-                },
+                }
                 Err(err) => {
-                    warn!("{err}");
                     if err.errno() != 11 {
-                        return Err(CaptureDeviceError::Alsa(err))
+                        return Err(CaptureDeviceError::Alsa(err));
                     }
                 }
             }
