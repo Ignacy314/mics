@@ -127,7 +127,7 @@ impl Device for Ina {
             Charge::CriticalError
         } else if bus_voltage <= 10000 {
             Charge::CriticalDischarge
-        } else if sum > 0 {
+        } else if bus_voltage >= 13000 || sum > 0 {
             let percentage = ((bus_voltage - 10500) / 43).clamp(0, 100);
             Charge::Charging(percentage)
         } else if sum < 0 {
