@@ -69,11 +69,12 @@ impl<'a> CaptureDevice<'a> {
         let pcm = PCM::new(&self.device_name, Direction::Capture, true)?;
         {
             let hwp = HwParams::any(&pcm)?;
-            hwp.set_buffer_size_near(131072)?;
             hwp.set_channels(self.channels)?;
             hwp.set_rate(self.samplerate, ValueOr::Nearest)?;
             hwp.set_format(self.format)?;
             hwp.set_access(Access::RWInterleaved)?;
+            hwp.set_buffer_size_near(131072)?;
+            info!("{hwp:?}");
             pcm.hw_params(&hwp)?;
         }
         pcm.prepare()?;
