@@ -12,7 +12,7 @@ use super::Device;
 const DATA_SECONDS: usize = 120;
 const VOL_SAMPLES: usize = DATA_SECONDS * 10;
 const VOTERS: usize = 10;
-const PARTS: usize = 10;
+const PARTS: usize = 4;
 
 pub struct Ina {
     device: SyncIna219<rppal::i2c::I2c, UnCalibrated>,
@@ -25,8 +25,6 @@ impl Ina {
     pub fn new() -> Result<Self, Error> {
         let i2c = rppal::i2c::I2c::new()?;
         let ina = SyncIna219::new(i2c, Address::from_byte(0x40)?)?;
-        //let mut bat_status = CircularBuffer::<VOTERS, i8>::new();
-        //bat_status.fill(0);
         Ok(Self {
             device: ina,
             voltage: CircularBuffer::new(),
