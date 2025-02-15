@@ -11,8 +11,10 @@ use std::sync::Arc;
 use std::thread;
 use std::thread::Scope;
 use std::time::{Duration, Instant};
+use sysinfo::CpuRefreshKind;
 use sysinfo::DiskRefreshKind;
 use sysinfo::Disks;
+use sysinfo::RefreshKind;
 
 use ::serde::{Deserialize, Serialize};
 use log::{error, info, warn};
@@ -173,7 +175,7 @@ impl<'a> Reader<'a> {
                                 }
                             }
                         } else {
-                            match Imu::new(bus,&path) {
+                            match Imu::new(bus, &path) {
                                 Ok(mut device) => match device.calibrate(true) {
                                     Ok(()) => {
                                         info! {"IMU device initialized"};
@@ -291,6 +293,13 @@ impl<'a> Reader<'a> {
             .iter_mut()
             .find(|d| d.mount_point() == Path::new("/"));
         //info!("option disk: {disk:?}");
+
+        let mut system = sysinfo::System::new_with_specifics(
+            RefreshKind::nothing().with_cpu(CpuRefreshKind::nothing().with_cpu_usage()),
+        );
+
+        let mut components = sysinfo::Components::new_with_refreshed_list();
+        components.iter().for_each(|c| info!("{c:?}"));
 
         let (client, (ip, mac)) = if let Some((ip, mac)) = ip {
             (Some(reqwest::blocking::Client::new()), (ip, mac))
@@ -460,6 +469,15 @@ impl<'a> Reader<'a> {
                 let free = disk.available_space() as f32 / (1024.0 * 1024.0 * 1024.0);
                 self.device_manager.statuses.free = free;
             }
+
+            system.refresh_cpu_usage();
+            components.refresh(false);
+
+            self.device_manager.statuses.cpu_usage = system.global_cpu_usage();
+            self.device_manager.statuses.cpu_temp = components
+                .iter()
+                .filter_map(|c| c.temperature())
+                .max_by(|a, b| a.total_cmp(b));
 
             #[derive(Serialize, Debug)]
             struct JsonData<'a> {
