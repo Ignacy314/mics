@@ -41,7 +41,7 @@ impl Ina {
         const SIZE_2: usize = VOL_SAMPLES - VOL_SAMPLES * (PARTS - 1) / PARTS;
 
         let mean_1 = self.voltage.iter().take(SIZE_1).sum::<u32>() as f32 / SIZE_1 as f32;
-        let mean_2 = self.voltage.iter().take(SIZE_2).sum::<u32>() as f32 / SIZE_2 as f32;
+        let mean_2 = self.voltage.iter().skip(SIZE_1).take(SIZE_2).sum::<u32>() as f32 / SIZE_2 as f32;
 
         mean_2.total_cmp(&mean_1)
     }
