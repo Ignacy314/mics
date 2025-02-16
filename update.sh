@@ -10,7 +10,8 @@ done
 
 echo "checking for updates"
 git -C $HOME/andros/andros pull
-just -f $HOME/andros/andros/justfile
+just -f $HOME/andros/andros/justfile build "$(echo "$@" | tr ' ' ',')"
+# just build "$(echo "$@" | tr ' ' ',')"
 
 # sleep 2
 

@@ -153,9 +153,16 @@ impl<'a> CaptureDevice<'a> {
             hwp.set_rate(self.samplerate, ValueOr::Nearest)?;
             hwp.set_format(self.format)?;
             hwp.set_access(Access::RWInterleaved)?;
-            hwp.set_buffer_size_near(131072)?;
+            let buf_size = hwp.get_buffer_size_max()?;
+            hwp.set_buffer_size(buf_size)?;
             pcm.hw_params(&hwp)?;
         }
+        //let rate = {
+        //    let hwp = pcm.hw_params_current()?;
+        //    let swp = pcm.sw_params_current()?;
+        //    let buf_size = hwp.get_buffer_size()?;
+        //    swp.set_start_threshold(v)
+        //};
         pcm.prepare()?;
         pcm.start()?;
         Ok(pcm)
@@ -190,6 +197,7 @@ impl<'a> CaptureDevice<'a> {
                 writer.write_clock()?;
             }
 
+            //io.mm
             match io.readi(&mut buf) {
                 Ok(s) => {
                     let n = s * self.channels as usize;
