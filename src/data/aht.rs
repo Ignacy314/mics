@@ -52,7 +52,6 @@ pub struct Data {
 impl Device for Aht {
     type Data = Data;
     type Error = Error;
-    //type Settings = u8;
 
     fn get_data(&mut self) -> Result<Self::Data, Self::Error> {
         let data = self.device.read()?;
@@ -61,9 +60,4 @@ impl Device for Aht {
             temperature: data.1.celsius(),
         })
     }
-
-    //fn init(&mut self, settings: Self::Settings) -> Result<(), Self::Error> {
-    //    self.device = Self::new(settings)?;
-    //    Ok(())
-    //}
 }

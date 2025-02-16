@@ -58,18 +58,6 @@ impl Default for Charge {
     }
 }
 
-//impl Display for Charge {
-//    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//        match self {
-//            Charge::Unknown => write!(f, "Unknown"),
-//            Charge::Charging(p) => write!(f, "Charging: {p}%"),
-//            Charge::Discharging(p) => write!(f, "Discharging: {p}%"),
-//            Charge::CriticalError => write!(f, "Critical Error"),
-//            Charge::CriticalDischarge => write!(f, "Critical Discharge"),
-//        }
-//    }
-//}
-
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Copy)]
 pub struct Data {
     pub bus_voltage: u16,
@@ -120,7 +108,6 @@ impl Device for Ina {
             });
         }
         let sum = self.bat_status.iter().sum::<i8>();
-        //info!("{}/{} {} {:?} {}", self.voltage.len(), self.voltage.capacity(), self.voltage.is_full(), self.bat_status, sum);
         let charge = if !self.voltage.is_full() {
             Charge::Unknown
         } else if bus_voltage >= 15000 {

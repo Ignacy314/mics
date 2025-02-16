@@ -1,8 +1,9 @@
+use std::time::Duration;
+
 use serde::{Deserialize, Serialize};
 
 use super::{aht, bmp, gps};
 use crate::data::{Aht, Bmp, Gps};
-use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum Status {

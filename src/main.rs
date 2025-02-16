@@ -17,10 +17,8 @@ use parking_lot::Mutex;
 use signal_hook::consts::SIGINT;
 use signal_hook::iterator::Signals;
 
-use self::audio::CaptureDevice;
-use self::audio::CaptureDeviceError;
-
-const AUDIO_FILE_DURATION: Duration = Duration::from_secs(10);
+use audio::CaptureDevice;
+use audio::CaptureDeviceError;
 
 fn handle_capture_device_error(err: &CaptureDeviceError, status: &AtomicU8) {
     warn!("{err}");
@@ -110,15 +108,6 @@ fn main() {
         }
     }
 
-    //std::fs::create_dir(data_dir.clone())
-    //    .unwrap_or_else(|e| warn!("Failed to create data directory: {e}"));
-    //std::fs::create_dir(data_dir.clone().join("i2s"))
-    //    .unwrap_or_else(|e| warn!("Failed to create i2s data directory: {e}"));
-    //std::fs::create_dir(data_dir.clone().join("umc"))
-    //    .unwrap_or_else(|e| warn!("Failed to create umc data directory: {e}"));
-    //std::fs::create_dir(data_dir.clone().join("data"))
-    //    .unwrap_or_else(|e| warn!("Failed to create sensor data directory: {e}"));
-
     Logger::try_with_env_or_str("info")
         .unwrap()
         .log_to_file(FileSpec::default().directory(log_dir))
@@ -146,44 +135,14 @@ fn main() {
             }
         });
 
-        //let gpio = Gpio::new().unwrap();
-        //let mut pps_pin = gpio.get(13).unwrap().into_input_pulldown();
-
-        //let (tx, rx) = unbounded();
-
-        //let i2s_pps = Arc::new(Mutex::new((false, 0i64)));
-        //let umc_pps = Arc::new(Mutex::new((false, 0i64)));
-        //let i2s_pps_rdy = &AtomicBool::new(false);
-        //let i2s_pps_data = &AtomicI64::new(0);
-
         let i2s_max = Arc::new(Mutex::new(0i32));
         let umc_max = Arc::new(Mutex::new(0i32));
 
-        //pps_pin
-        //    .set_async_interrupt(
-        //        rppal::gpio::Trigger::RisingEdge,
-        //        Some(Duration::from_millis(5)),
-        //        {
-        //            let i2s_pps = i2s_pps.clone();
-        //            let umc_pps = umc_pps.clone();
-        //            move |_| {
-        //                let now = chrono::Utc::now();
-        //                info!("PPS at UTC {now}");
-        //                let nanos = now.timestamp_nanos_opt().unwrap();
-        //                *i2s_pps.lock() = (true, nanos);
-        //                *umc_pps.lock() = (true, nanos);
-        //                //tx.send(nanos).unwrap();
-        //            }
-        //        },
-        //    )
-        //    .unwrap();
-
         // Create the Andros I2S microphone capture thread
-        thread::Builder::new().stack_size(1024 * 1024 * 32)
+        thread::Builder::new()
+            .stack_size(1024 * 1024 * 32)
             .name("i2s".to_owned())
             .spawn_scoped(s, {
-                //let rx = rx.clone();
-                //let i2s_pps = i2s_pps.clone();
                 let i2s_max = i2s_max.clone();
                 move || {
                     let i2s = CaptureDevice::new(
@@ -191,15 +150,16 @@ fn main() {
                         4,
                         192_000,
                         Format::s32(),
+                        #[cfg(feature = "audio")]
                         data_dir.join("i2s"),
+                        #[cfg(feature = "audio")]
                         data_dir.join("clock_i2s"),
                         running,
                         i2s_status,
-                        //i2s_pps,
                         i2s_max,
                     );
                     while running.load(Ordering::Relaxed) {
-                        match i2s.read(AUDIO_FILE_DURATION) {
+                        match i2s.read() {
                             Ok(()) => {}
                             Err(err) => handle_capture_device_error(&err, i2s_status),
                         };
@@ -209,11 +169,10 @@ fn main() {
             .unwrap();
 
         // Create the UMC microphone capture thread
-        thread::Builder::new().stack_size(1024 * 1024 * 32)
+        thread::Builder::new()
+            .stack_size(1024 * 1024 * 32)
             .name("umc".to_owned())
             .spawn_scoped(s, {
-                //let rx = rx.clone();
-                //let umc_pps = umc_pps.clone();
                 let umc_max = umc_max.clone();
                 move || {
                     let umc = CaptureDevice::new(
@@ -221,15 +180,16 @@ fn main() {
                         2,
                         48_000,
                         Format::s32(),
+                        #[cfg(feature = "audio")]
                         data_dir.join("umc"),
+                        #[cfg(feature = "audio")]
                         data_dir.join("clock_umc"),
                         running,
                         umc_status,
-                        //umc_pps,
                         umc_max,
                     );
                     while running.load(Ordering::Relaxed) {
-                        match umc.read(AUDIO_FILE_DURATION) {
+                        match umc.read() {
                             Ok(()) => {}
                             Err(err) => handle_capture_device_error(&err, umc_status),
                         };
@@ -239,6 +199,7 @@ fn main() {
             .unwrap();
 
         let mut reader = data::Reader::new(
+            #[cfg(feature = "sensors")]
             data_dir.join("data"),
             data_dir,
             i2s_status,

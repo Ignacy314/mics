@@ -105,22 +105,15 @@ impl Device for Gps {
 
         let lines = buf.lines();
 
-        //eprintln!("{lines:?}");
-        //info!("{lines:?}");
-
         let gga = lines.filter(|l| {
             if let Ok(l) = l {
-                //eprintln!("{l}");
                 l.starts_with("$GPGGA")
             } else {
                 false
             }
         });
 
-        //eprintln!("{gga:?}");
         let gga = gga.last();
-
-        //eprintln!("{gga:?}");
 
         let Some(Ok(line)) = gga else {
             return Err(Error::NoData);

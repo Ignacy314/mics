@@ -1,6 +1,8 @@
-use parking_lot::Mutex;
+#[cfg(feature = "sensors")]
 use std::fs::File;
+#[cfg(feature = "sensors")]
 use std::io::BufWriter;
+#[cfg(feature = "sensors")]
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
@@ -16,16 +18,17 @@ use sysinfo::DiskRefreshKind;
 use sysinfo::Disks;
 use sysinfo::RefreshKind;
 
-use ::serde::{Deserialize, Serialize};
 use log::{error, info, warn};
+use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
 
-use self::aht::Aht;
-use self::bmp::Bmp;
-use self::device_manager::{DeviceManager, Status, Statuses};
-use self::gps::Gps;
-use self::imu::Imu;
-use self::ina::Ina;
-use self::wind::Wind;
+use aht::Aht;
+use bmp::Bmp;
+use device_manager::{DeviceManager, Status, Statuses};
+use gps::Gps;
+use imu::Imu;
+use ina::Ina;
+use wind::Wind;
 
 pub mod aht;
 pub mod bmp;
@@ -54,8 +57,10 @@ pub struct Data {
 
 pub struct Reader<'a> {
     pub device_manager: DeviceManager<'a>,
+    #[cfg(feature = "sensors")]
     pub path: PathBuf,
     pub calib_path: &'a PathBuf,
+    #[cfg(feature = "sensors")]
     pub data_link: PathBuf,
     pub read_period: Duration,
     i2s_status: &'a AtomicU8,
@@ -67,20 +72,22 @@ pub struct Reader<'a> {
 impl<'a> Reader<'a> {
     const PERIOD_MILLIS: u64 = 5000;
 
-    pub fn new<P: Into<PathBuf>>(
-        path: P,
+    pub fn new(
+        #[cfg(feature = "sensors")] path: PathBuf,
         calib_path: &'a PathBuf,
         i2s_status: &'a AtomicU8,
         umc_status: &'a AtomicU8,
         i2s_max: Arc<Mutex<i32>>,
         umc_max: Arc<Mutex<i32>>,
     ) -> Self {
-        let path: PathBuf = path.into();
+        #[cfg(feature = "sensors")]
         let data_link = path.join("current");
         Self {
             device_manager: DeviceManager::new(),
+            #[cfg(feature = "sensors")]
             path,
             calib_path,
+            #[cfg(feature = "sensors")]
             data_link,
             read_period: Duration::from_millis(Self::PERIOD_MILLIS),
             i2s_status,
@@ -136,16 +143,6 @@ impl<'a> Reader<'a> {
             }
         }
     }
-
-    //fn handle_ina_data_error(&mut self, err: &ina::Error) {
-    //    self.device_manager.statuses.ina = Status::NoData;
-    //    error!("INA219 data error: {err}");
-    //}
-    //
-    //fn handle_ina_init_error(&mut self, err: &ina::Error) {
-    //    self.device_manager.statuses.ina = Status::Disconnected;
-    //    warn!("INA219 init failed: {err}");
-    //}
 
     pub fn read<'b>(
         &mut self,
@@ -290,15 +287,10 @@ impl<'a> Reader<'a> {
             .unwrap();
 
         let mut disks = Disks::new_with_refreshed_list();
-        //for disk in disks.list() {
-        //    info!("disk: {:?}", disk.mount_point());
-        //    info!("disk mount is / : {}", disk.mount_point() == Path::new("/"));
-        //}
         let mut disk = disks
             .list_mut()
             .iter_mut()
             .find(|d| d.mount_point() == Path::new("/"));
-        //info!("option disk: {disk:?}");
 
         let mut system = sysinfo::System::new_with_specifics(
             RefreshKind::nothing().with_cpu(CpuRefreshKind::nothing().with_cpu_usage()),
@@ -325,7 +317,6 @@ impl<'a> Reader<'a> {
             self.device_manager.statuses.writing = "sensors";
         }
 
-        //let client = reqwest::blocking::Client::new();
         while running.load(Ordering::Relaxed) {
             let start = Instant::now();
 
@@ -427,29 +418,6 @@ impl<'a> Reader<'a> {
                 }
             }
 
-            //if let Some(ina) = self.device_manager.ina.as_mut() {
-            //    match ina.get_data() {
-            //        Ok(d) => {
-            //            self.device_manager.statuses.ina = Status::Ok;
-            //            data.ina = Some(d);
-            //        }
-            //        Err(e) => {
-            //            self.handle_ina_data_error(&e);
-            //        }
-            //    }
-            //} else {
-            //    match self.device_manager.try_set_ina() {
-            //        Ok(()) => {
-            //            info!("INA219 device initialized");
-            //        }
-            //        Err(e) => {
-            //            self.handle_ina_init_error(&e);
-            //        }
-            //    }
-            //}
-
-            //self.device_manager.statuses.i2s = self.i2s_status.load(Ordering::Relaxed).into();
-            //self.device_manager.statuses.umc = self.umc_status.load(Ordering::Relaxed).into();
             self.device_manager.statuses.i2s =
                 self.i2s_status.fetch_and(0, Ordering::Relaxed).into();
             self.device_manager.statuses.umc =
@@ -536,7 +504,6 @@ impl<'a> Reader<'a> {
             }
 
             if let Some(client) = client.as_ref() {
-                //info!("POST: {:?}", &json_data);
                 match serde_json::to_string(&json_data) {
                     Ok(str) => {
                         let msg = format!("{ip} {mac} {str}");
@@ -559,8 +526,5 @@ impl<'a> Reader<'a> {
 
             thread::sleep(self.read_period.saturating_sub(start.elapsed()));
         }
-
-        //imu_thread.join().unwrap();
-        //wind_thread.join().unwrap();
     }
 }

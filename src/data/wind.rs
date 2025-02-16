@@ -19,12 +19,6 @@ impl Wind {
         uart.set_write_mode(true)?;
         Ok(Self { device: uart })
     }
-
-    //pub fn send_query(&mut self) -> Result<(), Error> {
-    //    self.device.flush(rppal::uart::Queue::Both)?;
-    //    self.device.write(&Self::QUERY)?;
-    //    Ok(())
-    //}
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Copy)]
