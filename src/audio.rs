@@ -153,11 +153,9 @@ impl<'a> CaptureDevice<'a> {
             hwp.set_rate(self.samplerate, ValueOr::Nearest)?;
             hwp.set_format(self.format)?;
             hwp.set_access(Access::RWInterleaved)?;
-            let buf_size = hwp.set_buffer_size_near(131072)?;
-            hwp.set_period_size(buf_size, ValueOr::Nearest)?;
+            hwp.set_buffer_size_near(131072)?;
             pcm.hw_params(&hwp)?;
         }
-        //pcm.direct_mmap_capture::<i32>();
         pcm.prepare()?;
         pcm.start()?;
         Ok(pcm)
