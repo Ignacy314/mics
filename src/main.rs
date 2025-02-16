@@ -112,7 +112,7 @@ fn main() {
         .unwrap()
         .log_to_file(FileSpec::default().directory(log_dir))
         .duplicate_to_stderr(flexi_logger::Duplicate::All)
-        .print_message()
+        //.print_message()
         .create_symlink(log_dir.join("current"))
         .format(with_thread)
         .use_utc()

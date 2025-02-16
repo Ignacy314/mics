@@ -191,7 +191,7 @@ impl<'a> CaptureDevice<'a> {
         let mut last_read = Instant::now();
         info!("start audio read");
         while self.running.load(Ordering::Relaxed) {
-            //let start = Instant::now();
+            let start = Instant::now();
             #[cfg(feature = "audio")]
             if writer.clock.elapsed() >= Duration::from_secs(1) {
                 writer.write_clock()?;
@@ -235,7 +235,7 @@ impl<'a> CaptureDevice<'a> {
             if writer.file_start.elapsed() >= AUDIO_FILE_DURATION {
                 writer = writer.write_wav()?;
             }
-            //thread::sleep(Duration::from_millis(1).saturating_sub(start.elapsed()));
+            thread::sleep(Duration::from_millis(1).saturating_sub(start.elapsed()));
         }
 
         Ok(())
