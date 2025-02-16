@@ -93,16 +93,14 @@ impl AudioWriter {
 
 #[derive(thiserror::Error, Debug)]
 pub enum CaptureDeviceError {
-    //#[error("Format unimplemented: {0}")]
-    //FormatUnimplemented(Format),
+    #[error("Format unimplemented: {0}")]
+    FormatUnimplemented(Format),
     #[error("Alsa error: {0}")]
     Alsa(#[from] alsa::Error),
     #[error("Hound error: {0}")]
     Hound(#[from] hound::Error),
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
-    #[error("Audio error: {0}")]
-    Other(String),
 }
 
 pub struct CaptureDevice<'a> {
@@ -159,12 +157,6 @@ impl<'a> CaptureDevice<'a> {
             hwp.set_buffer_size(buf_size)?;
             pcm.hw_params(&hwp)?;
         }
-        //let rate = {
-        //    let hwp = pcm.hw_params_current()?;
-        //    let swp = pcm.sw_params_current()?;
-        //    let buf_size = hwp.get_buffer_size()?;
-        //    swp.set_start_threshold(v)
-        //};
         pcm.prepare()?;
         pcm.start()?;
         Ok(pcm)
@@ -172,21 +164,12 @@ impl<'a> CaptureDevice<'a> {
 
     pub fn read(&self) -> Result<(), CaptureDeviceError> {
         let pcm = self.init_device()?;
-
-        let mut mmap = pcm.direct_mmap_capture::<i32>();
-
-        let mut io = if mmap.is_err() {
-            Some(pcm.io_i32()?)
-        } else {
-            None
+        let io = match &self.format {
+            Format::S32LE | Format::S32BE => pcm.io_i32()?,
+            default => return Err(CaptureDeviceError::FormatUnimplemented(*default)),
         };
 
-        //let io = match &self.format {
-        //    Format::S32LE | Format::S32BE => pcm.io_i32()?,
-        //    default => return Err(CaptureDeviceError::FormatUnimplemented(*default)),
-        //};
-
-        //let mut buf = [0i32; 1024 * 128];
+        let mut buf = [0i32; 1024 * 128];
         #[cfg(feature = "audio")]
         let wav_spec = hound::WavSpec {
             channels: self.channels as u16,
@@ -203,125 +186,42 @@ impl<'a> CaptureDevice<'a> {
         info!("start audio read");
         while self.running.load(Ordering::Relaxed) {
             let start = Instant::now();
+
             #[cfg(feature = "audio")]
             if writer.clock.elapsed() >= Duration::from_secs(1) {
                 writer.write_clock()?;
             }
 
-            if let Ok(ref mut mmap) = mmap {
-                let s = mmap.avail();
-                if s > 0 {
-                    let n = s * self.channels as i64;
+            match io.readi(&mut buf) {
+                Ok(s) => {
+                    let n = s * self.channels as usize;
                     let mut max_sample = i32::MIN;
                     let mut zeros = 0;
-                    for sample in mmap.iter() {
+                    for sample in &buf[0..n] {
                         if sample.abs() > max_sample {
-                            max_sample = sample;
+                            max_sample = *sample;
                         }
                         if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
                             zeros += 1;
                         }
                         #[cfg(feature = "audio")]
-                        writer.write_sample(sample)?;
+                        writer.write_sample(*sample)?;
                     }
-                    mmap.commit(s);
                     if zeros < n {
                         last_read = Instant::now();
                     }
                     #[cfg(feature = "audio")]
-                    writer.inc_sample(s as usize);
+                    writer.inc_sample(s);
                     let mut saved_max = self.max_read.lock();
                     *saved_max = saved_max.max(max_sample);
                 }
-                use alsa::pcm::State;
-                match mmap.status().state() {
-                    State::Running => {} // All fine
-                    State::Prepared => {
-                        info!("Starting audio output stream");
-                        pcm.start()?;
+                Err(err) => {
+                    if err.errno() != 11 {
+                        info!("ALSA try recover from: {err}");
+                        pcm.try_recover(err, false)?;
                     }
-                    State::XRun => {
-                        info!("Underrun in audio output stream!");
-                        pcm.prepare()?;
-                    }
-                    State::Suspended => {
-                        println!("Resuming audio output stream");
-                        pcm.resume()?;
-                    }
-                    n => {
-                        return Err(CaptureDeviceError::Other(format!(
-                            "Unexpected pcm state {:?}",
-                            n
-                        )))
-                    }
-                };
-            } else if let Some(ref mut io) = io {
-                let s = match pcm.avail_update() {
-                    Ok(n) => n,
-                    Err(e) => {
-                        info!("Recovering from {}", e);
-                        pcm.recover(e.errno() as std::os::raw::c_int, true)?;
-                        pcm.avail_update()?
-                    }
-                } as usize;
-
-                if s > 0 {
-                    io.mmap(s, |buf| {
-                        let n = buf.len();
-                        let mut max_sample = i32::MIN;
-                        let mut zeros = 0;
-                        for sample in buf {
-                            if sample.abs() > max_sample {
-                                max_sample = *sample;
-                            }
-                            if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
-                                zeros += 1;
-                            }
-                            #[cfg(feature = "audio")]
-                            writer.write_sample(*sample).unwrap();
-                        }
-                        if zeros < n {
-                            last_read = Instant::now();
-                        }
-                        #[cfg(feature = "audio")]
-                        writer.inc_sample(s as usize);
-                        let mut saved_max = self.max_read.lock();
-                        *saved_max = saved_max.max(max_sample);
-                        n / self.channels as usize
-                    })?;
-                };
-            };
-
-            //match io.readi(&mut buf) {
-            //    Ok(s) => {
-            //        let n = s * self.channels as usize;
-            //        let mut max_sample = i32::MIN;
-            //        let mut zeros = 0;
-            //        for sample in &buf[0..n] {
-            //            if sample.abs() > max_sample {
-            //                max_sample = *sample;
-            //            }
-            //            if sample.trailing_zeros() >= 28 || sample.leading_zeros() >= 28 {
-            //                zeros += 1;
-            //            }
-            //            #[cfg(feature = "audio")]
-            //            writer.write_sample(*sample)?;
-            //        }
-            //        if zeros < n {
-            //            last_read = Instant::now();
-            //        }
-            //        #[cfg(feature = "audio")]
-            //        writer.inc_sample(s);
-            //        let mut saved_max = self.max_read.lock();
-            //        *saved_max = saved_max.max(max_sample);
-            //    }
-            //    Err(err) => {
-            //        if err.errno() != 11 {
-            //            info!("ALSA try recover from: {err}");
-            //            pcm.try_recover(err, false)?;
-            //        }
-            //    }
-            //}
+                }
+            }
 
             if last_read.elapsed().as_secs() >= 2 {
                 self.status.store(1, Ordering::Relaxed);
