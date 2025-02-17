@@ -22,7 +22,7 @@ git clone https://github.com/Ignacy314/mics andros
 
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-echo -e '#!/bin/bash
+echo '#!/bin/bash
 while ! [ "\$(ping -c 1 google.com)" ]; do
   sleep 1
 done
@@ -37,7 +37,7 @@ cp /home/test/andros/andros/ANDROSi2s.dtbo /boot/firmware/overlays
 cp -f /home/test/andros/andros/config.txt /boot/firmware/config.txt
 
 apt-get install -y samba samba-common-bin
-echo -e "[global]
+echo "[global]
 server string = Andros Data
 workgroup = ANDROS
 log file = /home/test/samba/log.%m
@@ -63,12 +63,12 @@ apt-get install -y libssl-dev
 apt-get install -y pps-tools gpsd gpsd-clients
 apt-get install -y chrony
 
-echo -e 'START_DAEMON="true"
+echo 'START_DAEMON="true"
 USBAUTO="true"
 DEVICES="/dev/ttyAMA0 /dev/pps0"
 GPSD_OPTIONS="-n"' > /etc/default/gpsd
 
-echo -e 'refclock PPS /dev/pps0 lock NMEA refid PPS precision 1e-7' >> /etc/chrony/chrony.conf
+echo 'refclock PPS /dev/pps0 lock NMEA refid PPS precision 1e-7' >> /etc/chrony/chrony.conf
 
 systemctl enable --now chrony
 # apt-get install cmake;
