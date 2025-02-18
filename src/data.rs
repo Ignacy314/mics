@@ -509,6 +509,16 @@ impl<'a> Reader<'a> {
                         let msg = format!("{ip} {mac} {str}");
                         match client
                             .post("http://mlynarczyk.edu.pl:8080/andros/publish")
+                            .body(msg.clone())
+                            .send()
+                        {
+                            Ok(_) => {}
+                            Err(err) => {
+                                warn!("Failed to make POST request: {err}");
+                            }
+                        }
+                        match client
+                            .post("http://192.168.71.12:8095/andros/api/kafka/json/publish/node")
                             .body(msg)
                             .send()
                         {
