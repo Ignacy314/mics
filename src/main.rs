@@ -10,8 +10,10 @@ use std::sync::Arc;
 use std::thread;
 
 use alsa::pcm::Format;
+#[cfg(feature = "audio")]
 use crossbeam_channel::unbounded;
 use flexi_logger::{with_thread, FileSpec, Logger};
+#[cfg(feature = "audio")]
 use hound::SampleFormat;
 use log::{info, warn};
 use parking_lot::Mutex;
@@ -21,6 +23,7 @@ use signal_hook::iterator::Signals;
 use audio::CaptureDevice;
 use audio::CaptureDeviceError;
 
+#[cfg(feature = "audio")]
 use self::audio::{AudioWriter, SEND_BUF_SIZE};
 
 fn handle_capture_device_error(err: &CaptureDeviceError, status: &AtomicU8) {
@@ -141,6 +144,7 @@ fn main() {
         let umc_max = Arc::new(Mutex::new(0i32));
 
         // Create the Andros I2S microphone capture thread
+        #[cfg(feature = "audio")]
         let (i2s_s, i2s_r) = unbounded::<[i32; SEND_BUF_SIZE]>();
         thread::Builder::new()
             .stack_size(1024 * 1024 * 32)
@@ -158,7 +162,10 @@ fn main() {
                         i2s_max,
                     );
                     while running.load(Ordering::Relaxed) {
-                        match i2s.read(i2s_s.clone()) {
+                        match i2s.read(
+                            #[cfg(feature = "audio")]
+                            i2s_s.clone(),
+                        ) {
                             Ok(()) => {}
                             Err(err) => handle_capture_device_error(&err, i2s_status),
                         };
@@ -198,6 +205,7 @@ fn main() {
             .unwrap();
 
         // Create the UMC microphone capture thread
+        #[cfg(feature = "audio")]
         let (umc_s, umc_r) = unbounded::<[i32; SEND_BUF_SIZE]>();
         thread::Builder::new()
             .stack_size(1024 * 1024 * 32)
@@ -215,7 +223,10 @@ fn main() {
                         umc_max,
                     );
                     while running.load(Ordering::Relaxed) {
-                        match umc.read(umc_s.clone()) {
+                        match umc.read(
+                            #[cfg(feature = "audio")]
+                            umc_s.clone(),
+                        ) {
                             Ok(()) => {}
                             Err(err) => handle_capture_device_error(&err, umc_status),
                         };

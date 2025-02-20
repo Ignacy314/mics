@@ -16,12 +16,15 @@ use alsa::{
     pcm::{Access, Format, HwParams, PCM},
     Direction, Error, ValueOr,
 };
+#[cfg(feature = "audio")]
 use crossbeam_channel::Receiver;
 use crossbeam_channel::RecvError;
+#[cfg(feature = "audio")]
 use crossbeam_channel::Sender;
 #[cfg(feature = "audio")]
 use hound::{WavSpec, WavWriter};
 use log::info;
+#[cfg(feature = "audio")]
 use log::warn;
 use parking_lot::Mutex;
 
@@ -210,7 +213,10 @@ impl<'a> CaptureDevice<'a> {
         Ok(pcm)
     }
 
-    pub fn read(&self, sender: Sender<[i32; SEND_BUF_SIZE]>) -> Result<(), CaptureDeviceError> {
+    pub fn read(
+        &self,
+        #[cfg(feature = "audio")] sender: Sender<[i32; SEND_BUF_SIZE]>,
+    ) -> Result<(), CaptureDeviceError> {
         let pcm = self.init_device()?;
         let io = match &self.format {
             Format::S32LE | Format::S32BE => pcm.io_i32()?,
