@@ -16,6 +16,8 @@ use alsa::{
     pcm::{Access, Format, HwParams, PCM},
     Direction, Error, ValueOr,
 };
+use crossbeam_channel::Receiver;
+use crossbeam_channel::RecvError;
 use crossbeam_channel::Sender;
 #[cfg(feature = "audio")]
 use hound::{WavSpec, WavWriter};
@@ -25,7 +27,7 @@ use parking_lot::Mutex;
 
 #[cfg(feature = "audio")]
 pub const AUDIO_FILE_DURATION: Duration = Duration::from_secs(10);
-
+#[cfg(feature = "audio")]
 pub const SEND_BUF_SIZE: usize = 8192;
 
 #[cfg(feature = "audio")]
@@ -35,6 +37,7 @@ struct AudioSender {
     sender: Sender<[i32; SEND_BUF_SIZE]>,
 }
 
+#[cfg(feature = "audio")]
 impl AudioSender {
     fn new(sender: Sender<[i32; SEND_BUF_SIZE]>) -> Self {
         Self {
@@ -44,22 +47,18 @@ impl AudioSender {
         }
     }
 
-    fn send_sample(&mut self, sample: i32) -> Result<(), CaptureDeviceError> {
+    fn send_sample(&mut self, sample: i32) {
         self.buffer[self.index] = sample;
         self.index += 1;
         if self.index == SEND_BUF_SIZE {
-            // TODO: Error into CaptureDeviceError and use ? maybe, depends on what happens on
-            // error
             match self.sender.send(self.buffer) {
                 Ok(()) => {}
                 Err(_err) => {
                     warn!("Failed to send audio data. Buffer overrun");
-                    //thread::sleep(Duration::from_secs(1));
                 }
             };
             self.index = 0;
         }
-        Ok(())
     }
 }
 
@@ -73,6 +72,7 @@ pub struct AudioWriter {
     pub file_start: Instant,
     pub clock: Instant,
     pub wav_spec: WavSpec,
+    pub receiver: Receiver<[i32; SEND_BUF_SIZE]>,
 }
 
 #[cfg(feature = "audio")]
@@ -81,6 +81,7 @@ impl AudioWriter {
         output_dir: PathBuf,
         clock_dir: PathBuf,
         wav_spec: hound::WavSpec,
+        receiver: Receiver<[i32; SEND_BUF_SIZE]>,
     ) -> Result<Self, CaptureDeviceError> {
         let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
         let path = output_dir.join(format!("{nanos}.wav"));
@@ -99,7 +100,24 @@ impl AudioWriter {
             file_start: Instant::now(),
             clock: Instant::now(),
             wav_spec,
+            receiver,
         })
+    }
+
+    pub fn receive(&mut self) -> Result<(), CaptureDeviceError> {
+        if self.clock.elapsed() >= Duration::from_secs(1) {
+            self.write_clock()?;
+        }
+        let buf = self.receiver.recv()?;
+        for s in buf {
+            self.write_sample(s)?;
+        }
+        self.inc_sample(SEND_BUF_SIZE);
+        Ok(())
+    }
+
+    pub fn time_to_write(&self) -> bool {
+        self.file_start.elapsed() >= AUDIO_FILE_DURATION
     }
 
     pub fn write_clock(&mut self) -> Result<(), CaptureDeviceError> {
@@ -121,19 +139,6 @@ impl AudioWriter {
     }
 
     pub fn write_sample(&mut self, sample: i32) -> Result<(), CaptureDeviceError> {
-        //self.buffer[self.index] = sample;
-        //self.index += 1;
-        //if self.index == SEND_BUF_SIZE {
-        //    // TODO: Error into CaptureDeviceError and use ? maybe, depends on what happens on
-        //    // error
-        //    match self.sender.try_send(self.buffer) {
-        //        Ok(()) => {}
-        //        Err(_err) => {
-        //            warn!("Failed to send audio data. Buffer overrun");
-        //        }
-        //    };
-        //    self.index = 0;
-        //}
         self.wav_writer.write_sample(sample)?;
         Ok(())
     }
@@ -153,6 +158,8 @@ pub enum CaptureDeviceError {
     Hound(#[from] hound::Error),
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
+    #[error("Receive error: {0}")]
+    Receive(#[from] RecvError),
 }
 
 pub struct CaptureDevice<'a> {
@@ -160,10 +167,6 @@ pub struct CaptureDevice<'a> {
     channels: u32,
     samplerate: u32,
     format: Format,
-    //#[cfg(feature = "audio")]
-    //output_dir: PathBuf,
-    //#[cfg(feature = "audio")]
-    //clock_dir: PathBuf,
     running: &'a AtomicBool,
     status: &'a AtomicU8,
     max_read: Arc<Mutex<i32>>,
@@ -176,8 +179,6 @@ impl<'a> CaptureDevice<'a> {
         channels: u32,
         samplerate: u32,
         format: Format,
-        //#[cfg(feature = "audio")] output_dir: PathBuf,
-        //#[cfg(feature = "audio")] clock_dir: PathBuf,
         running: &'a AtomicBool,
         status: &'a AtomicU8,
         max_read: Arc<Mutex<i32>>,
@@ -187,10 +188,6 @@ impl<'a> CaptureDevice<'a> {
             channels,
             samplerate,
             format,
-            //#[cfg(feature = "audio")]
-            //output_dir,
-            //#[cfg(feature = "audio")]
-            //clock_dir,
             running,
             status,
             max_read,
@@ -222,28 +219,14 @@ impl<'a> CaptureDevice<'a> {
         };
 
         let mut buf = [0i32; 1024 * 128];
-        //#[cfg(feature = "audio")]
-        //let wav_spec = hound::WavSpec {
-        //    channels: self.channels as u16,
-        //    sample_rate: self.samplerate,
-        //    bits_per_sample: 32,
-        //    sample_format: SampleFormat::Int,
-        //};
 
         #[cfg(feature = "audio")]
         let mut sender = AudioSender::new(sender);
-        //let mut writer =
-        //    AudioWriter::new(sender, self.output_dir.clone(), self.clock_dir.clone(), wav_spec)?;
 
         let mut last_read = Instant::now();
         info!("start audio read");
         while self.running.load(Ordering::Relaxed) {
             let start = Instant::now();
-
-            //#[cfg(feature = "audio")]
-            //if writer.clock.elapsed() >= Duration::from_secs(1) {
-            //    writer.write_clock()?;
-            //}
 
             match io.readi(&mut buf) {
                 Ok(s) => {
@@ -258,14 +241,11 @@ impl<'a> CaptureDevice<'a> {
                             zeros += 1;
                         }
                         #[cfg(feature = "audio")]
-                        sender.send_sample(*sample)?;
-                        //writer.write_sample(*sample)?;
+                        sender.send_sample(*sample);
                     }
                     if zeros < n {
                         last_read = Instant::now();
                     }
-                    //#[cfg(feature = "audio")]
-                    //writer.inc_sample(s);
                     let mut saved_max = self.max_read.lock();
                     *saved_max = saved_max.max(max_sample);
                 }
@@ -280,11 +260,6 @@ impl<'a> CaptureDevice<'a> {
             if last_read.elapsed().as_secs() >= 2 {
                 self.status.store(1, Ordering::Relaxed);
             }
-
-            //#[cfg(feature = "audio")]
-            //if writer.file_start.elapsed() >= AUDIO_FILE_DURATION {
-            //    writer = writer.write_wav()?;
-            //}
 
             thread::sleep(Duration::from_millis(1).saturating_sub(start.elapsed()));
         }

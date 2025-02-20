@@ -8,7 +8,6 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
 
 use alsa::pcm::Format;
 use crossbeam_channel::unbounded;
@@ -22,14 +21,14 @@ use signal_hook::iterator::Signals;
 use audio::CaptureDevice;
 use audio::CaptureDeviceError;
 
-use self::audio::{AudioWriter, AUDIO_FILE_DURATION, SEND_BUF_SIZE};
+use self::audio::{AudioWriter, SEND_BUF_SIZE};
 
 fn handle_capture_device_error(err: &CaptureDeviceError, status: &AtomicU8) {
     warn!("{err}");
     status.store(2, Ordering::Relaxed);
-    if !err.to_string().contains("(32)") {
-        thread::sleep(Duration::from_millis(200));
-    }
+    //if !err.to_string().contains("(32)") {
+    //    thread::sleep(Duration::from_millis(200));
+    //}
 }
 
 fn main() {
@@ -116,7 +115,6 @@ fn main() {
         .unwrap()
         .log_to_file(FileSpec::default().directory(log_dir))
         .duplicate_to_stderr(flexi_logger::Duplicate::All)
-        //.print_message()
         .create_symlink(log_dir.join("current"))
         .format(with_thread)
         .use_utc()
@@ -155,10 +153,6 @@ fn main() {
                         4,
                         192_000,
                         Format::s32(),
-                        //#[cfg(feature = "audio")]
-                        //data_dir.join("i2s"),
-                        //#[cfg(feature = "audio")]
-                        //data_dir.join("clock_i2s"),
                         running,
                         i2s_status,
                         i2s_max,
@@ -173,30 +167,29 @@ fn main() {
             })
             .unwrap();
 
+        #[cfg(feature = "audio")]
         thread::Builder::new()
             .name("i2s_processor".to_owned())
             .spawn_scoped(s, {
                 move || {
                     let wav_spec = hound::WavSpec {
-                        channels: 2,
-                        sample_rate: 48000,
+                        channels: 4,
+                        sample_rate: 192000,
                         bits_per_sample: 32,
                         sample_format: SampleFormat::Int,
                     };
                     let output_dir = data_dir.join("i2s");
                     let clock_dir = data_dir.join("clock_i2s");
-                    let mut writer = AudioWriter::new(output_dir, clock_dir, wav_spec).unwrap();
+                    let mut writer =
+                        AudioWriter::new(output_dir, clock_dir, wav_spec, i2s_r).unwrap();
                     while running.load(Ordering::Relaxed) {
-                        #[cfg(feature = "audio")]
-                        if writer.clock.elapsed() >= Duration::from_secs(1) {
-                            writer.write_clock().unwrap();
-                        }
-                        let buf = i2s_r.recv().unwrap();
-                        for s in buf {
-                            writer.write_sample(s).unwrap();
-                        }
-                        writer.inc_sample(SEND_BUF_SIZE);
-                        if writer.file_start.elapsed() >= AUDIO_FILE_DURATION {
+                        match writer.receive() {
+                            Ok(()) => {}
+                            Err(err) => {
+                                handle_capture_device_error(&err, umc_status);
+                            }
+                        };
+                        if writer.time_to_write() {
                             writer = writer.write_wav().unwrap();
                         }
                     }
@@ -217,10 +210,6 @@ fn main() {
                         2,
                         48_000,
                         Format::s32(),
-                        //#[cfg(feature = "audio")]
-                        //data_dir.join("umc"),
-                        //#[cfg(feature = "audio")]
-                        //data_dir.join("clock_umc"),
                         running,
                         umc_status,
                         umc_max,
@@ -235,6 +224,7 @@ fn main() {
             })
             .unwrap();
 
+        #[cfg(feature = "audio")]
         thread::Builder::new()
             .name("umc_processor".to_owned())
             .spawn_scoped(s, {
@@ -248,18 +238,16 @@ fn main() {
                     };
                     let output_dir = data_dir.join("umc");
                     let clock_dir = data_dir.join("clock_umc");
-                    let mut writer = AudioWriter::new(output_dir, clock_dir, wav_spec).unwrap();
+                    let mut writer =
+                        AudioWriter::new(output_dir, clock_dir, wav_spec, umc_r).unwrap();
                     while running.load(Ordering::Relaxed) {
-                        #[cfg(feature = "audio")]
-                        if writer.clock.elapsed() >= Duration::from_secs(1) {
-                            writer.write_clock().unwrap();
-                        }
-                        let buf = umc_r.recv().unwrap();
-                        for s in buf {
-                            writer.write_sample(s).unwrap();
-                        }
-                        writer.inc_sample(SEND_BUF_SIZE);
-                        if writer.file_start.elapsed() >= AUDIO_FILE_DURATION {
+                        match writer.receive() {
+                            Ok(()) => {}
+                            Err(err) => {
+                                handle_capture_device_error(&err, umc_status);
+                            }
+                        };
+                        if writer.time_to_write() {
                             writer = writer.write_wav().unwrap();
                         }
                     }
