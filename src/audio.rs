@@ -50,7 +50,7 @@ impl AudioSender {
         if self.index == SEND_BUF_SIZE {
             // TODO: Error into CaptureDeviceError and use ? maybe, depends on what happens on
             // error
-            match self.sender.try_send(self.buffer) {
+            match self.sender.send(self.buffer) {
                 Ok(()) => {}
                 Err(_err) => {
                     warn!("Failed to send audio data. Buffer overrun");
