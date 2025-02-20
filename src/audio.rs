@@ -172,7 +172,6 @@ pub struct CaptureDevice<'a> {
     max_read: Arc<Mutex<i32>>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl<'a> CaptureDevice<'a> {
     pub fn new(
         device_name: &str,
