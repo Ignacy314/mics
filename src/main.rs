@@ -238,7 +238,7 @@ fn main() {
         thread::Builder::new()
             .name("umc_processor".to_owned())
             .spawn_scoped(s, {
-                let umc_r = umc_r.clone();
+                //let umc_r = umc_r.clone();
                 move || {
                     let wav_spec = hound::WavSpec {
                         channels: 2,
@@ -247,7 +247,7 @@ fn main() {
                         sample_format: SampleFormat::Int,
                     };
                     let output_dir = data_dir.join("umc");
-                    let clock_dir = data_dir.join("umc_clock");
+                    let clock_dir = data_dir.join("clock_umc");
                     let mut writer = AudioWriter::new(output_dir, clock_dir, wav_spec).unwrap();
                     while running.load(Ordering::Relaxed) {
                         #[cfg(feature = "audio")]

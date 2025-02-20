@@ -54,7 +54,7 @@ impl AudioSender {
                 Ok(()) => {}
                 Err(_err) => {
                     warn!("Failed to send audio data. Buffer overrun");
-                    thread::sleep(Duration::from_secs(1));
+                    //thread::sleep(Duration::from_secs(1));
                 }
             };
             self.index = 0;
