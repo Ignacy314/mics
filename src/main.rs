@@ -30,15 +30,15 @@ fn handle_capture_device_error(err: &CaptureDeviceError, status: &AtomicU8) {
 }
 
 fn main() {
-    let home = match std::env::var("HOME") {
-        Ok(var) => var,
-        Err(err) => {
-            warn!("Failed to load $HOME environmental variable: {err}\nChoosing current directory as working directory.");
-            ".".to_owned()
-        }
-    };
+    //let home = match std::env::var("HOME") {
+    //    Ok(var) => var,
+    //    Err(err) => {
+    //        warn!("Failed to load $HOME environmental variable: {err}\nChoosing current directory as working directory.");
+    //        ".".to_owned()
+    //    }
+    //};
 
-    let andros_dir = format!("{home}/andros");
+    let andros_dir = "/home/test/andros".to_string();
     let andros_dir = Path::new(&andros_dir);
     let andros_dir = match std::fs::create_dir_all(andros_dir) {
         Ok(()) => andros_dir,
