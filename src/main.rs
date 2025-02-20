@@ -11,7 +11,9 @@ use std::thread;
 use std::time::Duration;
 
 use alsa::pcm::Format;
+use crossbeam_channel::unbounded;
 use flexi_logger::{with_thread, FileSpec, Logger};
+use hound::SampleFormat;
 use log::{info, warn};
 use parking_lot::Mutex;
 use signal_hook::consts::SIGINT;
@@ -19,6 +21,8 @@ use signal_hook::iterator::Signals;
 
 use audio::CaptureDevice;
 use audio::CaptureDeviceError;
+
+use self::audio::{AudioWriter, AUDIO_FILE_DURATION, SEND_BUF_SIZE};
 
 fn handle_capture_device_error(err: &CaptureDeviceError, status: &AtomicU8) {
     warn!("{err}");
@@ -139,6 +143,7 @@ fn main() {
         let umc_max = Arc::new(Mutex::new(0i32));
 
         // Create the Andros I2S microphone capture thread
+        let (i2s_s, i2s_r) = unbounded::<[i32; SEND_BUF_SIZE]>();
         thread::Builder::new()
             .stack_size(1024 * 1024 * 32)
             .name("i2s".to_owned())
@@ -150,16 +155,16 @@ fn main() {
                         4,
                         192_000,
                         Format::s32(),
-                        #[cfg(feature = "audio")]
-                        data_dir.join("i2s"),
-                        #[cfg(feature = "audio")]
-                        data_dir.join("clock_i2s"),
+                        //#[cfg(feature = "audio")]
+                        //data_dir.join("i2s"),
+                        //#[cfg(feature = "audio")]
+                        //data_dir.join("clock_i2s"),
                         running,
                         i2s_status,
                         i2s_max,
                     );
                     while running.load(Ordering::Relaxed) {
-                        match i2s.read() {
+                        match i2s.read(i2s_s.clone()) {
                             Ok(()) => {}
                             Err(err) => handle_capture_device_error(&err, i2s_status),
                         };
@@ -168,7 +173,39 @@ fn main() {
             })
             .unwrap();
 
+        thread::Builder::new()
+            .name("i2s_processor".to_owned())
+            .spawn_scoped(s, {
+                move || {
+                    let wav_spec = hound::WavSpec {
+                        channels: 2,
+                        sample_rate: 48000,
+                        bits_per_sample: 32,
+                        sample_format: SampleFormat::Int,
+                    };
+                    let output_dir = data_dir.join("i2s");
+                    let clock_dir = data_dir.join("i2s_clock");
+                    let mut writer = AudioWriter::new(output_dir, clock_dir, wav_spec).unwrap();
+                    while running.load(Ordering::Relaxed) {
+                        #[cfg(feature = "audio")]
+                        if writer.clock.elapsed() >= Duration::from_secs(1) {
+                            writer.write_clock().unwrap();
+                        }
+                        let buf = i2s_r.recv().unwrap();
+                        for s in buf {
+                            writer.write_sample(s).unwrap();
+                        }
+                        writer.inc_sample(SEND_BUF_SIZE);
+                        if writer.file_start.elapsed() >= AUDIO_FILE_DURATION {
+                            writer = writer.write_wav().unwrap();
+                        }
+                    }
+                }
+            })
+            .unwrap();
+
         // Create the UMC microphone capture thread
+        let (umc_s, umc_r) = unbounded::<[i32; SEND_BUF_SIZE]>();
         thread::Builder::new()
             .stack_size(1024 * 1024 * 32)
             .name("umc".to_owned())
@@ -180,19 +217,50 @@ fn main() {
                         2,
                         48_000,
                         Format::s32(),
-                        #[cfg(feature = "audio")]
-                        data_dir.join("umc"),
-                        #[cfg(feature = "audio")]
-                        data_dir.join("clock_umc"),
+                        //#[cfg(feature = "audio")]
+                        //data_dir.join("umc"),
+                        //#[cfg(feature = "audio")]
+                        //data_dir.join("clock_umc"),
                         running,
                         umc_status,
                         umc_max,
                     );
                     while running.load(Ordering::Relaxed) {
-                        match umc.read() {
+                        match umc.read(umc_s.clone()) {
                             Ok(()) => {}
                             Err(err) => handle_capture_device_error(&err, umc_status),
                         };
+                    }
+                }
+            })
+            .unwrap();
+
+        thread::Builder::new()
+            .name("umc_processor".to_owned())
+            .spawn_scoped(s, {
+                move || {
+                    let wav_spec = hound::WavSpec {
+                        channels: 2,
+                        sample_rate: 48000,
+                        bits_per_sample: 32,
+                        sample_format: SampleFormat::Int,
+                    };
+                    let output_dir = data_dir.join("umc");
+                    let clock_dir = data_dir.join("umc_clock");
+                    let mut writer = AudioWriter::new(output_dir, clock_dir, wav_spec).unwrap();
+                    while running.load(Ordering::Relaxed) {
+                        #[cfg(feature = "audio")]
+                        if writer.clock.elapsed() >= Duration::from_secs(1) {
+                            writer.write_clock().unwrap();
+                        }
+                        let buf = umc_r.recv().unwrap();
+                        for s in buf {
+                            writer.write_sample(s).unwrap();
+                        }
+                        writer.inc_sample(SEND_BUF_SIZE);
+                        if writer.file_start.elapsed() >= AUDIO_FILE_DURATION {
+                            writer = writer.write_wav().unwrap();
+                        }
                     }
                 }
             })
