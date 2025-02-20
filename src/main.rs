@@ -239,7 +239,6 @@ fn main() {
         thread::Builder::new()
             .name("umc_processor".to_owned())
             .spawn_scoped(s, {
-                //let umc_r = umc_r.clone();
                 move || {
                     let wav_spec = hound::WavSpec {
                         channels: 2,
