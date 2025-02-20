@@ -19,6 +19,7 @@ use signal_hook::iterator::Signals;
 
 use audio::CaptureDevice;
 use audio::CaptureDeviceError;
+use thread_priority::ThreadBuilderExt;
 
 fn handle_capture_device_error(err: &CaptureDeviceError, status: &AtomicU8) {
     warn!("{err}");
@@ -139,64 +140,70 @@ fn main() {
         let umc_max = Arc::new(Mutex::new(0i32));
 
         // Create the Andros I2S microphone capture thread
-        thread::Builder::new()
-            .stack_size(1024 * 1024 * 32)
-            .name("i2s".to_owned())
-            .spawn_scoped(s, {
-                let i2s_max = i2s_max.clone();
-                move || {
-                    let i2s = CaptureDevice::new(
-                        "hw:CARD=ANDROSi2s,DEV=1",
-                        4,
-                        192_000,
-                        Format::s32(),
-                        #[cfg(feature = "audio")]
-                        data_dir.join("i2s"),
-                        #[cfg(feature = "audio")]
-                        data_dir.join("clock_i2s"),
-                        running,
-                        i2s_status,
-                        i2s_max,
-                    );
-                    while running.load(Ordering::Relaxed) {
-                        match i2s.read() {
-                            Ok(()) => {}
-                            Err(err) => handle_capture_device_error(&err, i2s_status),
-                        };
+        {
+            let i2s_max = i2s_max.clone();
+            thread::Builder::new()
+                .stack_size(1024 * 1024 * 32)
+                .name("i2s".to_owned())
+                .spawn_scoped_with_priority(s, thread_priority::ThreadPriority::Max, |result| {
+                    info!("Set priority result: {:?}", result);
+                    move || {
+                        let i2s = CaptureDevice::new(
+                            "hw:CARD=ANDROSi2s,DEV=1",
+                            4,
+                            192_000,
+                            Format::s32(),
+                            #[cfg(feature = "audio")]
+                            data_dir.join("i2s"),
+                            #[cfg(feature = "audio")]
+                            data_dir.join("clock_i2s"),
+                            running,
+                            i2s_status,
+                            i2s_max,
+                        );
+                        while running.load(Ordering::Relaxed) {
+                            match i2s.read() {
+                                Ok(()) => {}
+                                Err(err) => handle_capture_device_error(&err, i2s_status),
+                            };
+                        }
                     }
-                }
-            })
-            .unwrap();
+                })
+                .unwrap()
+        };
 
         // Create the UMC microphone capture thread
-        thread::Builder::new()
-            .stack_size(1024 * 1024 * 32)
-            .name("umc".to_owned())
-            .spawn_scoped(s, {
-                let umc_max = umc_max.clone();
-                move || {
-                    let umc = CaptureDevice::new(
-                        "hw:CARD=U192k,DEV=0",
-                        2,
-                        48_000,
-                        Format::s32(),
-                        #[cfg(feature = "audio")]
-                        data_dir.join("umc"),
-                        #[cfg(feature = "audio")]
-                        data_dir.join("clock_umc"),
-                        running,
-                        umc_status,
-                        umc_max,
-                    );
-                    while running.load(Ordering::Relaxed) {
-                        match umc.read() {
-                            Ok(()) => {}
-                            Err(err) => handle_capture_device_error(&err, umc_status),
-                        };
+        {
+            let umc_max = umc_max.clone();
+            thread::Builder::new()
+                .stack_size(1024 * 1024 * 32)
+                .name("umc".to_owned())
+                .spawn_scoped_with_priority(s, thread_priority::ThreadPriority::Max, |result| {
+                    info!("Set priority result: {:?}", result);
+                    move || {
+                        let umc = CaptureDevice::new(
+                            "hw:CARD=U192k,DEV=0",
+                            2,
+                            48_000,
+                            Format::s32(),
+                            #[cfg(feature = "audio")]
+                            data_dir.join("umc"),
+                            #[cfg(feature = "audio")]
+                            data_dir.join("clock_umc"),
+                            running,
+                            umc_status,
+                            umc_max,
+                        );
+                        while running.load(Ordering::Relaxed) {
+                            match umc.read() {
+                                Ok(()) => {}
+                                Err(err) => handle_capture_device_error(&err, umc_status),
+                            };
+                        }
                     }
-                }
-            })
-            .unwrap();
+                })
+                .unwrap()
+        };
 
         let mut reader = data::Reader::new(
             #[cfg(feature = "sensors")]
