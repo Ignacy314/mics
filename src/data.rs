@@ -438,10 +438,7 @@ impl<'a> Reader<'a> {
                 let dy = random_range(-0.3f64..0.3f64);
                 let new_lat = avg_lat + (dy / R_EARTH) * (180.0 / PI);
                 let new_lon = avg_lon + (dx / R_EARTH) * (180.0 / PI) / (new_lat * PI / 180.0).cos();
-                self.device_manager.statuses.drone_coords = Some(Coords {
-                    lat: new_lat,
-                    lon: new_lon,
-                })
+                self.device_manager.statuses.drone_coords = Some((new_lon, new_lat));
             } else {
                 self.device_manager.statuses.drone_detected = false;
                 self.device_manager.statuses.drone_coords = None;
