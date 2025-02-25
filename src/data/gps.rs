@@ -2,6 +2,7 @@ use std::io::BufRead;
 use std::time::Duration;
 
 use chrono::{DateTime, Days, TimeDelta, Utc};
+use log::info;
 use rppal::uart::{Parity, Uart};
 use serde::{Deserialize, Serialize};
 
@@ -104,6 +105,8 @@ impl Device for Gps {
         }
 
         let lines = buf.lines();
+
+        info!("{lines:?}");
 
         let gga = lines.filter(|l| {
             if let Ok(l) = l {
