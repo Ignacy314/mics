@@ -1,3 +1,4 @@
+use std::f64::consts::PI;
 #[cfg(feature = "sensors")]
 use std::fs::File;
 #[cfg(feature = "sensors")]
@@ -13,6 +14,7 @@ use std::sync::Arc;
 use std::thread;
 use std::thread::Scope;
 use std::time::{Duration, Instant};
+use rand::random_range;
 use sysinfo::CpuRefreshKind;
 use sysinfo::DiskRefreshKind;
 use sysinfo::Disks;
@@ -29,6 +31,8 @@ use gps::Gps;
 use imu::Imu;
 use ina::Ina;
 use wind::Wind;
+
+use self::device_manager::Coords;
 
 pub mod aht;
 pub mod bmp;
@@ -317,6 +321,10 @@ impl<'a> Reader<'a> {
             self.device_manager.statuses.writing = "sensors";
         }
 
+        let mut sum_lon = 0f64;
+        let mut sum_lat = 0f64;
+        let mut coord_count = 0;
+
         while running.load(Ordering::Relaxed) {
             let start = Instant::now();
 
@@ -359,6 +367,9 @@ impl<'a> Reader<'a> {
                 match gps.get_data() {
                     Ok(d) => {
                         self.device_manager.statuses.gps = Status::Ok;
+                        sum_lon += d.longitude;
+                        sum_lat += d.latitude;
+                        coord_count += 1;
                         data.gps = Some(d);
                     }
                     Err(e) => {
@@ -416,6 +427,24 @@ impl<'a> Reader<'a> {
                         self.handle_bmp_init_error(&e);
                     }
                 }
+            }
+
+            if rand::random_range(0u32..10) != 0 {
+                self.device_manager.statuses.drone_detected = true;
+                const R_EARTH: f64 = 6365.0;
+                let avg_lon = sum_lon / coord_count as f64;
+                let avg_lat = sum_lat / coord_count as f64;
+                let dx = random_range(-0.3f64..0.3f64);
+                let dy = random_range(-0.3f64..0.3f64);
+                let new_lat = avg_lat + (dy / R_EARTH) * (180.0 / PI);
+                let new_lon = avg_lon + (dx / R_EARTH) * (180.0 / PI) / (new_lat * PI / 180.0).cos();
+                self.device_manager.statuses.drone_coords = Some(Coords {
+                    lat: new_lat,
+                    lon: new_lon,
+                })
+            } else {
+                self.device_manager.statuses.drone_detected = false;
+                self.device_manager.statuses.drone_coords = None;
             }
 
             self.device_manager.statuses.i2s =

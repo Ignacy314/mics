@@ -2,7 +2,6 @@ use std::io::BufRead;
 use std::time::Duration;
 
 use chrono::{DateTime, Days, TimeDelta, Utc};
-use log::info;
 use rppal::uart::{Parity, Uart};
 use serde::{Deserialize, Serialize};
 
@@ -71,8 +70,8 @@ impl Gps {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Data {
-    longitude: f64,
-    latitude: f64,
+    pub longitude: f64,
+    pub latitude: f64,
     altitude: f32,
     timestamp: DateTime<Utc>,
 }

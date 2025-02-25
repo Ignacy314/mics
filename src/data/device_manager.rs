@@ -31,6 +31,12 @@ impl From<u8> for Status {
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+pub struct Coords {
+    pub lon: f64,
+    pub lat: f64
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct Statuses<'a> {
     pub gps: Status,
     pub aht: Status,
@@ -46,6 +52,8 @@ pub struct Statuses<'a> {
     pub max_i2s: i32,
     pub max_umc: i32,
     pub writing: &'a str,
+    pub drone_detected: bool,
+    pub drone_coords: Option<Coords>
 }
 
 #[derive(Default)]
