@@ -106,8 +106,6 @@ impl Device for Gps {
 
         let lines = buf.lines();
 
-        info!("{lines:?}");
-
         let gga = lines.filter(|l| {
             if let Ok(l) = l {
                 l.starts_with("$GPGGA")
