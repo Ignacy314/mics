@@ -108,7 +108,7 @@ impl Device for Gps {
 
         let gga = lines.filter(|l| {
             if let Ok(l) = l {
-                l.starts_with("$GPGGA")
+                l.starts_with("$GPGGA") || l.starts_with("$GNGGA")
             } else {
                 false
             }
