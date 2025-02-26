@@ -33,7 +33,8 @@ impl From<u8> for Status {
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct Coords {
     pub lon: f64,
-    pub lat: f64
+    pub lat: f64,
+    pub target_id: u32,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]

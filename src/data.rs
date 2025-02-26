@@ -447,8 +447,11 @@ impl<'a> Reader<'a> {
                 let new_lat = avg_lat + (dy / R_EARTH) * (180.0 / PI);
                 let new_lon =
                     avg_lon + (dx / R_EARTH) * (180.0 / PI) / (new_lat * PI / 180.0).cos();
-                self.device_manager.statuses.drone_coords =
-                    Some(Coords { lon: new_lon, lat: new_lat });
+                self.device_manager.statuses.drone_coords = Some(Coords {
+                    lon: new_lon,
+                    lat: new_lat,
+                    target_id: 1,
+                });
             } else {
                 self.device_manager.statuses.drone_detected = false;
                 self.device_manager.statuses.drone_coords = None;
