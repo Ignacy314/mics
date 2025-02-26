@@ -325,6 +325,8 @@ impl<'a> Reader<'a> {
         let mut sum_lat = 0f64;
         let mut coord_count = 0;
 
+        self.device_manager.statuses.mac = mac.clone();
+
         while running.load(Ordering::Relaxed) {
             let start = Instant::now();
 
@@ -497,7 +499,7 @@ impl<'a> Reader<'a> {
                 data: Data,
             }
             let json_data = JsonData {
-                statuses: self.device_manager.statuses,
+                statuses: self.device_manager.statuses.clone(),
                 data,
             };
 

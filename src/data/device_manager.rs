@@ -37,8 +37,9 @@ pub struct Coords {
     pub target_id: u32,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Statuses<'a> {
+    pub mac: String,
     pub gps: Status,
     pub aht: Status,
     pub wind: Status,
