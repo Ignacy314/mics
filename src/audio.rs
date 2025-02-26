@@ -29,9 +29,9 @@ use log::warn;
 use parking_lot::Mutex;
 
 #[cfg(feature = "audio")]
-pub const AUDIO_FILE_DURATION: Duration = Duration::from_secs(10);
+pub const AUDIO_FILE_DURATION: Duration = Duration::from_secs(60);
 #[cfg(feature = "audio")]
-pub const SEND_BUF_SIZE: usize = 8192;
+pub const SEND_BUF_SIZE: usize = 1024;
 
 #[cfg(feature = "audio")]
 struct AudioSender {
@@ -113,13 +113,13 @@ impl AudioWriter {
 
     pub fn receive(&mut self) -> Result<(), CaptureDeviceError> {
         let (buf, ts) = self.receiver.recv()?;
-        if self.clock.elapsed() >= Duration::from_secs(1) {
-            self.write_clock(ts)?;
-        }
         for s in buf {
             self.write_sample(s)?;
         }
         self.inc_sample(SEND_BUF_SIZE);
+        if self.clock.elapsed() >= Duration::from_secs(1) {
+            self.write_clock(ts)?;
+        }
         Ok(())
     }
 
