@@ -1,3 +1,4 @@
+use rand::random_range;
 use std::f64::consts::PI;
 #[cfg(feature = "sensors")]
 use std::fs::File;
@@ -14,7 +15,6 @@ use std::sync::Arc;
 use std::thread;
 use std::thread::Scope;
 use std::time::{Duration, Instant};
-use rand::random_range;
 use sysinfo::CpuRefreshKind;
 use sysinfo::DiskRefreshKind;
 use sysinfo::Disks;
@@ -31,6 +31,8 @@ use gps::Gps;
 use imu::Imu;
 use ina::Ina;
 use wind::Wind;
+
+use self::device_manager::Coords;
 
 pub mod aht;
 pub mod bmp;
@@ -430,16 +432,26 @@ impl<'a> Reader<'a> {
             if rand::random_range(0u32..10) != 0 {
                 self.device_manager.statuses.drone_detected = true;
                 const R_EARTH: f64 = 6365.0;
-                let avg_lon = sum_lon / coord_count as f64;
-                let avg_lat = sum_lat / coord_count as f64;
+                let avg_lon = if coord_count > 0 {
+                    sum_lon / coord_count as f64
+                } else {
+                    0.0
+                };
+                let avg_lat = if coord_count > 0 {
+                    sum_lat / coord_count as f64
+                } else {
+                    0.0
+                };
                 let dx = random_range(-0.3f64..0.3f64);
                 let dy = random_range(-0.3f64..0.3f64);
                 let new_lat = avg_lat + (dy / R_EARTH) * (180.0 / PI);
-                let new_lon = avg_lon + (dx / R_EARTH) * (180.0 / PI) / (new_lat * PI / 180.0).cos();
-                self.device_manager.statuses.drone_lat = new_lat;
-                self.device_manager.statuses.drone_lon = new_lon;
+                let new_lon =
+                    avg_lon + (dx / R_EARTH) * (180.0 / PI) / (new_lat * PI / 180.0).cos();
+                self.device_manager.statuses.drone_coords =
+                    Some(Coords { lon: new_lon, lat: new_lat });
             } else {
                 self.device_manager.statuses.drone_detected = false;
+                self.device_manager.statuses.drone_coords = None;
             }
 
             self.device_manager.statuses.i2s =

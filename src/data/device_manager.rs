@@ -53,8 +53,7 @@ pub struct Statuses<'a> {
     pub max_umc: i32,
     pub writing: &'a str,
     pub drone_detected: bool,
-    pub drone_lon: f64,
-    pub drone_lat: f64,
+    pub drone_coords: Option<Coords>,
 }
 
 #[derive(Default)]
