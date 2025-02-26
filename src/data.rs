@@ -550,7 +550,7 @@ impl<'a> Reader<'a> {
                         let msg = format!("{ip} {mac} {str}");
                         match client
                             .post("http://mlynarczyk.edu.pl:8080/andros/publish")
-                            .body(msg.clone())
+                            .body(msg)
                             .send()
                         {
                             Ok(_) => {}
@@ -560,7 +560,7 @@ impl<'a> Reader<'a> {
                         }
                         match client
                             .post("http://192.168.71.12:8095/andros/api/kafka/json/publish/node")
-                            .body(msg)
+                            .body(str)
                             .send()
                         {
                             Ok(_) => {}
