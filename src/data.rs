@@ -32,8 +32,6 @@ use imu::Imu;
 use ina::Ina;
 use wind::Wind;
 
-use self::device_manager::Coords;
-
 pub mod aht;
 pub mod bmp;
 pub mod device_manager;
@@ -438,10 +436,10 @@ impl<'a> Reader<'a> {
                 let dy = random_range(-0.3f64..0.3f64);
                 let new_lat = avg_lat + (dy / R_EARTH) * (180.0 / PI);
                 let new_lon = avg_lon + (dx / R_EARTH) * (180.0 / PI) / (new_lat * PI / 180.0).cos();
-                self.device_manager.statuses.drone_coords = Some((new_lon, new_lat));
+                self.device_manager.statuses.drone_lat = new_lat;
+                self.device_manager.statuses.drone_lon = new_lon;
             } else {
                 self.device_manager.statuses.drone_detected = false;
-                self.device_manager.statuses.drone_coords = None;
             }
 
             self.device_manager.statuses.i2s =
