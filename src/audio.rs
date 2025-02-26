@@ -116,7 +116,7 @@ impl AudioWriter {
         for s in buf {
             self.write_sample(s)?;
         }
-        self.inc_sample(SEND_BUF_SIZE);
+        self.inc_sample(SEND_BUF_SIZE / self.wav_spec.channels as usize);
         if self.clock.elapsed() >= Duration::from_secs(1) {
             self.write_clock(ts)?;
         }
