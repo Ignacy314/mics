@@ -8,6 +8,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::thread;
+use std::time::Duration;
 
 use alsa::pcm::Format;
 #[cfg(feature = "audio")]
@@ -29,6 +30,7 @@ use self::audio::{AudioWriter, SEND_BUF_SIZE};
 fn handle_capture_device_error(err: &CaptureDeviceError, status: &AtomicU8) {
     warn!("{err}");
     status.store(2, Ordering::Relaxed);
+    thread::sleep(Duration::from_millis(100));
     //if !err.to_string().contains("(32)") {
     //    thread::sleep(Duration::from_millis(200));
     //}
@@ -145,7 +147,7 @@ fn main() {
 
         // Create the Andros I2S microphone capture thread
         #[cfg(feature = "audio")]
-        let (i2s_s, i2s_r) = unbounded::<[i32; SEND_BUF_SIZE]>();
+        let (i2s_s, i2s_r) = unbounded::<([i32; SEND_BUF_SIZE], i64)>();
         thread::Builder::new()
             .stack_size(1024 * 1024 * 32)
             .name("i2s".to_owned())
@@ -206,7 +208,7 @@ fn main() {
 
         // Create the UMC microphone capture thread
         #[cfg(feature = "audio")]
-        let (umc_s, umc_r) = unbounded::<[i32; SEND_BUF_SIZE]>();
+        let (umc_s, umc_r) = unbounded::<([i32; SEND_BUF_SIZE], i64)>();
         thread::Builder::new()
             .stack_size(1024 * 1024 * 32)
             .name("umc".to_owned())

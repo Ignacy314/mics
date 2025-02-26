@@ -35,23 +35,27 @@ pub const SEND_BUF_SIZE: usize = 8192;
 
 #[cfg(feature = "audio")]
 struct AudioSender {
-    buffer: [i32; SEND_BUF_SIZE],
+    buffer: ([i32; SEND_BUF_SIZE], i64),
     index: usize,
-    sender: Sender<[i32; SEND_BUF_SIZE]>,
+    sender: Sender<([i32; SEND_BUF_SIZE], i64)>,
 }
 
 #[cfg(feature = "audio")]
 impl AudioSender {
-    fn new(sender: Sender<[i32; SEND_BUF_SIZE]>) -> Self {
+    fn new(sender: Sender<([i32; SEND_BUF_SIZE], i64)>) -> Self {
         Self {
             sender,
             index: 0,
-            buffer: [0i32; SEND_BUF_SIZE],
+            buffer: ([0i32; SEND_BUF_SIZE], 0),
         }
     }
 
+    fn set_timestamp(&mut self, ts: i64) {
+        self.buffer.1 = ts;
+    }
+
     fn send_sample(&mut self, sample: i32) {
-        self.buffer[self.index] = sample;
+        self.buffer.0[self.index] = sample;
         self.index += 1;
         if self.index == SEND_BUF_SIZE {
             match self.sender.send(self.buffer) {
@@ -75,7 +79,7 @@ pub struct AudioWriter {
     pub file_start: Instant,
     pub clock: Instant,
     pub wav_spec: WavSpec,
-    pub receiver: Receiver<[i32; SEND_BUF_SIZE]>,
+    pub receiver: Receiver<([i32; SEND_BUF_SIZE], i64)>,
 }
 
 #[cfg(feature = "audio")]
@@ -84,7 +88,7 @@ impl AudioWriter {
         output_dir: PathBuf,
         clock_dir: PathBuf,
         wav_spec: hound::WavSpec,
-        receiver: Receiver<[i32; SEND_BUF_SIZE]>,
+        receiver: Receiver<([i32; SEND_BUF_SIZE], i64)>,
     ) -> Result<Self, CaptureDeviceError> {
         let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
         let path = output_dir.join(format!("{nanos}.wav"));
@@ -92,7 +96,7 @@ impl AudioWriter {
 
         let clock_path = clock_dir.join(format!("{nanos}.csv"));
         let mut clock_writer = BufWriter::new(File::create(clock_path)?);
-        writeln!(clock_writer, "time,file,sample")?;
+        writeln!(clock_writer, "time,sample,file")?;
 
         Ok(Self {
             wav_file: path.file_name().unwrap().to_str().unwrap().to_string(),
@@ -108,10 +112,10 @@ impl AudioWriter {
     }
 
     pub fn receive(&mut self) -> Result<(), CaptureDeviceError> {
+        let (buf, ts) = self.receiver.recv()?;
         if self.clock.elapsed() >= Duration::from_secs(1) {
-            self.write_clock()?;
+            self.write_clock(ts)?;
         }
-        let buf = self.receiver.recv()?;
         for s in buf {
             self.write_sample(s)?;
         }
@@ -123,10 +127,10 @@ impl AudioWriter {
         self.file_start.elapsed() >= AUDIO_FILE_DURATION
     }
 
-    pub fn write_clock(&mut self) -> Result<(), CaptureDeviceError> {
+    pub fn write_clock(&mut self, ts: i64) -> Result<(), CaptureDeviceError> {
         self.clock = self.clock.checked_add(Duration::from_secs(1)).unwrap();
-        let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-        writeln!(self.clock_writer, "{nanos},{},{}", self.sample, self.wav_file)?;
+        //let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+        writeln!(self.clock_writer, "{ts},{},{}", self.sample + SEND_BUF_SIZE / 2, self.wav_file)?;
         self.clock_writer.flush()?;
         Ok(())
     }
@@ -137,6 +141,7 @@ impl AudioWriter {
         let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
         let path = self.output_dir.join(format!("{nanos}.wav"));
         self.wav_writer = WavWriter::create(path.clone(), self.wav_spec)?;
+        self.wav_file = path.file_name().unwrap().to_str().unwrap().to_string();
         self.sample = 0;
         Ok(self)
     }
@@ -215,7 +220,7 @@ impl<'a> CaptureDevice<'a> {
 
     pub fn read(
         &self,
-        #[cfg(feature = "audio")] sender: Sender<[i32; SEND_BUF_SIZE]>,
+        #[cfg(feature = "audio")] sender: Sender<([i32; SEND_BUF_SIZE], i64)>,
     ) -> Result<(), CaptureDeviceError> {
         let pcm = self.init_device()?;
         let io = match &self.format {
@@ -235,6 +240,10 @@ impl<'a> CaptureDevice<'a> {
 
             match io.readi(&mut buf) {
                 Ok(s) => {
+                    #[cfg(feature = "audio")]
+                    let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
+                    #[cfg(feature = "audio")]
+                    sender.set_timestamp(nanos);
                     let n = s * self.channels as usize;
                     let mut max_sample = i32::MIN;
                     let mut zeros = 0;
