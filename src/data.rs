@@ -429,7 +429,7 @@ impl<'a> Reader<'a> {
                 }
             }
 
-            if rand::random_range(0u32..10) != 0 && coord_count > 0 {
+            if rand::random_range(0u32..10) != 0 && data.gps.is_some() {
                 self.device_manager.statuses.drone_detected = true;
                 const R_EARTH: f64 = 6365.0;
                 let avg_lon = if coord_count > 0 {
