@@ -527,8 +527,8 @@ impl<'a> Reader<'a> {
                 radius: u32,
             }
 
-            let fake_lat = [52.4776535, 52.4776645, 52.4776755];
-            let fake_lon = [16.9273625, 16.9273735, 16.9273845];
+            let fake_lat = [52.4775535, 52.4776645, 52.4777755];
+            let fake_lon = [16.9273625, 16.9274735, 16.9275845];
 
             let fake_data = FakeData {
                 mac: mac.clone(),
