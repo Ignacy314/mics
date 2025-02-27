@@ -23,8 +23,8 @@ impl Wind {
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Copy)]
 pub struct Data {
-    dir: u16,
-    speed: f32,
+    pub dir: u16,
+    pub speed: f32,
 }
 
 #[derive(thiserror::Error, Debug)]

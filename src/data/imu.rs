@@ -254,7 +254,7 @@ impl<const SAMPLES: usize> Imu<SAMPLES> {
 #[derive(Debug, Serialize, Deserialize, Default, Clone, Copy)]
 pub struct Data {
     pub acc: [f32; 3],
-    gyro: [f32; 3],
+    pub gyro: [f32; 3],
     pub mag: [f32; 3],
     pub angle: f32,
 }

@@ -68,12 +68,12 @@ impl Gps {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Data {
     pub longitude: f64,
     pub latitude: f64,
     altitude: f32,
-    timestamp: DateTime<Utc>,
+    pub timestamp: DateTime<Utc>,
 }
 
 #[derive(thiserror::Error, Debug)]

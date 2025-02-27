@@ -43,10 +43,10 @@ impl Aht {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Data {
-    humidity: f32,
-    temperature: f32,
+    pub humidity: f32,
+    pub temperature: f32,
 }
 
 impl Device for Aht {

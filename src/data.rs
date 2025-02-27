@@ -1,4 +1,6 @@
 use rand::random_range;
+use rand::rng;
+use rand::seq::IndexedRandom;
 use std::f64::consts::PI;
 #[cfg(feature = "sensors")]
 use std::fs::File;
@@ -49,7 +51,7 @@ pub trait Device {
     fn get_data(&mut self) -> Result<Self::Data, Self::Error>;
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Data {
     gps: Option<gps::Data>,
     aht: Option<aht::Data>,
@@ -325,6 +327,8 @@ impl<'a> Reader<'a> {
         let mut sum_lat = 0f64;
         let mut coord_count = 0;
 
+        let mut rng = rng();
+
         self.device_manager.statuses.mac = mac.clone();
 
         while running.load(Ordering::Relaxed) {
@@ -500,7 +504,71 @@ impl<'a> Reader<'a> {
             }
             let json_data = JsonData {
                 statuses: self.device_manager.statuses.clone(),
-                data,
+                data: data.clone(),
+            };
+
+            #[derive(Serialize, Debug)]
+            struct FakeData {
+                mac: String,
+                datetime: i64,
+                cpu_temp: f32,
+                accel: [f32; 3],
+                magn: [f32; 3],
+                gyro: [f32; 3],
+                angle: f32,
+                mag_magnitude: f32,
+                temp: f32,
+                humidity: f32,
+                latitude: f64,
+                longitude: f64,
+                gps_timestamp: Option<String>,
+                wind_dir: u16,
+                wind_speed: f32,
+                radius: u32,
+            }
+
+            let fake_data = FakeData {
+                mac: mac.clone(),
+                datetime: chrono::Utc::now().timestamp_nanos_opt().unwrap(),
+                cpu_temp: self.device_manager.statuses.temp.unwrap_or(0.0),
+                accel: data.imu.map_or([0.0, 0.0, 0.0], |d| d.acc),
+                magn: data.imu.map_or([0.0, 0.0, 0.0], |d| d.mag),
+                gyro: data.imu.map_or([0.0, 0.0, 0.0], |d| d.gyro),
+                angle: data.imu.map_or(0.0, |d| d.angle),
+                mag_magnitude: 0.0,
+                temp: data.aht.map_or(0.0, |d| d.temperature),
+                humidity: data.aht.map_or(0.0, |d| d.humidity),
+                latitude: data.gps.as_ref().map_or(0.0, |d| d.latitude),
+                longitude: data.gps.as_ref().map_or(0.0, |d| d.longitude),
+                gps_timestamp: data.gps.map(|d| d.timestamp.to_rfc3339()),
+                wind_dir: data.wind.map_or(0, |d| d.dir),
+                wind_speed: data.wind.map_or(0.0, |d| d.speed),
+                radius: 9000,
+            };
+
+            #[derive(Serialize, Debug)]
+            struct FakeDetection {
+                tid: String,
+                target: String,
+                latitude: f64,
+                longitude: f64,
+                showtime: String,
+                mast: String,
+                status: String
+            }
+
+            let fake_lat = [52.4776635, 52.4776645, 52.4776655];
+            let fake_lon = [16.9273925, 16.9273935, 16.9273945];
+
+            let target = format!("target{}", random_range(0u8..10));
+            let fake_detection = FakeDetection {
+                tid: target.clone(),
+                target,
+                latitude: *fake_lat.choose(&mut rng).unwrap(),
+                longitude: *fake_lon.choose(&mut rng).unwrap(),
+                showtime: chrono::Utc::now().to_rfc3339(),
+                mast: mac.clone(),
+                status: "hostile".to_string()
             };
 
             #[cfg(feature = "sensors")]
@@ -560,6 +628,40 @@ impl<'a> Reader<'a> {
                         }
                         match client
                             .post("http://192.168.71.12:8095/andros/api/kafka/json/publish/node")
+                            .body(str)
+                            .send()
+                        {
+                            Ok(_) => {}
+                            Err(err) => {
+                                warn!("Failed to make POST request: {err}");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to serialize data to json: {e}");
+                    }
+                }
+                match serde_json::to_string(&fake_data) {
+                    Ok(str) => {
+                        match client
+                            .post("http://192.168.71.12:8095/andros/api/kafka/json/publish/node")
+                            .body(str)
+                            .send()
+                        {
+                            Ok(_) => {}
+                            Err(err) => {
+                                warn!("Failed to make POST request: {err}");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Failed to serialize data to json: {e}");
+                    }
+                }
+                match serde_json::to_string(&fake_detection) {
+                    Ok(str) => {
+                        match client
+                            .post("http://192.168.71.12:8095/andros/api/kafka/json/publish/target")
                             .body(str)
                             .send()
                         {

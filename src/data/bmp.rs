@@ -26,7 +26,7 @@ impl Bmp {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Data {
     temperature: f32,
     pressure: f32,
