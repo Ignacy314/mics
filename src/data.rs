@@ -527,6 +527,9 @@ impl<'a> Reader<'a> {
                 radius: u32,
             }
 
+            let fake_lat = [52.4776635, 52.4776645, 52.4776655];
+            let fake_lon = [16.9273925, 16.9273935, 16.9273945];
+
             let fake_data = FakeData {
                 mac: mac.clone(),
                 datetime: chrono::Utc::now().timestamp_nanos_opt().unwrap(),
@@ -538,8 +541,10 @@ impl<'a> Reader<'a> {
                 mag_magnitude: 0.0,
                 temp: data.aht.map_or(0.0, |d| d.temperature),
                 humidity: data.aht.map_or(0.0, |d| d.humidity),
-                latitude: data.gps.as_ref().map_or(0.0, |d| d.latitude),
-                longitude: data.gps.as_ref().map_or(0.0, |d| d.longitude),
+                latitude: *fake_lat.choose(&mut rng).unwrap(),
+                longitude: *fake_lon.choose(&mut rng).unwrap(),
+                //latitude: data.gps.as_ref().map_or(0.0, |d| d.latitude),
+                //longitude: data.gps.as_ref().map_or(0.0, |d| d.longitude),
                 gps_timestamp: data.gps.map(|d| d.timestamp.to_rfc3339()),
                 wind_dir: data.wind.map_or(0, |d| d.dir),
                 wind_speed: data.wind.map_or(0.0, |d| d.speed),
@@ -556,9 +561,6 @@ impl<'a> Reader<'a> {
                 mast: String,
                 status: String
             }
-
-            let fake_lat = [52.4776635, 52.4776645, 52.4776655];
-            let fake_lon = [16.9273925, 16.9273935, 16.9273945];
 
             let target = format!("target{}", random_range(0u8..10));
             let fake_detection = FakeDetection {
