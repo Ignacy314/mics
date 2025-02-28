@@ -585,6 +585,12 @@ impl<'a> Reader<'a> {
                 .unwrap();
             let target = format!("target{}", random_range(0u8..10));
 
+            self.device_manager.statuses.drone_coords = Some(Coords {
+                lat: rand_lat_lon.0,
+                lon: rand_lat_lon.1,
+                target_id: 0
+            });
+
             let fake_detection = FakeDetection {
                 tid: target.clone(),
                 target,
