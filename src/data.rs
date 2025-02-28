@@ -498,16 +498,6 @@ impl<'a> Reader<'a> {
                 .max_by(|a, b| a.total_cmp(b));
 
             #[derive(Serialize, Debug)]
-            struct JsonData<'a> {
-                statuses: Statuses<'a>,
-                data: Data,
-            }
-            let json_data = JsonData {
-                statuses: self.device_manager.statuses.clone(),
-                data: data.clone(),
-            };
-
-            #[derive(Serialize, Debug)]
             struct FakeData {
                 mac: String,
                 datetime: i64,
@@ -560,7 +550,7 @@ impl<'a> Reader<'a> {
                 //longitude: *fake_lon.choose(&mut rng).unwrap(),
                 //latitude: data.gps.as_ref().map_or(0.0, |d| d.latitude),
                 //longitude: data.gps.as_ref().map_or(0.0, |d| d.longitude),
-                gps_timestamp: data.gps.map(|d| d.timestamp.to_rfc3339()),
+                gps_timestamp: data.gps.clone().map(|d| d.timestamp.to_rfc3339()),
                 wind_dir: data.wind.map_or(0, |d| d.dir),
                 wind_speed: data.wind.map_or(0.0, |d| d.speed),
                 radius: 9000,
@@ -602,6 +592,16 @@ impl<'a> Reader<'a> {
                 showtime: chrono::Utc::now().to_rfc3339(),
                 mast: mac.clone(),
                 status: "hostile".to_string(),
+            };
+
+            #[derive(Serialize, Debug)]
+            struct JsonData<'a> {
+                statuses: Statuses<'a>,
+                data: Data,
+            }
+            let json_data = JsonData {
+                statuses: self.device_manager.statuses.clone(),
+                data: data.clone(),
             };
 
             #[cfg(feature = "sensors")]
