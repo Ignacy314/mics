@@ -533,10 +533,19 @@ impl<'a> Reader<'a> {
             //    })
             //    .unwrap();
 
-            let rand_lat_lon = match ip.chars().next_back().unwrap() {
-                '4' => (52.47834 + random_range(0.0..0.0000099), 16.93098 + random_range(0.0..0.0000099)),
-                '5' => (52.47751 + random_range(0.0..0.0000099), 16.92642 + random_range(0.0..0.0000099)),
-                '6' => (52.47671 + random_range(0.0..0.0000099), 16.92221 + random_range(0.0..0.0000099)),
+            let rand_lat_lon = match ip.chars().rev().nth(1).unwrap() {
+                '4' => (
+                    52.47834 + random_range(0.0..0.0000099),
+                    16.93098 + random_range(0.0..0.0000099),
+                ),
+                '5' => (
+                    52.47751 + random_range(0.0..0.0000099),
+                    16.92642 + random_range(0.0..0.0000099),
+                ),
+                '6' => (
+                    52.47671 + random_range(0.0..0.0000099),
+                    16.92221 + random_range(0.0..0.0000099),
+                ),
                 _ => (0.0, 0.0),
             };
 
