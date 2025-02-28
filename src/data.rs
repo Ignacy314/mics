@@ -1,4 +1,5 @@
 use rand::random_range;
+use reqwest::blocking::multipart::Form;
 use std::f64::consts::PI;
 #[cfg(feature = "sensors")]
 use std::fs::File;
@@ -739,12 +740,12 @@ impl<'a> Reader<'a> {
                             .post("http://192.168.71.12:8095/andros/api/kafka/json/publish/target")
                             .body(str)
                             .send()
-                        {
-                            Ok(_) => {}
-                            Err(err) => {
-                                warn!("Failed to make POST request: {err}");
+                            {
+                                Ok(_) => {}
+                                Err(err) => {
+                                    warn!("Failed to make POST request: {err}");
+                                }
                             }
-                        }
                         }
                         Err(e) => {
                             warn!("Failed to serialize data to json: {e}");
