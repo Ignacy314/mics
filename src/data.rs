@@ -518,8 +518,8 @@ impl<'a> Reader<'a> {
             }
 
             let fake_lat_lon = [
-                //(52.47834, 16.93098),
-                //(52.47751, 16.92642),
+                (52.47834, 16.93098),
+                (52.47751, 16.92642),
                 (52.47671, 16.92221),
             ];
 
@@ -556,17 +556,17 @@ impl<'a> Reader<'a> {
                 radius: 9000,
             };
 
-            //if let Some(gps) = data.gps.as_mut() {
-            //    gps.latitude = rand_lat_lon.0;
-            //    gps.longitude = rand_lat_lon.1;
-            //} else {
-            //    data.gps = Some(gps::Data {
-            //        latitude: rand_lat_lon.0,
-            //        longitude: rand_lat_lon.1,
-            //        timestamp: chrono::Utc::now(),
-            //        altitude: 0.0
-            //    })
-            //}
+            if let Some(gps) = data.gps.as_mut() {
+                gps.latitude = rand_lat_lon.0;
+                gps.longitude = rand_lat_lon.1;
+            } else {
+                data.gps = Some(gps::Data {
+                    latitude: rand_lat_lon.0,
+                    longitude: rand_lat_lon.1,
+                    timestamp: chrono::Utc::now(),
+                    altitude: 0.0
+                })
+            }
 
             #[derive(Serialize, Debug)]
             struct FakeDetection {
