@@ -527,8 +527,21 @@ impl<'a> Reader<'a> {
                 radius: u32,
             }
 
-            let fake_lat = [52.4775535, 52.4786645, 52.4797755];
-            let fake_lon = [16.9273625, 16.9284735, 16.9295845];
+            let fake_lat_lon = [
+                (52.47834, 16.93098),
+                (52.47751, 16.92642),
+                (52.47671, 16.92221),
+            ];
+
+            //let fake_lat = [52.4775535, 52.4786645, 52.4797755];
+            //let fake_lon = [16.9273625, 16.9284735, 16.9295845];
+
+            let rand_lat_lon = fake_lat_lon
+                .choose(&mut rng)
+                .map(|(lat, lon)| {
+                    (lat + random_range(0.0..0.0000099), lon + random_range(0.0..0.0000099))
+                })
+                .unwrap();
 
             let fake_data = FakeData {
                 mac: mac.clone(),
@@ -541,8 +554,10 @@ impl<'a> Reader<'a> {
                 mag_magnitude: 0.0,
                 temp: data.aht.map_or(0.0, |d| d.temperature),
                 humidity: data.aht.map_or(0.0, |d| d.humidity),
-                latitude: *fake_lat.choose(&mut rng).unwrap(),
-                longitude: *fake_lon.choose(&mut rng).unwrap(),
+                latitude: rand_lat_lon.0,
+                longitude: rand_lat_lon.1,
+                //latitude: *fake_lat.choose(&mut rng).unwrap(),
+                //longitude: *fake_lon.choose(&mut rng).unwrap(),
                 //latitude: data.gps.as_ref().map_or(0.0, |d| d.latitude),
                 //longitude: data.gps.as_ref().map_or(0.0, |d| d.longitude),
                 gps_timestamp: data.gps.map(|d| d.timestamp.to_rfc3339()),
@@ -559,18 +574,27 @@ impl<'a> Reader<'a> {
                 longitude: f64,
                 showtime: String,
                 mast: String,
-                status: String
+                status: String,
             }
 
+            let rand_lat_lon = fake_lat_lon
+                .choose(&mut rng)
+                .map(|(lat, lon)| {
+                    (lat + random_range(0.0..0.0000099), lon + random_range(0.0..0.0000099))
+                })
+                .unwrap();
             let target = format!("target{}", random_range(0u8..10));
+
             let fake_detection = FakeDetection {
                 tid: target.clone(),
                 target,
-                latitude: *fake_lat.choose(&mut rng).unwrap(),
-                longitude: *fake_lon.choose(&mut rng).unwrap(),
+                latitude: rand_lat_lon.0,
+                longitude: rand_lat_lon.1,
+                //latitude: *fake_lat.choose(&mut rng).unwrap(),
+                //longitude: *fake_lon.choose(&mut rng).unwrap(),
                 showtime: chrono::Utc::now().to_rfc3339(),
                 mast: mac.clone(),
-                status: "hostile".to_string()
+                status: "hostile".to_string(),
             };
 
             #[cfg(feature = "sensors")]
