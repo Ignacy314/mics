@@ -72,7 +72,7 @@ impl Gps {
 pub struct Data {
     pub longitude: f64,
     pub latitude: f64,
-    altitude: f32,
+    pub altitude: f32,
     pub timestamp: DateTime<Utc>,
 }
 
