@@ -1,6 +1,4 @@
 use rand::random_range;
-use rand::rng;
-use rand::seq::IndexedRandom;
 use std::f64::consts::PI;
 #[cfg(feature = "sensors")]
 use std::fs::File;
@@ -327,7 +325,7 @@ impl<'a> Reader<'a> {
         let mut sum_lat = 0f64;
         let mut coord_count = 0;
 
-        let mut rng = rng();
+        //let mut rng = rng();
 
         self.device_manager.statuses.mac = mac.clone();
 
@@ -517,11 +515,11 @@ impl<'a> Reader<'a> {
                 radius: u32,
             }
 
-            let fake_lat_lon = [
-                (52.47834, 16.93098),
-                (52.47751, 16.92642),
-                (52.47671, 16.92221),
-            ];
+            //let fake_lat_lon = [
+            //    (52.47834, 16.93098),
+            //    (52.47751, 16.92642),
+            //    (52.47671, 16.92221),
+            //];
 
             //let fake_lat = [52.4775535, 52.4786645, 52.4797755];
             //let fake_lon = [16.9273625, 16.9284735, 16.9295845];
@@ -538,14 +536,30 @@ impl<'a> Reader<'a> {
                     52.47834 + random_range(0.0..0.0000099),
                     16.93098 + random_range(0.0..0.0000099),
                 ),
-                '5' => (
-                    52.47751 + random_range(0.0..0.0000099),
-                    16.92642 + random_range(0.0..0.0000099),
-                ),
-                '6' => (
-                    52.47671 + random_range(0.0..0.0000099),
-                    16.92221 + random_range(0.0..0.0000099),
-                ),
+                '5' => {
+                    self.device_manager.statuses.drone_detected = true;
+                    self.device_manager.statuses.drone_coords = Some(Coords {
+                        lat: 52.478982 + random_range(0.0..0.0000099),
+                        lon: 16.919339 + random_range(0.0..0.0000099),
+                        target_id: 0,
+                    });
+                    (
+                        52.47751 + random_range(0.0..0.0000099),
+                        16.92642 + random_range(0.0..0.0000099),
+                    )
+                }
+                '6' => {
+                    self.device_manager.statuses.drone_detected = true;
+                    self.device_manager.statuses.drone_coords = Some(Coords {
+                        lat: 52.478982 + random_range(0.0..0.0000099),
+                        lon: 16.919339 + random_range(0.0..0.0000099),
+                        target_id: 0,
+                    });
+                    (
+                        52.47671 + random_range(0.0..0.0000099),
+                        16.92221 + random_range(0.0..0.0000099),
+                    )
+                }
                 _ => (0.0, 0.0),
             };
 
@@ -595,34 +609,31 @@ impl<'a> Reader<'a> {
                 status: String,
             }
 
-            let rand_lat_lon = fake_lat_lon
-                .choose(&mut rng)
-                .map(|(lat, lon)| {
-                    (lat + random_range(0.0..0.0000099), lon + random_range(0.0..0.0000099))
-                })
-                .unwrap();
+            //let rand_lat_lon = fake_lat_lon
+            //    .choose(&mut rng)
+            //    .map(|(lat, lon)| {
+            //        (lat + random_range(0.0..0.0000099), lon + random_range(0.0..0.0000099))
+            //    })
+            //    .unwrap();
             let target = format!("target{}", random_range(0u8..10));
 
-            self.device_manager.statuses.drone_detected = true;
-            self.device_manager.statuses.drone_coords = Some(Coords {
-                lat: 52.478982 + random_range(0.0..0.0000099),
-                lon: 16.919339 + random_range(0.0..0.0000099),
-                target_id: 0,
-            });
-
-            let fake_detection = FakeDetection {
-                tid: target.clone(),
-                target,
-                //latitude: 52.478982 + random_range(0.0..0.0000099),
-                //longitude: 16.919339 + random_range(0.0..0.0000099),
-                latitude: rand_lat_lon.0,
-                longitude: rand_lat_lon.1,
-                //latitude: *fake_lat.choose(&mut rng).unwrap(),
-                //longitude: *fake_lon.choose(&mut rng).unwrap(),
-                showtime: chrono::Utc::now().to_rfc3339(),
-                mast: mac.clone(),
-                status: "hostile".to_string(),
-            };
+            let fake_detection =
+                self.device_manager
+                    .statuses
+                    .drone_coords
+                    .map(|coords| FakeDetection {
+                        tid: target.clone(),
+                        target,
+                        //latitude: 52.478982 + random_range(0.0..0.0000099),
+                        //longitude: 16.919339 + random_range(0.0..0.0000099),
+                        latitude: coords.lat,
+                        longitude: coords.lon,
+                        //latitude: *fake_lat.choose(&mut rng).unwrap(),
+                        //longitude: *fake_lon.choose(&mut rng).unwrap(),
+                        showtime: chrono::Utc::now().to_rfc3339(),
+                        mast: mac.clone(),
+                        status: "hostile".to_string(),
+                    });
 
             #[derive(Serialize, Debug)]
             struct JsonData<'a> {
@@ -721,9 +732,10 @@ impl<'a> Reader<'a> {
                         warn!("Failed to serialize data to json: {e}");
                     }
                 }
-                match serde_json::to_string(&fake_detection) {
-                    Ok(str) => {
-                        match client
+                if let Some(fake_detection) = fake_detection {
+                    match serde_json::to_string(&fake_detection) {
+                        Ok(str) => {
+                            match client
                             .post("http://192.168.71.12:8095/andros/api/kafka/json/publish/target")
                             .body(str)
                             .send()
@@ -733,9 +745,10 @@ impl<'a> Reader<'a> {
                                 warn!("Failed to make POST request: {err}");
                             }
                         }
-                    }
-                    Err(e) => {
-                        warn!("Failed to serialize data to json: {e}");
+                        }
+                        Err(e) => {
+                            warn!("Failed to serialize data to json: {e}");
+                        }
                     }
                 }
             }
