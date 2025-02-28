@@ -585,6 +585,7 @@ impl<'a> Reader<'a> {
                 .unwrap();
             let target = format!("target{}", random_range(0u8..10));
 
+            self.device_manager.statuses.drone_detected = true;
             self.device_manager.statuses.drone_coords = Some(Coords {
                 lat: rand_lat_lon.0,
                 lon: rand_lat_lon.1,
