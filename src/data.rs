@@ -589,18 +589,18 @@ impl<'a> Reader<'a> {
 
             self.device_manager.statuses.drone_detected = true;
             self.device_manager.statuses.drone_coords = Some(Coords {
-                lat: rand_lat_lon.0,
-                lon: rand_lat_lon.1,
+                lat: 52.478982 + random_range(0.0..0.0000099),
+                lon: 16.919339 + random_range(0.0..0.0000099),
                 target_id: 0,
             });
 
             let fake_detection = FakeDetection {
                 tid: target.clone(),
                 target,
-                latitude: 52.478982 + random_range(0.0..0.0000099),
-                longitude: 16.919339 + random_range(0.0..0.0000099),
-                //latitude: rand_lat_lon.0,
-                //longitude: rand_lat_lon.1,
+                //latitude: 52.478982 + random_range(0.0..0.0000099),
+                //longitude: 16.919339 + random_range(0.0..0.0000099),
+                latitude: rand_lat_lon.0,
+                longitude: rand_lat_lon.1,
                 //latitude: *fake_lat.choose(&mut rng).unwrap(),
                 //longitude: *fake_lon.choose(&mut rng).unwrap(),
                 showtime: chrono::Utc::now().to_rfc3339(),
