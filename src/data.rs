@@ -564,7 +564,7 @@ impl<'a> Reader<'a> {
                     latitude: rand_lat_lon.0,
                     longitude: rand_lat_lon.1,
                     timestamp: chrono::Utc::now(),
-                    altitude: 0.0
+                    altitude: 0.0,
                 })
             }
 
@@ -597,8 +597,10 @@ impl<'a> Reader<'a> {
             let fake_detection = FakeDetection {
                 tid: target.clone(),
                 target,
-                latitude: rand_lat_lon.0,
-                longitude: rand_lat_lon.1,
+                latitude: 52.478982 + random_range(0.0..0.0000099),
+                longitude: 16.919339 + random_range(0.0..0.0000099),
+                //latitude: rand_lat_lon.0,
+                //longitude: rand_lat_lon.1,
                 //latitude: *fake_lat.choose(&mut rng).unwrap(),
                 //longitude: *fake_lon.choose(&mut rng).unwrap(),
                 showtime: chrono::Utc::now().to_rfc3339(),
