@@ -145,9 +145,10 @@ fn main() {
         let i2s_max = Arc::new(Mutex::new(0i32));
         let umc_max = Arc::new(Mutex::new(0i32));
 
-        // Create the Andros I2S microphone capture thread
         #[cfg(feature = "audio")]
         let (i2s_s, i2s_r) = unbounded::<([i32; SEND_BUF_SIZE], i64)>();
+
+        // Create the Andros I2S microphone capture thread
         thread::Builder::new()
             .stack_size(1024 * 1024 * 32)
             .name("i2s".to_owned())
@@ -206,9 +207,10 @@ fn main() {
             })
             .unwrap();
 
-        // Create the UMC microphone capture thread
         #[cfg(feature = "audio")]
         let (umc_s, umc_r) = unbounded::<([i32; SEND_BUF_SIZE], i64)>();
+
+        // Create the UMC microphone capture thread
         thread::Builder::new()
             .stack_size(1024 * 1024 * 32)
             .name("umc".to_owned())
