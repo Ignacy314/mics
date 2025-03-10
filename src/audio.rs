@@ -65,7 +65,11 @@ impl AudioSender {
                 }
             };
             self.index = 0;
+            //false
         }
+        //else {
+        //    self.index == SEND_BUF_SIZE - 1
+        //}
     }
 }
 
@@ -75,7 +79,9 @@ pub struct AudioWriter {
     pub clock_writer: BufWriter<File>,
     pub wav_file: String,
     pub output_dir: PathBuf,
-    pub sample: usize,
+    inc: u32,
+    pub sample: u64,
+    pub file_sample: u32,
     pub file_start: Instant,
     pub clock: Instant,
     pub wav_spec: WavSpec,
@@ -96,14 +102,16 @@ impl AudioWriter {
 
         let clock_path = clock_dir.join(format!("{nanos}.csv"));
         let mut clock_writer = BufWriter::new(File::create(clock_path)?);
-        writeln!(clock_writer, "time,sample,file")?;
+        writeln!(clock_writer, "time,sample,file_sample,file")?;
 
         Ok(Self {
             wav_file: path.file_name().unwrap().to_str().unwrap().to_string(),
             wav_writer: writer,
             clock_writer,
             output_dir,
+            inc: SEND_BUF_SIZE as u32 / wav_spec.channels as u32,
             sample: 0,
+            file_sample: 0,
             file_start: Instant::now(),
             clock: Instant::now(),
             wav_spec,
@@ -113,13 +121,13 @@ impl AudioWriter {
 
     pub fn receive(&mut self) -> Result<(), CaptureDeviceError> {
         let (buf, ts) = self.receiver.recv()?;
-        for s in buf {
-            self.write_sample(s)?;
-        }
-        self.inc_sample(SEND_BUF_SIZE / self.wav_spec.channels as usize);
         if self.clock.elapsed() >= Duration::from_secs(1) {
             self.write_clock(ts)?;
         }
+        for s in buf {
+            self.write_sample(s)?;
+        }
+        self.inc_sample();
         Ok(())
     }
 
@@ -130,7 +138,7 @@ impl AudioWriter {
     pub fn write_clock(&mut self, ts: i64) -> Result<(), CaptureDeviceError> {
         self.clock = self.clock.checked_add(Duration::from_secs(1)).unwrap();
         //let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
-        writeln!(self.clock_writer, "{ts},{},{}", self.sample + SEND_BUF_SIZE / 2, self.wav_file)?;
+        writeln!(self.clock_writer, "{ts},{},{},{}", self.sample, self.file_sample, self.wav_file)?;
         self.clock_writer.flush()?;
         Ok(())
     }
@@ -142,7 +150,7 @@ impl AudioWriter {
         let path = self.output_dir.join(format!("{nanos}.wav"));
         self.wav_writer = WavWriter::create(path.clone(), self.wav_spec)?;
         self.wav_file = path.file_name().unwrap().to_str().unwrap().to_string();
-        self.sample = 0;
+        self.file_sample = 0;
         Ok(self)
     }
 
@@ -151,8 +159,9 @@ impl AudioWriter {
         Ok(())
     }
 
-    pub fn inc_sample(&mut self, s: usize) {
-        self.sample += s;
+    pub fn inc_sample(&mut self) {
+        self.file_sample += self.inc;
+        self.sample += self.inc as u64;
     }
 }
 
@@ -238,10 +247,10 @@ impl<'a> CaptureDevice<'a> {
         while self.running.load(Ordering::Relaxed) {
             let start = Instant::now();
 
+            #[cfg(feature = "audio")]
+            let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
             match io.readi(&mut buf) {
                 Ok(s) => {
-                    #[cfg(feature = "audio")]
-                    let nanos = chrono::Utc::now().timestamp_nanos_opt().unwrap();
                     #[cfg(feature = "audio")]
                     sender.set_timestamp(nanos);
                     let n = s * self.channels as usize;
@@ -256,6 +265,16 @@ impl<'a> CaptureDevice<'a> {
                         }
                         #[cfg(feature = "audio")]
                         sender.send_sample(*sample);
+                        //if sender.send_sample(*sample) {
+                        //    sender.set_timestamp(
+                        //        nanos
+                        //            - ((i as u32 + 1 - self.channels) as f64
+                        //                / self.channels as f64
+                        //                / self.samplerate as f64
+                        //                * 1e9)
+                        //                .round() as i64,
+                        //    );
+                        //}
                     }
                     if zeros < n {
                         last_read = Instant::now();
