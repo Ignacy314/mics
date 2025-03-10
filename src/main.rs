@@ -55,7 +55,7 @@ fn main() {
         }
     };
 
-    let ip: Option<(String, String)> = {
+    let ip: Option<(String, String, String)> = {
         let path = andros_dir.join("ip");
         let open = File::open(path);
         let ip = if let Ok(mut file) = open {
@@ -88,8 +88,28 @@ fn main() {
             None
         };
 
+        let path = andros_dir.join("post");
+        let open = File::open(path);
+        let post = if let Ok(mut file) = open {
+            let mut buf = String::new();
+            match file.read_to_string(&mut buf) {
+                Ok(_) => Some(buf.to_string()),
+                Err(e) => {
+                    warn!("Failed to read post address from file: {e}");
+                    None
+                }
+            }
+        } else {
+            warn!("Failed to open post address file: {}", open.unwrap_err());
+            None
+        };
+
         if let Some(ip) = ip {
-            mac.map(|mac| (ip, mac))
+            if let Some(mac) = mac {
+                post.map(|post| (ip, mac, post))
+            } else {
+                None
+            }
         } else {
             None
         }

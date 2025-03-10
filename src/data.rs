@@ -152,7 +152,7 @@ impl<'a> Reader<'a> {
         &mut self,
         running: &'a AtomicBool,
         s: &'a Scope<'a, 'b>,
-        ip: Option<(String, String)>,
+        ip: Option<(String, String, String)>,
     ) {
         let imu_data = Arc::new(Mutex::new((imu::Data::default(), Status::default())));
         thread::Builder::new()
@@ -302,10 +302,10 @@ impl<'a> Reader<'a> {
 
         let mut components = sysinfo::Components::new_with_refreshed_list();
 
-        let (client, (ip, mac)) = if let Some((ip, mac)) = ip {
-            (Some(reqwest::blocking::Client::new()), (ip, mac))
+        let (client, (ip, mac, post)) = if let Some((ip, mac, post)) = ip {
+            (Some(reqwest::blocking::Client::new()), (ip, mac, post))
         } else {
-            (None, (String::new(), String::new()))
+            (None, (String::new(), String::new(), String::new()))
         };
 
         #[cfg(all(feature = "audio", feature = "sensors"))]
@@ -695,11 +695,7 @@ impl<'a> Reader<'a> {
                 match serde_json::to_string(&json_data) {
                     Ok(str) => {
                         let msg = format!("{ip} {mac} {str}");
-                        match client
-                            .post("http://mlynarczyk.edu.pl:8080/andros/publish")
-                            .body(msg)
-                            .send()
-                        {
+                        match client.post(&post).body(msg).send() {
                             Ok(_) => {}
                             Err(err) => {
                                 warn!("Failed to make POST request: {err}");
