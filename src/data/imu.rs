@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use circular_buffer::CircularBuffer;
 use log::{debug, info, warn};
@@ -38,6 +39,7 @@ pub struct Imu<const SAMPLES: usize> {
     mag_calib_path: PathBuf,
     gyro_calib_path: PathBuf,
     calibrated: bool,
+    start: Instant,
 }
 
 impl<const SAMPLES: usize> Imu<SAMPLES> {
@@ -74,6 +76,7 @@ impl<const SAMPLES: usize> Imu<SAMPLES> {
             mag_calib_path: mag_calib_path.clone(),
             gyro_calib_path,
             calibrated: false,
+            start: Instant::now(),
         };
 
         if mag_calib_path.exists() {
@@ -349,15 +352,15 @@ impl<const SAMPLES: usize> Device for Imu<SAMPLES> {
 
                 if !self.calibrated && self.gyro_data.is_full() {
                     info!("GYROSCOPE CALIBRATION START");
-                    let sum =
-                        self.gyro_data
-                            .iter()
-                            .fold([0.0, 0.0, 0.0], |mut sum, &[x, y, z]| {
-                                sum[0] += x;
-                                sum[1] += y;
-                                sum[2] += z;
-                                sum
-                            });
+                    let sum = self
+                        .gyro_data
+                        .iter()
+                        .fold([0.0, 0.0, 0.0], |mut sum, &[x, y, z]| {
+                            sum[0] += x;
+                            sum[1] += y;
+                            sum[2] += z;
+                            sum
+                        });
                     let len = -(self.gyro_data.len() as f32);
                     self.gyro_bias = [sum[0] / len, sum[1] / len, sum[2] / len];
                     self.calibrated = true;
@@ -387,7 +390,10 @@ impl<const SAMPLES: usize> Device for Imu<SAMPLES> {
 
                 debug!("rotation: {:?}", self.rotation);
 
-                if self.calibrated && self.rotation.iter().any(|r| r.abs() >= 360.0) {
+                if self.calibrated
+                    && self.start.elapsed() < Duration::from_secs(20)
+                    && self.rotation.iter().any(|r| r.abs() >= 360.0)
+                {
                     self.update_mag_calibartion()?;
                     self.rotation = [0.0; 3];
                     self.gyro_data.clear();
