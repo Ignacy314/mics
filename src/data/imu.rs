@@ -124,12 +124,14 @@ impl<const SAMPLES: usize> Imu<SAMPLES> {
             (max_z - min_z) / 2.0,
         ];
 
-        let avg_delta = (avg_delta_x + avg_delta_y + avg_delta_z) / 3.0;
+        //let avg_delta = (avg_delta_x + avg_delta_y + avg_delta_z) / 3.0;
+        let avg_delta = (avg_delta_x + avg_delta_y) / 2.0;
 
         self.mag_scale = [
             avg_delta / avg_delta_x,
             avg_delta / avg_delta_y,
-            avg_delta / avg_delta_z,
+            //avg_delta / avg_delta_z,
+            0.0,
         ];
 
         info!("WRITING TO MAGNETOMETER CALIBRATION FILE");
@@ -165,8 +167,10 @@ impl<const SAMPLES: usize> Imu<SAMPLES> {
 
     fn calculate_angle(mag: &[f32; 3], acc: &[f32; 3]) -> f32 {
         // Project mag onto a plane perpendicular to Earth's gravity vector
-        let vec_north = Self::oproj(mag, acc);
+        //let vec_north = Self::oproj(mag, acc);
         //let vec_north = mag;
+
+        let vec_north = mag;
 
         // Assuming x is left y is back (or the other way around, directions are hard)
         -vec_north[1].atan2(vec_north[0]) * 180.0 / PI
