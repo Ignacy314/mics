@@ -101,9 +101,9 @@ impl<const SAMPLES: usize> Imu<SAMPLES> {
     fn update_mag_calibartion(&mut self) -> Result<(), Error> {
         info!("MAGNETOMETER CALIBRATION START");
 
-        let [mut max_x, mut max_y, mut max_z] = self.mag_data.front().unwrap();
-        let [mut min_x, mut min_y, mut min_z] = self.mag_data.front().unwrap();
-        for &[x, y, z] in self.mag_data.iter().skip(1) {
+        let [mut max_x, mut max_y, mut max_z] = [f32::MIN; 3];
+        let [mut min_x, mut min_y, mut min_z] = [f32::MAX; 3];
+        for &[x, y, z] in self.mag_data.iter() {
             max_x = max_x.max(x);
             max_y = max_y.max(y);
             max_z = max_z.max(z);
@@ -124,14 +124,12 @@ impl<const SAMPLES: usize> Imu<SAMPLES> {
             (max_z - min_z) / 2.0,
         ];
 
-        //let avg_delta = (avg_delta_x + avg_delta_y + avg_delta_z) / 3.0;
-        let avg_delta = (avg_delta_x + avg_delta_y) / 2.0;
+        let avg_delta = (avg_delta_x + avg_delta_y + avg_delta_z) / 3.0;
 
         self.mag_scale = [
             avg_delta / avg_delta_x,
             avg_delta / avg_delta_y,
-            //avg_delta / avg_delta_z,
-            0.0,
+            avg_delta / avg_delta_z,
         ];
 
         info!("WRITING TO MAGNETOMETER CALIBRATION FILE");
@@ -167,10 +165,8 @@ impl<const SAMPLES: usize> Imu<SAMPLES> {
 
     fn calculate_angle(mag: &[f32; 3], acc: &[f32; 3]) -> f32 {
         // Project mag onto a plane perpendicular to Earth's gravity vector
-        //let vec_north = Self::oproj(mag, acc);
+        let vec_north = Self::oproj(mag, acc);
         //let vec_north = mag;
-
-        let vec_north = mag;
 
         // Assuming x is left y is back (or the other way around, directions are hard)
         -vec_north[1].atan2(vec_north[0]) * 180.0 / PI
