@@ -113,7 +113,7 @@ impl<'a> Reader<'a> {
         match err {
             gps::Error::Uart(uart_err) => {
                 warn!("GPS init failed: {uart_err}");
-                self.device_manager.statuses.gps = Status::Disconnected;
+                self.device_manager.statuses.gps = Status::Dc;
             }
             _ => unreachable!(),
         }
@@ -128,7 +128,7 @@ impl<'a> Reader<'a> {
         match err {
             aht::Error::I2c(i2c_err) => {
                 warn!("AHT10 init failed: {i2c_err}");
-                self.device_manager.statuses.aht = Status::Disconnected;
+                self.device_manager.statuses.aht = Status::Dc;
             }
             aht::Error::Aht(_) => unreachable!(),
         }
@@ -143,7 +143,7 @@ impl<'a> Reader<'a> {
         match err {
             bmp::Error::Bmp(err) => {
                 warn!("BMP280 init failed: {err}");
-                self.device_manager.statuses.bmp = Status::Disconnected;
+                self.device_manager.statuses.bmp = Status::Dc;
             }
         }
     }
@@ -188,12 +188,12 @@ impl<'a> Reader<'a> {
                                     }
                                     Err(err) => {
                                         warn!("{err}");
-                                        data.lock().1 = Status::Disconnected;
+                                        data.lock().1 = Status::Dc;
                                     }
                                 },
                                 Err(err) => {
                                     warn!("IMU init: {err}");
-                                    data.lock().1 = Status::Disconnected;
+                                    data.lock().1 = Status::Dc;
                                 }
                             };
                         }
@@ -238,7 +238,7 @@ impl<'a> Reader<'a> {
                                 }
                                 Err(err) => {
                                     warn!("{err}");
-                                    data.lock().1 = Status::Disconnected;
+                                    data.lock().1 = Status::Dc;
                                 }
                             };
                         }
@@ -279,7 +279,7 @@ impl<'a> Reader<'a> {
                                 }
                                 Err(err) => {
                                     warn!("{err}");
-                                    data.lock().1 = Status::Disconnected;
+                                    data.lock().1 = Status::Dc;
                                 }
                             };
                         }
