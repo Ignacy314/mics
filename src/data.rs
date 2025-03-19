@@ -182,7 +182,7 @@ impl<'a> Reader<'a> {
                             match Imu::new(bus, &path) {
                                 Ok(mut device) => match device.calibrate(true) {
                                     Ok(()) => {
-                                        info! {"IMU device initialized"};
+                                        info!("IMU device initialized");
                                         imu = Some(device);
                                         data.lock().1 = Status::NoData;
                                     }
@@ -232,7 +232,7 @@ impl<'a> Reader<'a> {
                         } else {
                             match Wind::new(settings.port, settings.baud_rate, settings.timeout) {
                                 Ok(device) => {
-                                    info! {"Wind device initialized"};
+                                    info!("Wind device initialized");
                                     wind = Some(device);
                                     data.lock().1 = Status::NoData;
                                 }
@@ -273,7 +273,7 @@ impl<'a> Reader<'a> {
                         } else {
                             match Ina::new() {
                                 Ok(device) => {
-                                    info! {"Wind device initialized"};
+                                    info!("INA device initialized");
                                     ina = Some(device);
                                     data.lock().1 = Status::NoData;
                                 }

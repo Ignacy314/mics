@@ -9,13 +9,13 @@ use crate::data::{Aht, Bmp, Gps};
 pub enum Status {
     Ok = 0,
     NoData = 1,
-    Disconnected = 2,
+    Dc = 2,
     OtherError = 3,
 }
 
 impl Default for Status {
     fn default() -> Self {
-        Self::Disconnected
+        Self::Dc
     }
 }
 
@@ -24,7 +24,7 @@ impl From<u8> for Status {
         match value {
             0u8 => Status::Ok,
             1u8 => Status::NoData,
-            2u8 => Status::Disconnected,
+            2u8 => Status::Dc,
             _ => Status::OtherError,
         }
     }
