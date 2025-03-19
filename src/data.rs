@@ -1,5 +1,3 @@
-use rand::random_range;
-use std::f64::consts::PI;
 #[cfg(feature = "sensors")]
 use std::fs::File;
 #[cfg(feature = "sensors")]
@@ -9,7 +7,6 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
-use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::thread;
@@ -31,8 +28,6 @@ use gps::Gps;
 use imu::Imu;
 use ina::Ina;
 use wind::Wind;
-
-use self::device_manager::Coords;
 
 pub mod aht;
 pub mod bmp;
@@ -67,23 +62,12 @@ pub struct Reader<'a> {
     #[cfg(feature = "sensors")]
     pub data_link: PathBuf,
     pub read_period: Duration,
-    i2s_status: &'a AtomicU8,
-    umc_status: &'a AtomicU8,
-    i2s_max: Arc<Mutex<i32>>,
-    umc_max: Arc<Mutex<i32>>,
 }
 
 impl<'a> Reader<'a> {
     const PERIOD_MILLIS: u64 = 5000;
 
-    pub fn new(
-        #[cfg(feature = "sensors")] path: PathBuf,
-        calib_path: &'a PathBuf,
-        i2s_status: &'a AtomicU8,
-        umc_status: &'a AtomicU8,
-        i2s_max: Arc<Mutex<i32>>,
-        umc_max: Arc<Mutex<i32>>,
-    ) -> Self {
+    pub fn new(#[cfg(feature = "sensors")] path: PathBuf, calib_path: &'a PathBuf) -> Self {
         #[cfg(feature = "sensors")]
         let data_link = path.join("current");
         Self {
@@ -94,10 +78,6 @@ impl<'a> Reader<'a> {
             #[cfg(feature = "sensors")]
             data_link,
             read_period: Duration::from_millis(Self::PERIOD_MILLIS),
-            i2s_status,
-            umc_status,
-            i2s_max,
-            umc_max,
         }
     }
 
@@ -308,24 +288,10 @@ impl<'a> Reader<'a> {
             (None, (String::new(), String::new(), String::new()))
         };
 
-        #[cfg(all(feature = "audio", feature = "sensors"))]
-        {
-            self.device_manager.statuses.writing = "audio,sensors";
-        }
-        #[cfg(all(feature = "audio", not(feature = "sensors")))]
-        {
-            self.device_manager.statuses.writing = "audio";
-        }
-        #[cfg(all(feature = "sensors", not(feature = "audio")))]
+        #[cfg(feature = "sensors")]
         {
             self.device_manager.statuses.writing = "sensors";
         }
-
-        let mut sum_lon = 0f64;
-        let mut sum_lat = 0f64;
-        let mut coord_count = 0;
-
-        //let mut rng = rng();
 
         self.device_manager.statuses.mac = mac.clone();
 
@@ -371,9 +337,6 @@ impl<'a> Reader<'a> {
                 match gps.get_data() {
                     Ok(d) => {
                         self.device_manager.statuses.gps = Status::Ok;
-                        sum_lon += d.longitude;
-                        sum_lat += d.latitude;
-                        coord_count += 1;
                         data.gps = Some(d);
                     }
                     Err(e) => {
@@ -433,53 +396,6 @@ impl<'a> Reader<'a> {
                 }
             }
 
-            if rand::random_range(0u32..10) != 0 && data.gps.is_some() {
-                self.device_manager.statuses.drone_detected = true;
-                const R_EARTH: f64 = 6365.0;
-                let avg_lon = if coord_count > 0 {
-                    sum_lon / coord_count as f64
-                } else {
-                    0.0
-                };
-                let avg_lat = if coord_count > 0 {
-                    sum_lat / coord_count as f64
-                } else {
-                    0.0
-                };
-                let dx = random_range(-0.3f64..0.3f64);
-                let dy = random_range(-0.3f64..0.3f64);
-                let new_lat = avg_lat + (dy / R_EARTH) * (180.0 / PI);
-                let new_lon =
-                    avg_lon + (dx / R_EARTH) * (180.0 / PI) / (new_lat * PI / 180.0).cos();
-                self.device_manager.statuses.drone_coords = Some(Coords {
-                    lon: new_lon,
-                    lat: new_lat,
-                    target_id: 1,
-                });
-            } else {
-                self.device_manager.statuses.drone_detected = false;
-                self.device_manager.statuses.drone_coords = None;
-            }
-
-            self.device_manager.statuses.i2s =
-                self.i2s_status.fetch_and(0, Ordering::Relaxed).into();
-            self.device_manager.statuses.umc =
-                self.umc_status.fetch_and(0, Ordering::Relaxed).into();
-
-            if let Some(mut guard) = self.i2s_max.try_lock_for(Duration::from_millis(50)) {
-                self.device_manager.statuses.max_i2s = (*guard as f32 / 1e6) as i32;
-                *guard = i32::MIN;
-            } else {
-                self.device_manager.statuses.max_i2s = i32::MIN;
-            }
-
-            if let Some(mut guard) = self.umc_max.try_lock_for(Duration::from_millis(50)) {
-                self.device_manager.statuses.max_umc = (*guard as f32 / 1e6) as i32;
-                *guard = i32::MIN;
-            } else {
-                self.device_manager.statuses.max_umc = i32::MIN;
-            }
-
             if let Some(disk) = disk.as_mut() {
                 disk.refresh_specifics(DiskRefreshKind::nothing().with_storage());
                 let free = disk.available_space() as f32 / (1024.0 * 1024.0 * 1024.0);
@@ -494,151 +410,6 @@ impl<'a> Reader<'a> {
                 .iter()
                 .filter_map(|c| c.temperature())
                 .max_by(|a, b| a.total_cmp(b));
-
-            #[derive(Serialize, Debug)]
-            struct FakeData {
-                mac: String,
-                datetime: i64,
-                cpu_temp: f32,
-                accel: [f32; 3],
-                magn: [f32; 3],
-                gyro: [f32; 3],
-                angle: f32,
-                mag_magnitude: f32,
-                temp: f32,
-                humidity: f32,
-                latitude: f64,
-                longitude: f64,
-                gps_timestamp: Option<String>,
-                wind_dir: u16,
-                wind_speed: f32,
-                radius: u32,
-            }
-
-            //let fake_lat_lon = [
-            //    (52.47834, 16.93098),
-            //    (52.47751, 16.92642),
-            //    (52.47671, 16.92221),
-            //];
-
-            //let fake_lat = [52.4775535, 52.4786645, 52.4797755];
-            //let fake_lon = [16.9273625, 16.9284735, 16.9295845];
-
-            //let rand_lat_lon = fake_lat_lon
-            //    .choose(&mut rng)
-            //    .map(|(lat, lon)| {
-            //        (lat + random_range(0.0..0.0000099), lon + random_range(0.0..0.0000099))
-            //    })
-            //    .unwrap();
-
-            let rand_lat_lon = match ip.chars().rev().nth(1).unwrap() {
-                '4' => (
-                    52.47834 + random_range(0.0..0.0000099),
-                    16.93098 + random_range(0.0..0.0000099),
-                ),
-                '5' => {
-                    self.device_manager.statuses.drone_detected = true;
-                    self.device_manager.statuses.drone_coords = Some(Coords {
-                        lat: 52.478982 + random_range(0.0..0.0000099),
-                        lon: 16.919339 + random_range(0.0..0.0000099),
-                        target_id: 0,
-                    });
-                    (
-                        52.47751 + random_range(0.0..0.0000099),
-                        16.92642 + random_range(0.0..0.0000099),
-                    )
-                }
-                '6' => {
-                    self.device_manager.statuses.drone_detected = true;
-                    self.device_manager.statuses.drone_coords = Some(Coords {
-                        lat: 52.478982 + random_range(0.0..0.0000099),
-                        lon: 16.919339 + random_range(0.0..0.0000099),
-                        target_id: 0,
-                    });
-                    (
-                        52.47671 + random_range(0.0..0.0000099),
-                        16.92221 + random_range(0.0..0.0000099),
-                    )
-                }
-                _ => (0.0, 0.0),
-            };
-
-            let fake_data = FakeData {
-                mac: mac.clone(),
-                datetime: chrono::Utc::now().timestamp_nanos_opt().unwrap(),
-                cpu_temp: self.device_manager.statuses.temp.unwrap_or(0.0),
-                accel: data.imu.map_or([0.0, 0.0, 0.0], |d| d.acc),
-                magn: data.imu.map_or([0.0, 0.0, 0.0], |d| d.mag),
-                gyro: data.imu.map_or([0.0, 0.0, 0.0], |d| d.gyro),
-                angle: data.imu.map_or(0.0, |d| d.angle),
-                mag_magnitude: 0.0,
-                temp: data.aht.map_or(0.0, |d| d.temperature),
-                humidity: data.aht.map_or(0.0, |d| d.humidity),
-                latitude: rand_lat_lon.0,
-                longitude: rand_lat_lon.1,
-                //latitude: *fake_lat.choose(&mut rng).unwrap(),
-                //longitude: *fake_lon.choose(&mut rng).unwrap(),
-                //latitude: data.gps.as_ref().map_or(0.0, |d| d.latitude),
-                //longitude: data.gps.as_ref().map_or(0.0, |d| d.longitude),
-                gps_timestamp: data.gps.clone().map(|d| d.timestamp.to_rfc3339()),
-                wind_dir: data.wind.map_or(0, |d| d.dir),
-                wind_speed: data.wind.map_or(0.0, |d| d.speed),
-                radius: 9000,
-            };
-
-            match ip.chars().rev().nth(1).unwrap() {
-                '4' | '5' | '6' => {
-                    if let Some(gps) = data.gps.as_mut() {
-                        gps.latitude = rand_lat_lon.0;
-                        gps.longitude = rand_lat_lon.1;
-                    } else {
-                        data.gps = Some(gps::Data {
-                            latitude: rand_lat_lon.0,
-                            longitude: rand_lat_lon.1,
-                            timestamp: chrono::Utc::now(),
-                            altitude: 0.0,
-                        })
-                    }
-                }
-                _ => {}
-            }
-
-            #[derive(Serialize, Debug)]
-            struct FakeDetection {
-                tid: String,
-                target: String,
-                latitude: f64,
-                longitude: f64,
-                showtime: String,
-                mast: String,
-                status: String,
-            }
-
-            //let rand_lat_lon = fake_lat_lon
-            //    .choose(&mut rng)
-            //    .map(|(lat, lon)| {
-            //        (lat + random_range(0.0..0.0000099), lon + random_range(0.0..0.0000099))
-            //    })
-            //    .unwrap();
-            let target = format!("target{}", random_range(0u8..10));
-
-            let fake_detection =
-                self.device_manager
-                    .statuses
-                    .drone_coords
-                    .map(|coords| FakeDetection {
-                        tid: target.clone(),
-                        target,
-                        //latitude: 52.478982 + random_range(0.0..0.0000099),
-                        //longitude: 16.919339 + random_range(0.0..0.0000099),
-                        latitude: coords.lat,
-                        longitude: coords.lon,
-                        //latitude: *fake_lat.choose(&mut rng).unwrap(),
-                        //longitude: *fake_lon.choose(&mut rng).unwrap(),
-                        showtime: chrono::Utc::now().to_rfc3339(),
-                        mast: mac.clone(),
-                        status: "hostile".to_string(),
-                    });
 
             #[derive(Serialize, Debug)]
             struct JsonData<'a> {
@@ -701,55 +472,9 @@ impl<'a> Reader<'a> {
                                 warn!("Failed to make POST request: {err}");
                             }
                         }
-                        match client
-                            .post("http://192.168.71.12:8095/andros/api/kafka/json/publish/node")
-                            .body(str)
-                            .send()
-                        {
-                            Ok(_) => {}
-                            Err(err) => {
-                                warn!("Failed to make POST request: {err}");
-                            }
-                        }
                     }
                     Err(e) => {
                         warn!("Failed to serialize data to json: {e}");
-                    }
-                }
-                match serde_json::to_string(&fake_data) {
-                    Ok(str) => {
-                        match client
-                            .post("http://192.168.71.12:8095/andros/api/kafka/json/publish/node")
-                            .body(str)
-                            .send()
-                        {
-                            Ok(_) => {}
-                            Err(err) => {
-                                warn!("Failed to make POST request: {err}");
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        warn!("Failed to serialize data to json: {e}");
-                    }
-                }
-                if let Some(fake_detection) = fake_detection {
-                    match serde_json::to_string(&fake_detection) {
-                        Ok(str) => {
-                            match client
-                            .post("http://192.168.71.12:8095/andros/api/kafka/json/publish/target")
-                            .body(str)
-                            .send()
-                            {
-                                Ok(_) => {}
-                                Err(err) => {
-                                    warn!("Failed to make POST request: {err}");
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            warn!("Failed to serialize data to json: {e}");
-                        }
                     }
                 }
             }
