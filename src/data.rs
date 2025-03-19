@@ -93,7 +93,7 @@ impl<'a> Reader<'a> {
         match err {
             gps::Error::Uart(uart_err) => {
                 warn!("GPS init failed: {uart_err}");
-                self.device_manager.statuses.gps = Status::Dc;
+                self.device_manager.statuses.gps = Status::Dced;
             }
             _ => unreachable!(),
         }
@@ -108,7 +108,7 @@ impl<'a> Reader<'a> {
         match err {
             aht::Error::I2c(i2c_err) => {
                 //warn!("AHT10 init failed: {i2c_err}");
-                self.device_manager.statuses.aht = Status::Dc;
+                self.device_manager.statuses.aht = Status::Dced;
             }
             aht::Error::Aht(_) => unreachable!(),
         }
@@ -123,7 +123,7 @@ impl<'a> Reader<'a> {
         match err {
             bmp::Error::Bmp(err) => {
                 //warn!("BMP280 init failed: {err}");
-                self.device_manager.statuses.bmp = Status::Dc;
+                self.device_manager.statuses.bmp = Status::Dced;
             }
         }
     }
@@ -168,12 +168,12 @@ impl<'a> Reader<'a> {
                                     }
                                     Err(err) => {
                                         warn!("{err}");
-                                        data.lock().1 = Status::Dc;
+                                        data.lock().1 = Status::Dced;
                                     }
                                 },
                                 Err(err) => {
                                     warn!("IMU init: {err}");
-                                    data.lock().1 = Status::Dc;
+                                    data.lock().1 = Status::Dced;
                                 }
                             };
                         }
@@ -218,7 +218,7 @@ impl<'a> Reader<'a> {
                                 }
                                 Err(err) => {
                                     //warn!("{err}");
-                                    data.lock().1 = Status::Dc;
+                                    data.lock().1 = Status::Dced;
                                 }
                             };
                         }
@@ -259,7 +259,7 @@ impl<'a> Reader<'a> {
                                 }
                                 Err(err) => {
                                     //warn!("{err}");
-                                    data.lock().1 = Status::Dc;
+                                    data.lock().1 = Status::Dced;
                                 }
                             };
                         }
