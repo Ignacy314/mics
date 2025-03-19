@@ -101,13 +101,13 @@ impl<'a> Reader<'a> {
 
     fn handle_aht_data_error(&mut self, err: &aht::Error) {
         self.device_manager.statuses.aht = Status::NoData;
-        error!("AHT10 data error: {err}");
+        //error!("AHT10 data error: {err}");
     }
 
     fn handle_aht_init_error(&mut self, err: &aht::Error) {
         match err {
             aht::Error::I2c(i2c_err) => {
-                warn!("AHT10 init failed: {i2c_err}");
+                //warn!("AHT10 init failed: {i2c_err}");
                 self.device_manager.statuses.aht = Status::Disconnected;
             }
             aht::Error::Aht(_) => unreachable!(),
@@ -116,13 +116,13 @@ impl<'a> Reader<'a> {
 
     fn handle_bmp_data_error(&mut self, err: &bmp::Error) {
         self.device_manager.statuses.bmp = Status::NoData;
-        error!("BMP280 data error: {err}");
+        //error!("BMP280 data error: {err}");
     }
 
     fn handle_bmp_init_error(&mut self, err: &bmp::Error) {
         match err {
             bmp::Error::Bmp(err) => {
-                warn!("BMP280 init failed: {err}");
+                //warn!("BMP280 init failed: {err}");
                 self.device_manager.statuses.bmp = Status::Disconnected;
             }
         }
@@ -202,10 +202,10 @@ impl<'a> Reader<'a> {
                                     *data.lock() = (d, Status::Ok);
                                 }
                                 Err(err) => {
-                                    match err {
-                                        wind::Error::NoData => {}
-                                        _ => warn!("{err}"),
-                                    }
+                                    //match err {
+                                    //    wind::Error::NoData => {}
+                                    //    _ => warn!("{err}"),
+                                    //}
                                     data.lock().1 = Status::NoData;
                                 }
                             }
@@ -217,7 +217,7 @@ impl<'a> Reader<'a> {
                                     data.lock().1 = Status::NoData;
                                 }
                                 Err(err) => {
-                                    warn!("{err}");
+                                    //warn!("{err}");
                                     data.lock().1 = Status::Disconnected;
                                 }
                             };
@@ -246,7 +246,7 @@ impl<'a> Reader<'a> {
                                     *data.lock() = (d, Status::Ok);
                                 }
                                 Err(err) => {
-                                    warn!("{err}");
+                                    //warn!("{err}");
                                     data.lock().1 = Status::NoData;
                                 }
                             }
@@ -258,7 +258,7 @@ impl<'a> Reader<'a> {
                                     data.lock().1 = Status::NoData;
                                 }
                                 Err(err) => {
-                                    warn!("{err}");
+                                    //warn!("{err}");
                                     data.lock().1 = Status::Disconnected;
                                 }
                             };
