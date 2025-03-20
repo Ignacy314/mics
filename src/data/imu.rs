@@ -394,7 +394,7 @@ impl<const SAMPLES: usize> Device for Imu<SAMPLES> {
                     && self.start.elapsed() < Duration::from_secs(20)
                     && self.rotation.iter().any(|r| r.abs() >= 360.0)
                 {
-                    self.update_mag_calibartion()?;
+                    //self.update_mag_calibartion()?;
                     self.rotation = [0.0; 3];
                     self.gyro_data.clear();
                 }
