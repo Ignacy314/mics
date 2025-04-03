@@ -280,6 +280,7 @@ fn main() {
                         AudioWriter::new(output_dir, clock_dir, wav_spec, umc_r).unwrap();
 
                     let detection_model = load_model(andros_dir.join("detection.model"));
+                    info!("Detection model loaded");
 
                     while running.load(Ordering::Relaxed) {
                         match writer.receive() {
@@ -288,6 +289,7 @@ fn main() {
                                     let (_freqs, values) = process_samples(&writer.buffer);
                                     if let Ok(x) = DenseMatrix::from_2d_vec(&vec![values]) {
                                         if let Ok(pred) = detection_model.predict(&x) {
+                                            info!("detection pred: {pred:?}");
                                             drone_detected.store(pred[0] == 1, Ordering::Relaxed);
                                         }
                                     }
