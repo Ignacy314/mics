@@ -67,6 +67,7 @@ pub struct Reader<'a> {
     umc_status: &'a AtomicU8,
     i2s_max: Arc<Mutex<i32>>,
     umc_max: Arc<Mutex<i32>>,
+    drone_detected: &'a AtomicBool,
 }
 
 impl<'a> Reader<'a> {
@@ -79,6 +80,7 @@ impl<'a> Reader<'a> {
         umc_status: &'a AtomicU8,
         i2s_max: Arc<Mutex<i32>>,
         umc_max: Arc<Mutex<i32>>,
+        drone_detected: &'a AtomicBool,
     ) -> Self {
         #[cfg(feature = "sensors")]
         let data_link = path.join("current");
@@ -94,6 +96,7 @@ impl<'a> Reader<'a> {
             umc_status,
             i2s_max,
             umc_max,
+            drone_detected,
         }
     }
 
@@ -428,6 +431,9 @@ impl<'a> Reader<'a> {
                     }
                 }
             }
+
+            self.device_manager.statuses.drone_detected =
+                self.drone_detected.load(Ordering::Relaxed);
 
             //if rand::random_range(0u32..10) != 0 && data.gps.is_some() {
             //    self.device_manager.statuses.drone_detected = true;

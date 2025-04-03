@@ -86,6 +86,8 @@ pub struct AudioWriter {
     pub clock: Instant,
     pub wav_spec: WavSpec,
     pub receiver: Receiver<([i32; SEND_BUF_SIZE], i64)>,
+    pub buffer: [i32; 8192],
+    pub buffer_index: usize,
 }
 
 #[cfg(feature = "audio")]
@@ -116,19 +118,28 @@ impl AudioWriter {
             clock: Instant::now(),
             wav_spec,
             receiver,
+            buffer: [0i32; 8192],
+            buffer_index: 0,
         })
     }
 
-    pub fn receive(&mut self) -> Result<(), CaptureDeviceError> {
+    pub fn receive(&mut self) -> Result<bool, CaptureDeviceError> {
         let (buf, ts) = self.receiver.recv()?;
         if self.clock.elapsed() >= Duration::from_secs(1) {
             self.write_clock(ts)?;
         }
         for s in buf {
+            self.buffer[self.buffer_index] = s;
+            self.buffer_index += 1;
             self.write_sample(s)?;
         }
         self.inc_sample();
-        Ok(())
+        if self.buffer_index == 8192 {
+            self.buffer_index = 0;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn time_to_write(&self) -> bool {

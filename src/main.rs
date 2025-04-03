@@ -1,6 +1,7 @@
 //#![allow(unused)]
 mod audio;
 mod data;
+mod detect;
 
 use std::fs::File;
 use std::io::Read;
@@ -13,6 +14,7 @@ use std::time::Duration;
 use alsa::pcm::Format;
 #[cfg(feature = "audio")]
 use crossbeam_channel::unbounded;
+use detect::{load_model, process_samples};
 use flexi_logger::{with_thread, FileSpec, Logger};
 #[cfg(feature = "audio")]
 use hound::SampleFormat;
@@ -23,6 +25,7 @@ use signal_hook::iterator::Signals;
 
 use audio::CaptureDevice;
 use audio::CaptureDeviceError;
+use smartcore::linalg::basic::matrix::DenseMatrix;
 
 #[cfg(feature = "audio")]
 use self::audio::{AudioWriter, SEND_BUF_SIZE};
@@ -149,6 +152,7 @@ fn main() {
     let running = &AtomicBool::new(true);
     let i2s_status = &AtomicU8::new(0);
     let umc_status = &AtomicU8::new(0);
+    let drone_detected = &AtomicBool::new(false);
 
     thread::scope(|s| {
         let mut signals = Signals::new([SIGINT]).unwrap();
@@ -214,7 +218,7 @@ fn main() {
                         AudioWriter::new(output_dir, clock_dir, wav_spec, i2s_r).unwrap();
                     while running.load(Ordering::Relaxed) {
                         match writer.receive() {
-                            Ok(()) => {}
+                            Ok(_b) => {}
                             Err(err) => {
                                 handle_capture_device_error(&err, umc_status);
                             }
@@ -274,9 +278,21 @@ fn main() {
                     let clock_dir = data_dir.join("clock_umc");
                     let mut writer =
                         AudioWriter::new(output_dir, clock_dir, wav_spec, umc_r).unwrap();
+
+                    let detection_model = load_model(andros_dir.join("detection.model"));
+
                     while running.load(Ordering::Relaxed) {
                         match writer.receive() {
-                            Ok(()) => {}
+                            Ok(buffer_full) => {
+                                if buffer_full {
+                                    let (_freqs, values) = process_samples(&writer.buffer);
+                                    if let Ok(x) = DenseMatrix::from_2d_vec(&vec![values]) {
+                                        if let Ok(pred) = detection_model.predict(&x) {
+                                            drone_detected.store(pred[0] == 1, Ordering::Relaxed);
+                                        }
+                                    }
+                                }
+                            }
                             Err(err) => {
                                 handle_capture_device_error(&err, umc_status);
                             }
@@ -297,6 +313,7 @@ fn main() {
             umc_status,
             i2s_max,
             umc_max,
+            drone_detected,
         );
         reader.read(running, s, ip);
     });
