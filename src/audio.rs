@@ -129,9 +129,11 @@ impl AudioWriter {
             self.write_clock(ts)?;
         }
         for s in buf {
-            self.buffer[self.buffer_index] = s;
-            self.buffer_index += 1;
             self.write_sample(s)?;
+        }
+        for s in buf.iter().step_by(2) {
+            self.buffer[self.buffer_index] = *s;
+            self.buffer_index += 1;
         }
         self.inc_sample();
         if self.buffer_index == 8192 {
