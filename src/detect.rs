@@ -57,5 +57,8 @@ pub fn process_samples(samples: &[i32]) -> (Vec<f32>, Vec<f32>) {
 pub fn load_model<P: AsRef<Path>>(
     model_path: P,
 ) -> RandomForestClassifier<f32, i32, DenseMatrix<f32>, Vec<i32>> {
-    bincode::deserialize_from(BufReader::new(File::open(model_path).unwrap())).unwrap()
+    bincode::deserialize_from(BufReader::new(
+        File::open(model_path).expect("Failed to open detection model path"),
+    ))
+    .expect("Failed to deserialize model")
 }
