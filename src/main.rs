@@ -19,7 +19,7 @@ use crossbeam_channel::unbounded;
 use flexi_logger::{with_thread, FileSpec, Logger};
 #[cfg(feature = "audio")]
 use hound::SampleFormat;
-use log::{info, warn};
+use log::{debug, info, warn};
 use ndarray::Array2;
 use parking_lot::Mutex;
 use signal_hook::consts::SIGINT;
@@ -287,6 +287,7 @@ fn main() {
 
                     let location_model =
                         models::load_location_model(andros_dir.join("location.model"));
+                    info!("Location model loaded");
 
                     let mut detections: CircularBuffer<5, u8> = CircularBuffer::from([0; 5]);
                     let mut distances: CircularBuffer<20, f32> = CircularBuffer::new();
@@ -305,13 +306,13 @@ fn main() {
                                             let drone_predicted = detections.iter().sum::<u8>() > 2;
                                             drone_detected
                                                 .store(drone_predicted, Ordering::Relaxed);
-                                            info!("Drone detected: {drone_predicted}");
+                                            debug!("Drone detected: {drone_predicted}");
                                         }
                                         if let Ok(distance) = location_model.predict(&x) {
                                             distances.push_back(distance[0]);
                                             let distance = distances.iter().sum::<f32>() / 20.0;
                                             drone_distance.store(distance, Ordering::Relaxed);
-                                            info!("Drone distance: {distance}");
+                                            debug!("Drone distance: {distance}");
                                         }
                                     }
                                 }
