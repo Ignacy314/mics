@@ -1,14 +1,15 @@
 use std::{fs::File, io::BufReader, path::Path};
 
 use convolutions_rs::convolutions::ConvolutionLayer;
-use ndarray::{Array, Array3, Array4};
-use smartcore::{
-    ensemble::random_forest_classifier::RandomForestClassifier, linalg::basic::matrix::DenseMatrix,
+use ndarray::{Array, Array2, Array3, Array4};
+use smartcore::ensemble::{
+    random_forest_classifier::RandomForestClassifier,
+    random_forest_regressor::RandomForestRegressor,
 };
 use spectrum_analyzer::{samples_fft_to_spectrum, windows::hann_window};
 
-pub fn process_samples(samples: &[i32]) -> (Vec<f32>, Vec<f32>) {
-    let samples = samples.iter().map(|s| *s as f32).collect::<Vec<_>>();
+pub fn process_samples<'a, I: Iterator<Item = &'a i32>>(samples: I) -> (Vec<f32>, Vec<f32>) {
+    let samples = samples.map(|s| *s as f32).collect::<Vec<_>>();
     let hann_window = hann_window(&samples);
 
     let spectrum = samples_fft_to_spectrum(
@@ -54,11 +55,20 @@ pub fn process_samples(samples: &[i32]) -> (Vec<f32>, Vec<f32>) {
     (freqs, fft_diff)
 }
 
-pub fn load_model<P: AsRef<Path>>(
+pub fn load_detection_model<P: AsRef<Path>>(
     model_path: P,
-) -> RandomForestClassifier<f32, i32, DenseMatrix<f32>, Vec<i32>> {
+) -> RandomForestClassifier<f32, i32, Array2<f32>, Vec<i32>> {
     bincode::deserialize_from(BufReader::new(
         File::open(model_path).expect("Failed to open detection model path"),
     ))
-    .expect("Failed to deserialize model")
+    .expect("Failed to deserialize detection model")
+}
+
+pub fn load_location_model<P: AsRef<Path>>(
+    model_path: P,
+) -> RandomForestRegressor<f32, f32, Array2<f32>, Vec<f32>> {
+    bincode::deserialize_from(BufReader::new(
+        File::open(model_path).expect("Failed to open location model path"),
+    ))
+    .expect("Failed to deserialize location model")
 }

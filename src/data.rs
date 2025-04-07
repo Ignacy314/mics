@@ -1,3 +1,4 @@
+use atomic_float::AtomicF32;
 #[cfg(feature = "sensors")]
 use std::fs::File;
 #[cfg(feature = "sensors")]
@@ -68,11 +69,13 @@ pub struct Reader<'a> {
     i2s_max: Arc<Mutex<i32>>,
     umc_max: Arc<Mutex<i32>>,
     drone_detected: &'a AtomicBool,
+    drone_distance: &'a AtomicF32,
 }
 
 impl<'a> Reader<'a> {
     const PERIOD_MILLIS: u64 = 5000;
 
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         #[cfg(feature = "sensors")] path: PathBuf,
         calib_path: &'a PathBuf,
@@ -81,6 +84,7 @@ impl<'a> Reader<'a> {
         i2s_max: Arc<Mutex<i32>>,
         umc_max: Arc<Mutex<i32>>,
         drone_detected: &'a AtomicBool,
+        drone_distance: &'a AtomicF32,
     ) -> Self {
         #[cfg(feature = "sensors")]
         let data_link = path.join("current");
@@ -97,6 +101,7 @@ impl<'a> Reader<'a> {
             i2s_max,
             umc_max,
             drone_detected,
+            drone_distance,
         }
     }
 
@@ -434,6 +439,9 @@ impl<'a> Reader<'a> {
 
             self.device_manager.statuses.drone_detected =
                 self.drone_detected.load(Ordering::Relaxed);
+
+            self.device_manager.statuses.drone_distance =
+                self.drone_distance.load(Ordering::Relaxed);
 
             //if rand::random_range(0u32..10) != 0 && data.gps.is_some() {
             //    self.device_manager.statuses.drone_detected = true;

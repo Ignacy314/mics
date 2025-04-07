@@ -16,6 +16,7 @@ use alsa::{
     pcm::{Access, Format, HwParams, PCM},
     Direction, Error, ValueOr,
 };
+use circular_buffer::CircularBuffer;
 #[cfg(feature = "audio")]
 use crossbeam_channel::Receiver;
 use crossbeam_channel::RecvError;
@@ -31,7 +32,7 @@ use parking_lot::Mutex;
 #[cfg(feature = "audio")]
 pub const AUDIO_FILE_DURATION: Duration = Duration::from_secs(60);
 #[cfg(feature = "audio")]
-pub const SEND_BUF_SIZE: usize = 1024;
+pub const SEND_BUF_SIZE: usize = 4800;
 
 #[cfg(feature = "audio")]
 struct AudioSender {
@@ -86,8 +87,8 @@ pub struct AudioWriter {
     pub clock: Instant,
     pub wav_spec: WavSpec,
     pub receiver: Receiver<([i32; SEND_BUF_SIZE], i64)>,
-    pub buffer: [i32; 8192],
-    pub buffer_index: usize,
+    pub buffer: CircularBuffer<8192, i32>,
+    // pub buffer_index: usize,
 }
 
 #[cfg(feature = "audio")]
@@ -118,8 +119,8 @@ impl AudioWriter {
             clock: Instant::now(),
             wav_spec,
             receiver,
-            buffer: [0i32; 8192],
-            buffer_index: 0,
+            buffer: CircularBuffer::new(),
+            // buffer_index: 0,
         })
     }
 
@@ -132,16 +133,22 @@ impl AudioWriter {
             self.write_sample(s)?;
         }
         for s in buf.iter().step_by(2) {
-            self.buffer[self.buffer_index] = *s;
-            self.buffer_index += 1;
+            // TODO figure out what to do with 8192 and 2400
+            self.buffer.push_back(*s);
+            // self.buffer[self.buffer_index] = *s;
+            // self.buffer_index += 1;
         }
         self.inc_sample();
-        if self.buffer_index == 8192 {
-            self.buffer_index = 0;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        Ok(self.buffer.is_full())
+        // if self.buffer.is_full() {
+        //
+        // }
+        // if self.buffer_index == 8192 {
+        //     self.buffer_index = 0;
+        //     Ok(true)
+        // } else {
+        //     Ok(false)
+        // }
     }
 
     pub fn time_to_write(&self) -> bool {

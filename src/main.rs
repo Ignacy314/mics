@@ -1,7 +1,7 @@
 //#![allow(unused)]
 mod audio;
 mod data;
-mod detect;
+mod models;
 
 use std::fs::File;
 use std::io::Read;
@@ -12,20 +12,21 @@ use std::thread;
 use std::time::Duration;
 
 use alsa::pcm::Format;
+use atomic_float::AtomicF32;
+use circular_buffer::CircularBuffer;
 #[cfg(feature = "audio")]
 use crossbeam_channel::unbounded;
-use detect::{load_model, process_samples};
 use flexi_logger::{with_thread, FileSpec, Logger};
 #[cfg(feature = "audio")]
 use hound::SampleFormat;
 use log::{info, warn};
+use ndarray::Array2;
 use parking_lot::Mutex;
 use signal_hook::consts::SIGINT;
 use signal_hook::iterator::Signals;
 
 use audio::CaptureDevice;
 use audio::CaptureDeviceError;
-use smartcore::linalg::basic::matrix::DenseMatrix;
 
 #[cfg(feature = "audio")]
 use self::audio::{AudioWriter, SEND_BUF_SIZE};
@@ -153,6 +154,7 @@ fn main() {
     let i2s_status = &AtomicU8::new(0);
     let umc_status = &AtomicU8::new(0);
     let drone_detected = &AtomicBool::new(false);
+    let drone_distance = &AtomicF32::new(0.0);
 
     thread::scope(|s| {
         let mut signals = Signals::new([SIGINT]).unwrap();
@@ -279,18 +281,37 @@ fn main() {
                     let mut writer =
                         AudioWriter::new(output_dir, clock_dir, wav_spec, umc_r).unwrap();
 
-                    let detection_model = load_model(andros_dir.join("detection.model"));
+                    let detection_model =
+                        models::load_detection_model(andros_dir.join("detection.model"));
                     info!("Detection model loaded");
+
+                    let location_model =
+                        models::load_location_model(andros_dir.join("location.model"));
+
+                    let mut detections: CircularBuffer<5, u8> = CircularBuffer::from([0; 5]);
+                    let mut distances: CircularBuffer<20, f32> = CircularBuffer::new();
 
                     while running.load(Ordering::Relaxed) {
                         match writer.receive() {
                             Ok(buffer_full) => {
                                 if buffer_full {
-                                    let (_freqs, values) = process_samples(&writer.buffer);
-                                    if let Ok(x) = DenseMatrix::from_2d_vec(&vec![values]) {
+                                    let (_freqs, values) =
+                                        models::process_samples(writer.buffer.iter());
+                                    // if let Ok(x) = DenseMatrix::from_2d_vec(&vec![values]) {
+                                    if let Ok(x) = Array2::from_shape_vec((1, values.len()), values)
+                                    {
                                         if let Ok(pred) = detection_model.predict(&x) {
-                                            info!("detection pred: {pred:?}");
-                                            drone_detected.store(pred[0] == 1, Ordering::Relaxed);
+                                            detections.push_back(if pred[0] == 1 { 1 } else { 0 });
+                                            let drone_predicted = detections.iter().sum::<u8>() > 2;
+                                            drone_detected
+                                                .store(drone_predicted, Ordering::Relaxed);
+                                            info!("Drone detected: {drone_predicted}");
+                                        }
+                                        if let Ok(distance) = location_model.predict(&x) {
+                                            distances.push_back(distance[0]);
+                                            let distance = distances.iter().sum::<f32>() / 20.0;
+                                            drone_distance.store(distance, Ordering::Relaxed);
+                                            info!("Drone distance: {distance}");
                                         }
                                     }
                                 }
@@ -316,6 +337,7 @@ fn main() {
             i2s_max,
             umc_max,
             drone_detected,
+            drone_distance,
         );
         reader.read(running, s, ip);
     });
