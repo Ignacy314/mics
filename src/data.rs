@@ -543,37 +543,37 @@ impl<'a> Reader<'a> {
             //     })
             //     .unwrap();
 
-            let rand_lat_lon = match ip.chars().rev().nth(1).unwrap() {
-                '4' => (
-                    52.47834 + random_range(0.0..0.0000099),
-                    16.93098 + random_range(0.0..0.0000099),
-                ),
-                '5' => {
-                    self.device_manager.statuses.drone_detected = true;
-                    self.device_manager.statuses.drone_coords = Some(Coords {
-                        lat: 52.478982 + random_range(0.0..0.0000099),
-                        lon: 16.919339 + random_range(0.0..0.0000099),
-                        target_id: 0,
-                    });
-                    (
-                        52.47751 + random_range(0.0..0.0000099),
-                        16.92642 + random_range(0.0..0.0000099),
-                    )
-                }
-                '6' => {
-                    self.device_manager.statuses.drone_detected = true;
-                    self.device_manager.statuses.drone_coords = Some(Coords {
-                        lat: 52.478982 + random_range(0.0..0.0000099),
-                        lon: 16.919339 + random_range(0.0..0.0000099),
-                        target_id: 0,
-                    });
-                    (
-                        52.47671 + random_range(0.0..0.0000099),
-                        16.92221 + random_range(0.0..0.0000099),
-                    )
-                }
-                _ => (0.0, 0.0),
-            };
+            // let rand_lat_lon = match ip.chars().rev().nth(1).unwrap() {
+            //     '4' => (
+            //         52.47834 + random_range(0.0..0.0000099),
+            //         16.93098 + random_range(0.0..0.0000099),
+            //     ),
+            //     '5' => {
+            //         self.device_manager.statuses.drone_detected = true;
+            //         self.device_manager.statuses.drone_coords = Some(Coords {
+            //             lat: 52.478982 + random_range(0.0..0.0000099),
+            //             lon: 16.919339 + random_range(0.0..0.0000099),
+            //             target_id: 0,
+            //         });
+            //         (
+            //             52.47751 + random_range(0.0..0.0000099),
+            //             16.92642 + random_range(0.0..0.0000099),
+            //         )
+            //     }
+            //     '6' => {
+            //         self.device_manager.statuses.drone_detected = true;
+            //         self.device_manager.statuses.drone_coords = Some(Coords {
+            //             lat: 52.478982 + random_range(0.0..0.0000099),
+            //             lon: 16.919339 + random_range(0.0..0.0000099),
+            //             target_id: 0,
+            //         });
+            //         (
+            //             52.47671 + random_range(0.0..0.0000099),
+            //             16.92221 + random_range(0.0..0.0000099),
+            //         )
+            //     }
+            //     _ => (0.0, 0.0),
+            // };
 
             // let fake_data = FakeData {
             //     mac: mac.clone(),
@@ -598,22 +598,22 @@ impl<'a> Reader<'a> {
             //     radius: 9000,
             // };
 
-            match ip.chars().rev().nth(1).unwrap() {
-                '4' | '5' | '6' => {
-                    if let Some(gps) = data.gps.as_mut() {
-                        gps.latitude = rand_lat_lon.0;
-                        gps.longitude = rand_lat_lon.1;
-                    } else {
-                        data.gps = Some(gps::Data {
-                            latitude: rand_lat_lon.0,
-                            longitude: rand_lat_lon.1,
-                            timestamp: chrono::Utc::now(),
-                            altitude: 0.0,
-                        })
-                    }
-                }
-                _ => {}
-            }
+            // match ip.chars().rev().nth(1).unwrap() {
+            //     '4' | '5' | '6' => {
+            //         if let Some(gps) = data.gps.as_mut() {
+            //             gps.latitude = rand_lat_lon.0;
+            //             gps.longitude = rand_lat_lon.1;
+            //         } else {
+            //             data.gps = Some(gps::Data {
+            //                 latitude: rand_lat_lon.0,
+            //                 longitude: rand_lat_lon.1,
+            //                 timestamp: chrono::Utc::now(),
+            //                 altitude: 0.0,
+            //             })
+            //         }
+            //     }
+            //     _ => {}
+            // }
 
             // #[derive(Serialize, Debug)]
             // struct FakeDetection {
@@ -713,16 +713,16 @@ impl<'a> Reader<'a> {
                                 warn!("Failed to make POST request: {err}");
                             }
                         }
-                        match client
-                            .post("http://192.168.71.12:8095/andros/api/kafka/json/publish/node")
-                            .body(str)
-                            .send()
-                        {
-                            Ok(_) => {}
-                            Err(err) => {
-                                warn!("Failed to make POST request: {err}");
-                            }
-                        }
+                        // match client
+                        //     .post("http://192.168.71.12:8095/andros/api/kafka/json/publish/node")
+                        //     .body(str)
+                        //     .send()
+                        // {
+                        //     Ok(_) => {}
+                        //     Err(err) => {
+                        //         warn!("Failed to make POST request: {err}");
+                        //     }
+                        // }
                     }
                     Err(e) => {
                         warn!("Failed to serialize data to json: {e}");
