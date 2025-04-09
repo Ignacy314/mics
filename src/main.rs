@@ -8,8 +8,8 @@ use std::io::Read;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
-use std::thread;
-use std::time::Duration;
+use std::thread::{self, sleep};
+use std::time::{Duration, Instant};
 
 use alsa::pcm::Format;
 use atomic_float::AtomicF32;
@@ -27,6 +27,7 @@ use signal_hook::iterator::Signals;
 
 use audio::CaptureDevice;
 use audio::CaptureDeviceError;
+use tungstenite::connect;
 
 #[cfg(feature = "audio")]
 use self::audio::{AudioWriter, SEND_BUF_SIZE};
@@ -323,6 +324,52 @@ fn main() {
                         };
                         if writer.time_to_write() {
                             writer = writer.write_wav().unwrap();
+                        }
+                    }
+                }
+            })
+            .unwrap();
+
+        #[cfg(feature = "audio")]
+        thread::Builder::new()
+            .name("drone_detection_sender".to_owned())
+            .spawn_scoped(s, {
+                let (ip, mac) = ip
+                    .as_ref()
+                    .map(|(ip, mac, _)| (ip.clone(), mac.clone()))
+                    .unwrap_or_else(|| ("no_ip".to_owned(), "no_mac".to_owned()));
+                move || {
+                    let read_period = Duration::from_millis(50);
+
+                    while running.load(Ordering::Relaxed) {
+                        let (mut socket, _response) = match connect("ws://10.66.66.1:3012/socket") {
+                            Ok(c) => c,
+                            Err(e) => {
+                                log::error!("Drone WebSocket connection error: {e}");
+                                sleep(Duration::from_millis(1000));
+                                continue;
+                            }
+                        };
+                        log::info!("Drone WebSocket connected");
+
+                        sleep(Duration::from_secs(1));
+
+                        while running.load(Ordering::Relaxed) {
+                            let start = Instant::now();
+                            match socket.send(tungstenite::Message::Text(
+                                format!(
+                                    "{ip}|{mac}|{}|{}",
+                                    drone_detected.load(Ordering::Relaxed),
+                                    drone_distance.load(Ordering::Relaxed)
+                                )
+                                .into(),
+                            )) {
+                                Ok(_) => {}
+                                Err(err) => {
+                                    log::error!("Error sending drone WebSocket message: {err}");
+                                }
+                            }
+                            sleep(read_period.saturating_sub(start.elapsed()));
                         }
                     }
                 }
