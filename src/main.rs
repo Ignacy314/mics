@@ -6,13 +6,13 @@ mod models;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering};
 use std::sync::Arc;
 use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
 
 use alsa::pcm::Format;
-use atomic_float::AtomicF32;
+use atomic_float::{AtomicF32, AtomicF64};
 use circular_buffer::CircularBuffer;
 #[cfg(feature = "audio")]
 use crossbeam_channel::unbounded;
@@ -156,6 +156,9 @@ fn main() {
     let umc_status = &AtomicU8::new(0);
     let drone_detected = &AtomicBool::new(false);
     let drone_distance = &AtomicF32::new(0.0);
+    let lat = &AtomicF64::new(0.0);
+    let lon = &AtomicF64::new(0.0);
+    let counter = &AtomicU32::new(0);
 
     thread::scope(|s| {
         let mut signals = Signals::new([SIGINT]).unwrap();
@@ -290,7 +293,7 @@ fn main() {
                         models::load_location_model(andros_dir.join("location.model"));
                     info!("Location model loaded");
 
-                    let mut detections: CircularBuffer<5, u8> = CircularBuffer::from([0; 5]);
+                    let mut detections: CircularBuffer<20, u8> = CircularBuffer::from([0; 20]);
                     let mut distances: CircularBuffer<20, f32> = CircularBuffer::new();
 
                     while running.load(Ordering::Relaxed) {
@@ -303,8 +306,9 @@ fn main() {
                                     if let Ok(x) = Array2::from_shape_vec((1, values.len()), values)
                                     {
                                         if let Ok(pred) = detection_model.predict(&x) {
-                                            detections.push_back(if pred[0] == 1 { 1 } else { 0 });
-                                            let drone_predicted = detections.iter().sum::<u8>() > 2;
+                                            // detections.push_back(if pred[0] == 1 { 1 } else { 0 });
+                                            detections.push_back(pred[0] as u8);
+                                            let drone_predicted = detections.iter().sum::<u8>() > 1;
                                             drone_detected
                                                 .store(drone_predicted, Ordering::Relaxed);
                                             debug!("Drone detected: {drone_predicted}");
@@ -356,9 +360,12 @@ fn main() {
 
                         while running.load(Ordering::Relaxed) {
                             let start = Instant::now();
+                            let counter = counter.load(Ordering::Relaxed) as f64;
+                            let lat = lat.load(Ordering::Relaxed) / counter;
+                            let lon = lon.load(Ordering::Relaxed) / counter;
                             match socket.send(tungstenite::Message::Text(
                                 format!(
-                                    "{ip}|{mac}|{}|{}",
+                                    "{mac}|{ip}|{lat}|{lon}|{}|{}",
                                     drone_detected.load(Ordering::Relaxed),
                                     drone_distance.load(Ordering::Relaxed)
                                 )
@@ -386,6 +393,9 @@ fn main() {
             umc_max,
             drone_detected,
             drone_distance,
+            lat,
+            lon,
+            counter,
         );
         reader.read(running, s, ip);
     });

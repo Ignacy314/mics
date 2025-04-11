@@ -1,4 +1,5 @@
 use atomic_float::AtomicF32;
+use atomic_float::AtomicF64;
 use device_manager::Coords;
 use rand::random_range;
 #[cfg(feature = "sensors")]
@@ -10,6 +11,7 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
+use std::sync::atomic::AtomicU32;
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -72,6 +74,9 @@ pub struct Reader<'a> {
     umc_max: Arc<Mutex<i32>>,
     drone_detected: &'a AtomicBool,
     drone_distance: &'a AtomicF32,
+    lat: &'a AtomicF64,
+    lon: &'a AtomicF64,
+    counter: &'a AtomicU32,
 }
 
 impl<'a> Reader<'a> {
@@ -87,6 +92,9 @@ impl<'a> Reader<'a> {
         umc_max: Arc<Mutex<i32>>,
         drone_detected: &'a AtomicBool,
         drone_distance: &'a AtomicF32,
+        lat: &'a AtomicF64,
+        lon: &'a AtomicF64,
+        counter: &'a AtomicU32,
     ) -> Self {
         #[cfg(feature = "sensors")]
         let data_link = path.join("current");
@@ -104,6 +112,9 @@ impl<'a> Reader<'a> {
             umc_max,
             drone_detected,
             drone_distance,
+            lat,
+            lon,
+            counter,
         }
     }
 
@@ -377,6 +388,9 @@ impl<'a> Reader<'a> {
                 match gps.get_data() {
                     Ok(d) => {
                         self.device_manager.statuses.gps = Status::Ok;
+                        self.lat.fetch_add(d.latitude, Ordering::Relaxed);
+                        self.lon.fetch_add(d.longitude, Ordering::Relaxed);
+                        self.counter.fetch_add(1, Ordering::Relaxed);
                         // sum_lon += d.longitude;
                         // sum_lat += d.latitude;
                         // coord_count += 1;
