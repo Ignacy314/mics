@@ -374,6 +374,7 @@ fn main() {
                                 Ok(_) => {}
                                 Err(err) => {
                                     log::error!("Error sending drone WebSocket message: {err}");
+                                    break;
                                 }
                             }
                             sleep(read_period.saturating_sub(start.elapsed()));
