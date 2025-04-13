@@ -55,7 +55,7 @@ pub struct Statuses<'a> {
     pub max_umc: i32,
     pub writing: &'a str,
     pub drone_detected: bool,
-    pub drone_distance: f32,
+    pub drone_distance: f64,
     pub drone_coords: Option<Coords>,
 }
 

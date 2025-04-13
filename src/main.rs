@@ -12,7 +12,7 @@ use std::thread::{self, sleep};
 use std::time::{Duration, Instant};
 
 use alsa::pcm::Format;
-use atomic_float::{AtomicF32, AtomicF64};
+use atomic_float::AtomicF64;
 use circular_buffer::CircularBuffer;
 #[cfg(feature = "audio")]
 use crossbeam_channel::unbounded;
@@ -20,7 +20,8 @@ use flexi_logger::{with_thread, FileSpec, Logger};
 #[cfg(feature = "audio")]
 use hound::SampleFormat;
 use log::{debug, info, warn};
-use ndarray::Array2;
+use ndarray::{Array2, ArrayViewD};
+use ort::inputs;
 use parking_lot::Mutex;
 use signal_hook::consts::SIGINT;
 use signal_hook::iterator::Signals;
@@ -155,7 +156,7 @@ fn main() {
     let i2s_status = &AtomicU8::new(0);
     let umc_status = &AtomicU8::new(0);
     let drone_detected = &AtomicBool::new(false);
-    let drone_distance = &AtomicF32::new(0.0);
+    let drone_distance = &AtomicF64::new(0.0);
     let lat = &AtomicF64::new(0.0);
     let lon = &AtomicF64::new(0.0);
     let counter = &AtomicU32::new(0);
@@ -285,16 +286,14 @@ fn main() {
                     let mut writer =
                         AudioWriter::new(output_dir, clock_dir, wav_spec, umc_r).unwrap();
 
-                    let detection_model =
-                        models::load_detection_model(andros_dir.join("detection.model"));
+                    let detection_model = models::load_onnx(andros_dir.join("detection.onnx"));
                     info!("Detection model loaded");
 
-                    let location_model =
-                        models::load_location_model(andros_dir.join("location.model"));
+                    let location_model = models::load_onnx(andros_dir.join("location.onnx"));
                     info!("Location model loaded");
 
                     let mut detections: CircularBuffer<20, u8> = CircularBuffer::from([0; 20]);
-                    let mut distances: CircularBuffer<20, f32> = CircularBuffer::new();
+                    let mut distances: CircularBuffer<20, f64> = CircularBuffer::new();
 
                     while running.load(Ordering::Relaxed) {
                         match writer.receive() {
@@ -305,7 +304,14 @@ fn main() {
                                     // if let Ok(x) = DenseMatrix::from_2d_vec(&vec![values]) {
                                     if let Ok(x) = Array2::from_shape_vec((1, values.len()), values)
                                     {
-                                        if let Ok(pred) = detection_model.predict(&x) {
+                                        if let Ok(outputs) =
+                                            detection_model.run(inputs![x.clone()].unwrap())
+                                        {
+                                            let pred: ArrayViewD<i32> =
+                                                outputs["variable"].try_extract_tensor().unwrap();
+                                            let pred_len = pred.len();
+                                            let pred =
+                                                pred.into_shape_with_order(pred_len).unwrap();
                                             // detections.push_back(if pred[0] == 1 { 1 } else { 0 });
                                             detections.push_back(pred[0] as u8);
                                             let drone_predicted = detections.iter().sum::<u8>() > 1;
@@ -313,9 +319,15 @@ fn main() {
                                                 .store(drone_predicted, Ordering::Relaxed);
                                             debug!("Drone detected: {drone_predicted}");
                                         }
-                                        if let Ok(distance) = location_model.predict(&x) {
-                                            distances.push_back(distance[0]);
-                                            let distance = distances.iter().sum::<f32>() / 20.0;
+                                        if let Ok(outputs) = location_model.run(inputs![x].unwrap())
+                                        {
+                                            let pred: ArrayViewD<f64> =
+                                                outputs["variable"].try_extract_tensor().unwrap();
+                                            let pred_len = pred.len();
+                                            let pred =
+                                                pred.into_shape_with_order(pred_len).unwrap();
+                                            distances.push_back(pred[0]);
+                                            let distance = distances.iter().sum::<f64>() / 20.0;
                                             drone_distance.store(distance, Ordering::Relaxed);
                                             debug!("Drone distance: {distance}");
                                         }

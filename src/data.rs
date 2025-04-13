@@ -1,7 +1,4 @@
-use atomic_float::AtomicF32;
 use atomic_float::AtomicF64;
-use device_manager::Coords;
-use rand::random_range;
 #[cfg(feature = "sensors")]
 use std::fs::File;
 #[cfg(feature = "sensors")]
@@ -73,7 +70,7 @@ pub struct Reader<'a> {
     i2s_max: Arc<Mutex<i32>>,
     umc_max: Arc<Mutex<i32>>,
     drone_detected: &'a AtomicBool,
-    drone_distance: &'a AtomicF32,
+    drone_distance: &'a AtomicF64,
     lat: &'a AtomicF64,
     lon: &'a AtomicF64,
     counter: &'a AtomicU32,
@@ -91,7 +88,7 @@ impl<'a> Reader<'a> {
         i2s_max: Arc<Mutex<i32>>,
         umc_max: Arc<Mutex<i32>>,
         drone_detected: &'a AtomicBool,
-        drone_distance: &'a AtomicF32,
+        drone_distance: &'a AtomicF64,
         lat: &'a AtomicF64,
         lon: &'a AtomicF64,
         counter: &'a AtomicU32,
