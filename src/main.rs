@@ -286,53 +286,53 @@ fn main() {
                     let mut writer =
                         AudioWriter::new(output_dir, clock_dir, wav_spec, umc_r).unwrap();
 
-                    let detection_model = models::load_onnx(andros_dir.join("detection.onnx"));
-                    info!("Detection model loaded");
-
-                    let location_model = models::load_onnx(andros_dir.join("location.onnx"));
-                    info!("Location model loaded");
-
-                    let mut detections: CircularBuffer<20, u8> = CircularBuffer::from([0; 20]);
-                    let mut distances: CircularBuffer<20, f64> = CircularBuffer::new();
+                    // let detection_model = models::load_onnx(andros_dir.join("detection.onnx"));
+                    // info!("Detection model loaded");
+                    //
+                    // let location_model = models::load_onnx(andros_dir.join("location.onnx"));
+                    // info!("Location model loaded");
+                    //
+                    // let mut detections: CircularBuffer<20, u8> = CircularBuffer::from([0; 20]);
+                    // let mut distances: CircularBuffer<20, f64> = CircularBuffer::new();
 
                     while running.load(Ordering::Relaxed) {
                         match writer.receive() {
-                            Ok(buffer_full) => {
-                                if buffer_full {
-                                    let (_freqs, values) =
-                                        models::process_samples(writer.buffer.iter());
-                                    // if let Ok(x) = DenseMatrix::from_2d_vec(&vec![values]) {
-                                    if let Ok(x) = Array2::from_shape_vec((1, values.len()), values)
-                                    {
-                                        if let Ok(outputs) =
-                                            detection_model.run(inputs![x.clone()].unwrap())
-                                        {
-                                            let pred: ArrayViewD<i32> =
-                                                outputs["variable"].try_extract_tensor().unwrap();
-                                            let pred_len = pred.len();
-                                            let pred =
-                                                pred.into_shape_with_order(pred_len).unwrap();
-                                            // detections.push_back(if pred[0] == 1 { 1 } else { 0 });
-                                            detections.push_back(pred[0] as u8);
-                                            let drone_predicted = detections.iter().sum::<u8>() > 1;
-                                            drone_detected
-                                                .store(drone_predicted, Ordering::Relaxed);
-                                            debug!("Drone detected: {drone_predicted}");
-                                        }
-                                        if let Ok(outputs) = location_model.run(inputs![x].unwrap())
-                                        {
-                                            let pred: ArrayViewD<f64> =
-                                                outputs["variable"].try_extract_tensor().unwrap();
-                                            let pred_len = pred.len();
-                                            let pred =
-                                                pred.into_shape_with_order(pred_len).unwrap();
-                                            distances.push_back(pred[0]);
-                                            let distance = distances.iter().sum::<f64>() / 20.0;
-                                            drone_distance.store(distance, Ordering::Relaxed);
-                                            debug!("Drone distance: {distance}");
-                                        }
-                                    }
-                                }
+                            Ok(_buffer_full) => {
+                                // if buffer_full {
+                                //     let (_freqs, values) =
+                                //         models::process_samples(writer.buffer.iter());
+                                //     // if let Ok(x) = DenseMatrix::from_2d_vec(&vec![values]) {
+                                //     if let Ok(x) = Array2::from_shape_vec((1, values.len()), values)
+                                //     {
+                                //         if let Ok(outputs) =
+                                //             detection_model.run(inputs![x.clone()].unwrap())
+                                //         {
+                                //             let pred: ArrayViewD<i32> =
+                                //                 outputs["variable"].try_extract_tensor().unwrap();
+                                //             let pred_len = pred.len();
+                                //             let pred =
+                                //                 pred.into_shape_with_order(pred_len).unwrap();
+                                //             // detections.push_back(if pred[0] == 1 { 1 } else { 0 });
+                                //             detections.push_back(pred[0] as u8);
+                                //             let drone_predicted = detections.iter().sum::<u8>() > 1;
+                                //             drone_detected
+                                //                 .store(drone_predicted, Ordering::Relaxed);
+                                //             debug!("Drone detected: {drone_predicted}");
+                                //         }
+                                //         if let Ok(outputs) = location_model.run(inputs![x].unwrap())
+                                //         {
+                                //             let pred: ArrayViewD<f64> =
+                                //                 outputs["variable"].try_extract_tensor().unwrap();
+                                //             let pred_len = pred.len();
+                                //             let pred =
+                                //                 pred.into_shape_with_order(pred_len).unwrap();
+                                //             distances.push_back(pred[0]);
+                                //             let distance = distances.iter().sum::<f64>() / 20.0;
+                                //             drone_distance.store(distance, Ordering::Relaxed);
+                                //             debug!("Drone distance: {distance}");
+                                //         }
+                                //     }
+                                // }
                             }
                             Err(err) => {
                                 handle_capture_device_error(&err, umc_status);
@@ -346,55 +346,55 @@ fn main() {
             })
             .unwrap();
 
-        #[cfg(feature = "audio")]
-        thread::Builder::new()
-            .name("drone_detection_sender".to_owned())
-            .spawn_scoped(s, {
-                let (ip, mac) = ip
-                    .as_ref()
-                    .map(|(ip, mac, _)| (ip.clone(), mac.clone()))
-                    .unwrap_or_else(|| ("no_ip".to_owned(), "no_mac".to_owned()));
-                move || {
-                    let read_period = Duration::from_millis(50);
-
-                    while running.load(Ordering::Relaxed) {
-                        let (mut socket, _response) = match connect("ws://10.66.66.1:3012/socket") {
-                            Ok(c) => c,
-                            Err(e) => {
-                                log::error!("Drone WebSocket connection error: {e}");
-                                sleep(Duration::from_millis(1000));
-                                continue;
-                            }
-                        };
-                        log::info!("Drone WebSocket connected");
-
-                        sleep(Duration::from_secs(1));
-
-                        while running.load(Ordering::Relaxed) {
-                            let start = Instant::now();
-                            let counter = counter.load(Ordering::Relaxed) as f64;
-                            let lat = lat.load(Ordering::Relaxed) / counter;
-                            let lon = lon.load(Ordering::Relaxed) / counter;
-                            match socket.send(tungstenite::Message::Text(
-                                format!(
-                                    "{mac}|{ip}|{lat}|{lon}|{}|{}",
-                                    drone_detected.load(Ordering::Relaxed),
-                                    drone_distance.load(Ordering::Relaxed)
-                                )
-                                .into(),
-                            )) {
-                                Ok(_) => {}
-                                Err(err) => {
-                                    log::error!("Error sending drone WebSocket message: {err}");
-                                    break;
-                                }
-                            }
-                            sleep(read_period.saturating_sub(start.elapsed()));
-                        }
-                    }
-                }
-            })
-            .unwrap();
+        // #[cfg(feature = "audio")]
+        // thread::Builder::new()
+        //     .name("drone_detection_sender".to_owned())
+        //     .spawn_scoped(s, {
+        //         let (ip, mac) = ip
+        //             .as_ref()
+        //             .map(|(ip, mac, _)| (ip.clone(), mac.clone()))
+        //             .unwrap_or_else(|| ("no_ip".to_owned(), "no_mac".to_owned()));
+        //         move || {
+        //             let read_period = Duration::from_millis(50);
+        //
+        //             while running.load(Ordering::Relaxed) {
+        //                 let (mut socket, _response) = match connect("ws://10.66.66.1:3012/socket") {
+        //                     Ok(c) => c,
+        //                     Err(e) => {
+        //                         log::error!("Drone WebSocket connection error: {e}");
+        //                         sleep(Duration::from_millis(1000));
+        //                         continue;
+        //                     }
+        //                 };
+        //                 log::info!("Drone WebSocket connected");
+        //
+        //                 sleep(Duration::from_secs(1));
+        //
+        //                 while running.load(Ordering::Relaxed) {
+        //                     let start = Instant::now();
+        //                     let counter = counter.load(Ordering::Relaxed) as f64;
+        //                     let lat = lat.load(Ordering::Relaxed) / counter;
+        //                     let lon = lon.load(Ordering::Relaxed) / counter;
+        //                     match socket.send(tungstenite::Message::Text(
+        //                         format!(
+        //                             "{mac}|{ip}|{lat}|{lon}|{}|{}",
+        //                             drone_detected.load(Ordering::Relaxed),
+        //                             drone_distance.load(Ordering::Relaxed)
+        //                         )
+        //                         .into(),
+        //                     )) {
+        //                         Ok(_) => {}
+        //                         Err(err) => {
+        //                             log::error!("Error sending drone WebSocket message: {err}");
+        //                             break;
+        //                         }
+        //                     }
+        //                     sleep(read_period.saturating_sub(start.elapsed()));
+        //                 }
+        //             }
+        //         }
+        //     })
+        //     .unwrap();
 
         let mut reader = data::Reader::new(
             #[cfg(feature = "sensors")]
